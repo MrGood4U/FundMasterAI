@@ -8,8 +8,8 @@ def create_app():
     app.config.from_object(Config)
 
     # Register blueprints here
-    from views.example_view import example_bp
-    app.register_blueprint(example_bp)
+    from views.news_view import news_bp
+    app.register_blueprint(news_bp)
 
     @app.route('/')
     def hello_world():

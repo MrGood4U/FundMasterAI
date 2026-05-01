@@ -1,4 +1,4 @@
-class ExampleDao:
+class MarketDao:
     # Simulates rows from a DB table.
     _EXAMPLE_DATA = {
         1: {"id": 1, "name": "Growth Alpha", "risk_level": "high"},
