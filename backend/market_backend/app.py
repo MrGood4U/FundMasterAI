@@ -8,12 +8,15 @@ def create_app():
     app.config.from_object(Config)
 
     # Register blueprints here
-    from views.example_view import example_bp
-    app.register_blueprint(example_bp)
+    from views.public_fund_view import public_fund_bp
+    from views.stock_view import stock_bp
+    
+    app.register_blueprint(public_fund_bp)
+    app.register_blueprint(stock_bp)
 
     @app.route('/')
     def hello_world():
-        return jsonify(message="Hello from FundMasterAI Backend!")
+        return jsonify(message="Hello from FundMasterAI Market Backend!")
 
     return app
 
