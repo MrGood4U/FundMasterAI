@@ -1,0 +1,390 @@
+import os
+import sys
+import unittest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+from fund_llm.agents import ChiefAgent, ExposureAgent, PerformanceAgent, RiskAgent, SectorAgent, SentimentAgent
+from fund_llm.contracts import (
+    AgentOutput,
+    BenchmarkInfo,
+    FundAnalysisInput,
+    FundInfo,
+    FundOperationalMetrics,
+    NewsItem,
+    NavPoint,
+)
+from fund_llm.feature_builder import FeatureBuilder
+from fund_llm.llm_client import MockLLMClient
+
+
+def build_long_nav_series(point_count: int, start_nav: float = 1.0) -> list[NavPoint]:
+    nav = start_nav
+    nav_series = []
+    for day_index in range(point_count):
+        nav_series.append(NavPoint(date=f"2026-02-{day_index + 1:03d}", nav=round(nav, 6)))
+        if day_index % 2 == 0:
+            nav *= 1.013
+        else:
+            nav *= 0.995
+    return nav_series
+
+
+def build_sample_input() -> FundAnalysisInput:
+    return FundAnalysisInput(
+        request_id="demo-003",
+        fund_info=FundInfo(
+            code="110011",
+            name="示例成长混合",
+            asset_type="fund_open",
+            category="mixed",
+            manager="示例经理",
+        ),
+        nav_series=[
+            NavPoint(date="2026-01-01", nav=1.00),
+            NavPoint(date="2026-01-02", nav=1.03),
+            NavPoint(date="2026-01-03", nav=1.01),
+            NavPoint(date="2026-01-04", nav=1.08),
+            NavPoint(date="2026-01-05", nav=1.09),
+        ],
+        industry_exposure={
+            "科技": 0.32,
+            "医药": 0.18,
+            "消费": 0.16,
+        },
+        top_holdings_weight=0.48,
+        news_summary=["成长风格近期相对活跃"],
+        news_items=[
+            NewsItem(
+                title="成长板块成交回暖",
+                summary="科技成长方向风险偏好有所修复。",
+                published_at="2026-01-05",
+                source="示例资讯源",
+                topic="成长风格",
+                sentiment_label="positive",
+            ),
+            NewsItem(
+                title="波动仍需观察",
+                summary="部分高估值资产短期分歧仍在。",
+                published_at="2026-01-05",
+                source="示例券商",
+                topic="估值波动",
+                sentiment_label="neutral",
+            ),
+        ],
+        fund_tags=["core_holding", "active_equity", "consumer_tilt"],
+        operational_metrics=FundOperationalMetrics(
+            fund_size_billion=28.6,
+            inception_date="2018-09-05",
+            manager_tenure_years=4.5,
+        ),
+        extra_context={"client_risk_profile": "balanced"},
+    )
+
+
+def build_sample_features():
+    return FeatureBuilder().build(build_sample_input())
+
+
+def build_rich_features():
+    payload = build_sample_input()
+    payload.nav_series = build_long_nav_series(280)
+    payload.benchmark = BenchmarkInfo(code="000300", name="沪深300", asset_type="index")
+    payload.benchmark_nav_series = build_long_nav_series(280, start_nav=0.96)
+    return FeatureBuilder().build(payload)
+
+
+class BrokenLLMClient:
+    def chat(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
+        raise RuntimeError("mock llm failure")
+
+
+class AgentsTest(unittest.TestCase):
+    def test_performance_agent_returns_structured_output(self):
+        result = PerformanceAgent(MockLLMClient("performance narrative")).analyze(build_sample_features())
+
+        self.assertEqual(result.agent_name, "PerformanceAgent")
+        self.assertEqual(result.status, "success")
+        self.assertIsNotNone(result.score)
+        self.assertIn(result.stance, {"positive", "neutral", "negative"})
+        self.assertTrue(result.key_points)
+        self.assertTrue(result.recommendations)
+        self.assertEqual(result.narrative, "performance narrative")
+
+    def test_performance_agent_uses_window_and_benchmark_metrics_when_available(self):
+        result = PerformanceAgent(MockLLMClient("rich performance narrative")).analyze(build_rich_features())
+
+        self.assertTrue(any("1-year return" in item for item in result.key_points))
+        self.assertTrue(any("excess return" in item for item in result.key_points))
+        self.assertNotIn(
+            "Available return history is still limited for a fuller trend read.",
+            result.risks,
+        )
+
+    def test_exposure_agent_returns_structured_output(self):
+        result = ExposureAgent(MockLLMClient("exposure narrative")).analyze(build_sample_features())
+
+        self.assertEqual(result.agent_name, "ExposureAgent")
+        self.assertEqual(result.status, "success")
+        self.assertIsNotNone(result.score)
+        self.assertIn(result.stance, {"positive", "neutral", "negative"})
+        self.assertTrue(result.key_points)
+        self.assertTrue(result.recommendations)
+        self.assertEqual(result.narrative, "exposure narrative")
+
+    def test_exposure_agent_uses_contextual_fields_when_available(self):
+        result = ExposureAgent(MockLLMClient("rich exposure narrative")).analyze(build_rich_features())
+
+        self.assertTrue(any("Fund role/style tags include" in item for item in result.key_points))
+        self.assertTrue(any("Manager tenure" in item for item in result.key_points))
+        self.assertIn("Exposure profile looks consistent with a core allocation role.", result.recommendations)
+        self.assertGreaterEqual(result.confidence, 0.78)
+
+    def test_risk_agent_returns_structured_output(self):
+        result = RiskAgent(MockLLMClient("risk narrative")).analyze(build_sample_features())
+
+        self.assertEqual(result.agent_name, "RiskAgent")
+        self.assertEqual(result.status, "success")
+        self.assertIsNotNone(result.score)
+        self.assertIn(result.stance, {"positive", "neutral", "negative"})
+        self.assertTrue(result.key_points)
+        self.assertTrue(result.recommendations)
+        self.assertEqual(result.narrative, "risk narrative")
+
+    def test_risk_agent_uses_windowed_risk_metrics_when_available(self):
+        result = RiskAgent(MockLLMClient("rich risk narrative")).analyze(build_rich_features())
+
+        self.assertTrue(any("3-month annualized volatility" in item for item in result.key_points))
+        self.assertTrue(any("1-year max drawdown" in item for item in result.key_points))
+        self.assertNotIn(
+            "Risk history is still too short for a fuller rolling-risk assessment.",
+            result.risks,
+        )
+
+    def test_sentiment_agent_returns_structured_output(self):
+        result = SentimentAgent(MockLLMClient("sentiment narrative")).analyze(build_sample_features())
+
+        self.assertEqual(result.agent_name, "SentimentAgent")
+        self.assertEqual(result.status, "success")
+        self.assertIsNotNone(result.score)
+        self.assertIn(result.stance, {"positive", "neutral", "negative"})
+        self.assertTrue(result.key_points)
+        self.assertTrue(result.recommendations)
+        self.assertEqual(result.narrative, "sentiment narrative")
+
+    def test_sentiment_agent_uses_structured_news_signals_when_available(self):
+        result = SentimentAgent(MockLLMClient("rich sentiment narrative")).analyze(build_rich_features())
+
+        self.assertTrue(any("Processed" in item for item in result.key_points))
+        self.assertTrue(any("Positive news signals count" in item for item in result.key_points))
+        self.assertGreaterEqual(result.confidence, 0.7)
+
+    def test_sentiment_agent_gracefully_degrades_without_news(self):
+        payload = build_sample_input()
+        payload.news_summary = []
+        payload.news_items = []
+        result = SentimentAgent(MockLLMClient("no news narrative")).analyze(FeatureBuilder().build(payload))
+
+        self.assertIn("No recent news signal was provided.", result.key_points)
+        self.assertIn("No recent news items were provided, so sentiment coverage is limited.", result.risks)
+        self.assertLessEqual(result.confidence, 0.5)
+
+    def test_sector_agent_returns_structured_output(self):
+        result = SectorAgent(MockLLMClient("sector narrative")).analyze(build_sample_features())
+
+        self.assertEqual(result.agent_name, "SectorAgent")
+        self.assertEqual(result.status, "success")
+        self.assertIsNotNone(result.score)
+        self.assertIn(result.stance, {"positive", "neutral", "negative"})
+        self.assertTrue(result.key_points)
+        self.assertTrue(result.recommendations)
+        self.assertEqual(result.narrative, "sector narrative")
+
+    def test_sector_agent_uses_industry_breakdown_when_available(self):
+        result = SectorAgent(MockLLMClient("rich sector narrative")).analyze(build_rich_features())
+
+        self.assertTrue(any("Top sector is" in item for item in result.key_points))
+        self.assertTrue(any("Sector breadth covers" in item for item in result.key_points))
+        self.assertGreaterEqual(result.confidence, 0.7)
+
+    def test_sector_agent_gracefully_degrades_without_industry_breakdown(self):
+        payload = build_sample_input()
+        payload.industry_exposure = {}
+        result = SectorAgent(MockLLMClient("no sector narrative")).analyze(FeatureBuilder().build(payload))
+
+        self.assertIn("No industry exposure breakdown was provided.", result.key_points)
+        self.assertIn("Sector view is incomplete because industry exposure data is missing.", result.risks)
+
+    def test_safe_analyze_isolates_agent_failures(self):
+        result = PerformanceAgent(BrokenLLMClient()).safe_analyze(build_sample_features())
+
+        self.assertEqual(result.agent_name, "PerformanceAgent")
+        self.assertEqual(result.status, "error")
+        self.assertIsNone(result.score)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertIn("mock llm failure", result.narrative)
+
+
+class ChiefAgentTest(unittest.TestCase):
+    def test_chief_agent_aggregates_outputs(self):
+        features = build_sample_features()
+        chief = ChiefAgent(MockLLMClient("chief summary"))
+        agent_outputs = [
+            AgentOutput(
+                agent_name="PerformanceAgent",
+                status="success",
+                score=80.0,
+                stance="positive",
+                key_points=["收益表现较强。"],
+                risks=["短期波动仍需观察。"],
+                recommendations=["适合继续跟踪。"],
+                confidence=0.8,
+                narrative="performance narrative",
+            ),
+            AgentOutput(
+                agent_name="ExposureAgent",
+                status="success",
+                score=60.0,
+                stance="neutral",
+                key_points=["行业集中度中等。"],
+                risks=["集中度需要持续监控。"],
+                recommendations=["与其他风格配置搭配。"],
+                confidence=0.7,
+                narrative="exposure narrative",
+            ),
+            AgentOutput(
+                agent_name="RiskAgent",
+                status="success",
+                score=40.0,
+                stance="negative",
+                key_points=["波动率偏高。"],
+                risks=["回撤容忍度要求较高。"],
+                recommendations=["控制仓位。"],
+                confidence=0.75,
+                narrative="risk narrative",
+            ),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(result.request_id, features.request_id)
+        self.assertEqual(result.overall_score, 60.0)
+        self.assertEqual(result.overall_rating, "hold")
+        self.assertEqual(result.summary, "chief summary")
+        self.assertEqual(len(result.agent_outputs), 3)
+        self.assertTrue(result.key_thesis)
+        self.assertTrue(result.main_risks)
+        self.assertTrue(result.action_plan)
+
+    def test_chief_agent_enriches_output_with_contextual_metadata(self):
+        features = build_rich_features()
+        chief = ChiefAgent(MockLLMClient("chief summary"))
+        agent_outputs = [
+            AgentOutput(
+                agent_name="PerformanceAgent",
+                status="success",
+                score=80.0,
+                stance="positive",
+                key_points=["收益表现较强。"],
+                risks=["短期波动仍需观察。"],
+                recommendations=["适合继续跟踪。"],
+                confidence=0.8,
+                narrative="performance narrative",
+            ),
+            AgentOutput(
+                agent_name="ExposureAgent",
+                status="success",
+                score=60.0,
+                stance="neutral",
+                key_points=["行业集中度中等。"],
+                risks=["集中度需要持续监控。"],
+                recommendations=["与其他风格配置搭配。"],
+                confidence=0.7,
+                narrative="exposure narrative",
+            ),
+            AgentOutput(
+                agent_name="RiskAgent",
+                status="success",
+                score=40.0,
+                stance="negative",
+                key_points=["波动率偏高。"],
+                risks=["回撤容忍度要求较高。"],
+                recommendations=["控制仓位。"],
+                confidence=0.75,
+                narrative="risk narrative",
+            ),
+            AgentOutput(
+                agent_name="SentimentAgent",
+                status="success",
+                score=66.0,
+                stance="neutral",
+                key_points=["Processed 2 recent news signal(s)."],
+                risks=[],
+                recommendations=["Use recent news flow only as a secondary cross-check alongside fundamentals."],
+                confidence=0.8,
+                narrative="sentiment narrative",
+            ),
+            AgentOutput(
+                agent_name="SectorAgent",
+                status="success",
+                score=64.0,
+                stance="neutral",
+                key_points=["Top sector is 科技 at 32.00%."],
+                risks=[],
+                recommendations=["Sector positioning looks reasonably balanced for diversified allocation."],
+                confidence=0.76,
+                narrative="sector narrative",
+            ),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(result.metadata["success_agent_count"], "5")
+        self.assertEqual(result.metadata["error_agent_count"], "0")
+        self.assertEqual(result.metadata["has_benchmark"], "true")
+        self.assertEqual(result.metadata["has_news_signal"], "true")
+        self.assertEqual(result.metadata["has_sector_context"], "true")
+        self.assertEqual(result.metadata["news_item_count"], "2")
+        self.assertEqual(result.metadata["client_risk_profile"], "balanced")
+        self.assertTrue(any("Benchmark-relative context is available" in item for item in result.key_thesis))
+        self.assertTrue(any("Recent news flow is available" in item for item in result.key_thesis))
+        self.assertTrue(any("Sector exposure breakdown is available" in item for item in result.key_thesis))
+        self.assertTrue(any("balanced risk profile" in item for item in result.action_plan))
+
+    def test_chief_agent_flags_partial_results_when_agents_fail(self):
+        features = build_sample_features()
+        chief = ChiefAgent(MockLLMClient("partial chief summary"))
+        agent_outputs = [
+            AgentOutput(
+                agent_name="PerformanceAgent",
+                status="success",
+                score=75.0,
+                stance="positive",
+                key_points=["收益保持韧性。"],
+                risks=[],
+                recommendations=["继续跟踪。"],
+                confidence=0.78,
+                narrative="performance narrative",
+            ),
+            AgentOutput(
+                agent_name="RiskAgent",
+                status="error",
+                score=None,
+                stance="mixed",
+                key_points=[],
+                risks=["RiskAgent failed: mock llm failure"],
+                recommendations=["Check the upstream payload or prompt formatting."],
+                confidence=0.0,
+                narrative="RiskAgent failed: mock llm failure",
+            ),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(result.metadata["error_agent_count"], "1")
+        self.assertEqual(result.metadata["agent_health"], "partial")
+        self.assertTrue(any("final view is only partial" in item for item in result.main_risks))
+
+
+if __name__ == "__main__":
+    unittest.main()

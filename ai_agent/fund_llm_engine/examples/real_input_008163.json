@@ -1,0 +1,108 @@
+{
+  "request_id": "real-008163-20260417",
+  "fund_info": {
+    "code": "008163",
+    "name": "南方标普红利低波50ETF联接A",
+    "asset_type": "fund_open",
+    "category": "index_equity",
+    "manager": "崔蕾"
+  },
+  "nav_series": [
+    {
+      "date": "2026-03-26",
+      "nav": 1.0854
+    },
+    {
+      "date": "2026-03-27",
+      "nav": 1.0838
+    },
+    {
+      "date": "2026-03-30",
+      "nav": 1.0847
+    },
+    {
+      "date": "2026-03-31",
+      "nav": 1.0843
+    },
+    {
+      "date": "2026-04-01",
+      "nav": 1.0862
+    },
+    {
+      "date": "2026-04-02",
+      "nav": 1.0905
+    },
+    {
+      "date": "2026-04-03",
+      "nav": 1.0776
+    },
+    {
+      "date": "2026-04-07",
+      "nav": 1.0633
+    },
+    {
+      "date": "2026-04-08",
+      "nav": 1.0721
+    },
+    {
+      "date": "2026-04-09",
+      "nav": 1.0630
+    },
+    {
+      "date": "2026-04-10",
+      "nav": 1.0618
+    },
+    {
+      "date": "2026-04-13",
+      "nav": 1.0577
+    },
+    {
+      "date": "2026-04-14",
+      "nav": 1.0615
+    },
+    {
+      "date": "2026-04-15",
+      "nav": 1.0676
+    },
+    {
+      "date": "2026-04-16",
+      "nav": 1.0684
+    },
+    {
+      "date": "2026-04-17",
+      "nav": 1.0637
+    }
+  ],
+  "industry_exposure": {
+    "金融": 0.28,
+    "公用事业": 0.18,
+    "能源": 0.16,
+    "通信": 0.14,
+    "消费": 0.10
+  },
+  "top_holdings_weight": 0.001,
+  "news_summary": [],
+  "analysis_window": {
+    "start_date": "2026-03-26",
+    "end_date": "2026-04-17",
+    "as_of_date": "2026-04-17"
+  },
+  "fund_tags": [
+    "index_fund",
+    "dividend_low_vol",
+    "etf_feeder"
+  ],
+  "operational_metrics": {
+    "fund_size_billion": 89.0,
+    "inception_date": "2020-01-21",
+    "manager_tenure_years": 6.24
+  },
+  "extra_context": {
+    "client_risk_profile": "balanced",
+    "tracking_target": "标普中国A股大盘红利低波50指数",
+    "industry_exposure_method": "Approximated from the tracked index style and major constituent sectors, not official full-portfolio industry disclosure.",
+    "top_holdings_weight_method": "Uses the feeder fund's disclosed direct stock holdings ratio; as an ETF feeder, this is not directly comparable to active stock funds.",
+    "fund_structure": "ETF feeder",
+    "data_snapshot_date": "2026-04-23"
+  }
+}
