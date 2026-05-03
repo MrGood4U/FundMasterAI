@@ -1,5 +1,6 @@
 from datetime import datetime
 import akshare as ak
+from flask import current_app
 
 class AksharePublicFund:
     def eastmoney_real_time(self, symbol: str):
@@ -10,15 +11,17 @@ class AksharePublicFund:
         return None
 
 
-    def eastmoney_hist_min(self, symbol: str, code: str, start_date: str, end_date: str, period: str, adjust: str):
+    def eastmoney_hist_min(self, symbol:str, code: str, start_date: str, end_date: str, period: str, adjust: str):
+        
         adjusts = ['', 'qfq', 'hfq'] # 不复权、前复权、后复权
         if adjust not in adjusts:
-            return None
+            adjusts = 'hfq'
         
         periods = ['1', '5', '15', '30', '60'] # 1分钟、5分钟、15分钟、30分钟、60分钟
         if period not in periods:
             return None
         
+
         symbols = ['ETF', 'LOF']
         if symbol not in symbols:
             return None
@@ -99,3 +102,6 @@ class AksharePublicFund:
             return self.sina_hist(symbol, code, start_date, end_date, period, adjust)
         else:
             return None
+    
+    def get_fund_name_list(self):
+        return ak.fund_name_em()

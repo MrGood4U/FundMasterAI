@@ -1,10 +1,16 @@
 
 
 from flask import Flask, jsonify
+from flask_openapi3 import OpenAPI, Info
 from config import Config
 
 def create_app():
-    app = Flask(__name__)
+    info = Info(title="market backend API document", version="1.0.0")
+    app = OpenAPI(
+        __name__,
+        info=info
+    )
+    # app = Flask(__name__)
     app.config.from_object(Config)
 
     # Register blueprints here
@@ -22,4 +28,4 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True)
+    app.run(port=app.config["HTTP_PORT"], debug=True)

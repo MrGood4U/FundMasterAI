@@ -24,6 +24,11 @@ class PublicFundService:
         df = self.akapi.hist(symbol, platform, code, start_date, end_date, period, adjust)
         return df.to_dict(orient="records")
     
-    def get_hist_min(self, symbol: str, platform: str, code: str, start_date: str, end_date: str, period: str, adjust: str):
+    def get_hist_min(self, symbol:str, platform: str, code: str, start_date: str, end_date: str, period: str, adjust: str):
         df = self.akapi.hist_min(symbol, platform, code, start_date, end_date, period, adjust)
+        print(df)
+        return df.to_dict(orient="records")
+    
+    def get_fund_name_list(self):
+        df = self.akapi.get_fund_name_list()
         return df.to_dict(orient="records")
