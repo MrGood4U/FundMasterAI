@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FundMaster — Debt Funds</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/shell.css" />
+    <link rel="stylesheet" href="css/dashboard-widgets.css" />
+    <link rel="stylesheet" href="css/page-fund-deep-dive.css" />
+    <link rel="stylesheet" href="css/page-portfolio-family.css" />
+    <link rel="stylesheet" href="css/page-debt-funds.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="sidebar__brand">
+          <img class="sidebar__logo" src="assets/icons/logo.png" width="32" height="32" alt="" />
+          <div class="sidebar__titles">
+            <h1 class="sidebar__name">FundMaster</h1>
+            <p class="sidebar__tagline">STRATEGIC CAPITAL</p>
+          </div>
+        </div>
+        <nav class="sidebar__nav" aria-label="功能菜单">
+          <a class="nav-link" href="global-investment.html">
+            <img class="nav-link__icon" src="assets/icons/nav-overview.png" width="20" height="20" alt="" />
+            Overview
+          </a>
+          <a class="nav-link nav-link--active" href="portfolio-overview.html" aria-current="page">
+            <img class="nav-link__icon" src="assets/icons/nav-portfolio.png" width="20" height="20" alt="" />
+            Portfolio
+          </a>
+          <a class="nav-link" href="fund-deep-dive.html">
+            <img class="nav-link__icon" src="assets/icons/nav-analytics.png" width="20" height="20" alt="" />
+            Analytics
+          </a>
+          <a class="nav-link" href="market-hub.html">
+            <img class="nav-link__icon" src="assets/icons/nav-markets.png" width="20" height="20" alt="" />
+            Markets
+          </a>
+          <a class="nav-link" href="index.html">
+            <img class="nav-link__icon" src="assets/icons/nav-news.png" width="20" height="20" alt="" />
+            News
+          </a>
+          <a class="nav-link" href="ai-insights.html">
+            <img class="nav-link__icon" src="assets/icons/nav-ai-insights.png" width="20" height="20" alt="" />
+            AI Insights
+          </a>
+          <a class="nav-link" href="settings.html">
+            <img class="nav-link__icon" src="assets/icons/nav-settings.png" width="20" height="20" alt="" />
+            Settings
+          </a>
+        </nav>
+        <div class="sidebar__footer">
+          <button type="button" class="btn-upgrade">
+            <span class="btn-upgrade__icon" aria-hidden="true">◇</span>
+            Upgrade to Pro
+          </button>
+        </div>
+      </aside>
+      <div class="main-shell">
+      <header class="top-bar">
+        <div class="search-field" role="search">
+          <img class="search-field__icon-img" src="assets/icons/header-search.png" width="16" height="16" alt="" />
+          <label class="visually-hidden" for="de-q">搜索</label>
+          <input id="de-q" class="search-field__input" type="search" placeholder="Search markets or funds..." autocomplete="off" />
+        </div>
+        <div class="top-bar__actions">
+          <button type="button" class="icon-btn" aria-label="通知"><img class="icon-btn__img" src="assets/icons/header-bell.png" width="18" height="18" alt="" /></button>
+          <button type="button" class="icon-btn" aria-label="帮助"><img class="icon-btn__img" src="assets/icons/header-help.png" width="18" height="18" alt="" /></button>
+          <button type="button" class="avatar-btn" aria-label="用户资料"><img class="avatar-btn__img" src="assets/icons/header-avatar.png" width="32" height="32" alt="" /></button>
+        </div>
+      </header>
+        <main class="content">
+          <nav class="breadcrumb" aria-label="面包屑">
+            <a href="portfolio-overview.html">Portfolio</a><span class="breadcrumb__sep">›</span>
+            <span>Debt Funds</span>
+          </nav>
+          <header class="page-head">
+            <div>
+              <h2 class="page-head__title">Debt Portfolio</h2>
+              <p class="page-head__sub">Strategic yield optimization and risk exposure management.</p>
+            </div>
+            <div class="toolbar">
+              <button type="button" class="btn-outline">Export Report</button>
+              <button type="button" class="btn-outline">Rebalance Assets</button>
+            </div>
+          </header>
+          <div class="kpi-row">
+            <div class="kpi-card"><p class="kpi-card__label">Total Value</p><p class="kpi-card__value">$2,482,900</p><p class="kpi-card__hint">+4.2% YoY</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">Average Yield</p><p class="kpi-card__value">5.82%</p><p class="muted sm">Target 6.00%</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">Weighted Maturity</p><p class="kpi-card__value">4.2 yrs</p><p class="muted sm">Short-term focus</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">Risk Rating</p><p class="kpi-card__value">AA-</p><p class="muted sm">Investment grade</p></div>
+          </div>
+          <div class="two-col">
+            <section class="glass-panel">
+              <h3 class="section-head__title section-head__title--compact">Yield Comparison</h3>
+              <p class="muted sm">Stable vs High-Yield</p>
+              <div class="debt-chart" role="presentation"></div>
+              <div class="debt-legend"><span>Stable Income</span><span>High-Yield</span></div>
+            </section>
+            <section class="glass-panel">
+              <h3 class="section-head__title section-head__title--compact">Risk Composition</h3>
+              <ul class="fd-alloc">
+                <li><span>AAA / Government</span><span>42%</span><div class="bar-track"><div class="bar-fill" style="width:42%"></div></div></li>
+                <li><span>AA / Corporate HG</span><span>28%</span><div class="bar-track"><div class="bar-fill" style="width:28%"></div></div></li>
+                <li><span>BBB / IG</span><span>15%</span><div class="bar-track"><div class="bar-fill" style="width:15%"></div></div></li>
+                <li><span>BB / High Yield</span><span>10%</span><div class="bar-track"><div class="bar-fill" style="width:10%"></div></div></li>
+                <li><span>Unrated / Private</span><span>5%</span><div class="bar-track"><div class="bar-fill" style="width:5%"></div></div></li>
+              </ul>
+              <p class="muted sm" style="margin-top:12px"><strong>AI Strategy Shift</strong> — barbell US Treasuries with selective HY energy paper.</p>
+            </section>
+          </div>
+          <section class="glass-panel">
+            <div class="section-head"><h3 class="section-head__title">Active Debt Holdings</h3><div class="pill-group"><button class="pill pill--ghost">Stable (5)</button><button class="pill pill--ghost">High-Yield (3)</button></div></div>
+            <div class="data-table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Fund</th><th>Yield</th><th>Maturity</th><th>Risk</th><th>Allocation</th></tr></thead>
+                <tbody>
+                  <tr><td>Vanguard Total Bond · BND</td><td>4.12%</td><td>Dec 2028</td><td>AAA</td><td>$520,000</td></tr>
+                  <tr><td>BlackRock Strategic Bond</td><td>5.45%</td><td>Jun 2027</td><td>AA</td><td>$310,000</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+
+      </div>
+    </div>
+  </body>
+</html>

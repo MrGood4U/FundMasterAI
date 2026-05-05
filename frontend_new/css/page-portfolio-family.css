@@ -1,0 +1,5 @@
+/* Equity / Debt 子页共用微调 */
+
+.eq-kpis .kpi-card__value {
+  font-size: clamp(18px, 3vw, 24px);
+}

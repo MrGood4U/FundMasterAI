@@ -1,0 +1,5 @@
+/* Figma 11:2106 Global Investment */
+
+.gi-ticker .kpi-card__hint--neg {
+  color: var(--accent-red);
+}
