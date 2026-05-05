@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FundMaster — Market Intelligence</title>
+    <!-- 引入与设计稿一致的字体（Inter、Space Grotesk），等宽部分用 JetBrains Mono 近似 Liberation Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/shell.css" />
+    <link rel="stylesheet" href="css/page-news.css" />
+  </head>
+  <body>
+    <!-- 整页容器：深色背景，与设计 Frame「News Feed」一致 -->
+    <div class="app">
+      <!-- 左侧固定导航栏（256px），对应 Aside - Sidebar Navigation -->
+      <aside class="sidebar" aria-label="主导航">
+        <div class="sidebar__brand">
+          <img class="sidebar__logo" src="assets/icons/logo.png" width="32" height="32" alt="" />
+          <div class="sidebar__titles">
+            <h1 class="sidebar__name">FundMaster</h1>
+            <p class="sidebar__tagline">STRATEGIC CAPITAL</p>
+          </div>
+        </div>
+
+        <nav class="sidebar__nav" aria-label="功能菜单">
+          <a class="nav-link" href="global-investment.html">
+            <img class="nav-link__icon" src="assets/icons/nav-overview.png" width="20" height="20" alt="" />
+            Overview
+          </a>
+          <a class="nav-link" href="portfolio-overview.html">
+            <img class="nav-link__icon" src="assets/icons/nav-portfolio.png" width="20" height="20" alt="" />
+            Portfolio
+          </a>
+          <a class="nav-link" href="fund-deep-dive.html">
+            <img class="nav-link__icon" src="assets/icons/nav-analytics.png" width="20" height="20" alt="" />
+            Analytics
+          </a>
+          <a class="nav-link" href="market-hub.html">
+            <img class="nav-link__icon" src="assets/icons/nav-markets.png" width="20" height="20" alt="" />
+            Markets
+          </a>
+          <!-- 当前页：News（Figma 11:336） -->
+          <a class="nav-link nav-link--active" href="index.html" aria-current="page">
+            <img class="nav-link__icon" src="assets/icons/nav-news.png" width="20" height="20" alt="" />
+            News
+          </a>
+          <a class="nav-link" href="ai-insights.html">
+            <img class="nav-link__icon" src="assets/icons/nav-ai-insights.png" width="20" height="20" alt="" />
+            AI Insights
+          </a>
+          <a class="nav-link" href="settings.html">
+            <img class="nav-link__icon" src="assets/icons/nav-settings.png" width="20" height="20" alt="" />
+            Settings
+          </a>
+        </nav>
+
+        <div class="sidebar__footer">
+          <button type="button" class="btn-upgrade">
+            <span class="btn-upgrade__icon" aria-hidden="true">◇</span>
+            Upgrade to Pro
+          </button>
+        </div>
+      </aside>
+
+      <!-- 主内容区：左侧留白 256px 由 body grid 处理 -->
+      <div class="main-shell">
+        <!-- 顶栏：搜索 + 工具图标 + 用户头像 -->
+        <header class="top-bar">
+          <div class="search-field" role="search">
+            <img class="search-field__icon-img" src="assets/icons/header-search.png" width="16" height="16" alt="" />
+            <label class="visually-hidden" for="q">搜索基金</label>
+            <input
+              id="q"
+              class="search-field__input"
+              type="search"
+              placeholder="Search funds..."
+              autocomplete="off"
+            />
+          </div>
+          <div class="top-bar__actions">
+            <button type="button" class="icon-btn" aria-label="通知">
+              <img class="icon-btn__img" src="assets/icons/header-bell.png" width="18" height="18" alt="" />
+            </button>
+            <button type="button" class="icon-btn" aria-label="帮助">
+              <img class="icon-btn__img" src="assets/icons/header-help.png" width="18" height="18" alt="" />
+            </button>
+            <button type="button" class="avatar-btn" aria-label="用户资料">
+              <img class="avatar-btn__img" src="assets/icons/header-avatar.png" width="32" height="32" alt="" />
+            </button>
+          </div>
+        </header>
+
+        <!-- 可滚动主画布：标题 + 双栏资讯 -->
+        <main class="content" id="news">
+          <!-- 页面标题行：Market Intelligence + LIVE TERMINAL 徽章 -->
+          <section class="page-head" aria-labelledby="page-title">
+            <div class="page-head__text">
+              <h2 id="page-title" class="page-head__title">Market Intelligence</h2>
+              <p class="page-head__sub">
+                Real-time terminal sentiment and high-impact macro events.
+              </p>
+            </div>
+            <div class="live-badge" role="status">
+              <span class="live-badge__dot" aria-hidden="true"></span>
+              <span class="live-badge__label">LIVE TERMINAL</span>
+            </div>
+          </section>
+
+          <!-- 主网格：左栏 Flash Feed，右栏情绪与日历 -->
+          <div class="news-grid">
+            <!-- 左栏：快讯列表 -->
+            <section class="column column--feed" aria-labelledby="flash-heading">
+              <div class="section-head">
+                <h3 id="flash-heading" class="section-head__title">
+                  <span class="section-head__bolt" aria-hidden="true"></span>
+                  Flash Feed
+                </h3>
+                <div class="pill-group" role="group" aria-label="快讯筛选">
+                  <button type="button" class="pill pill--ghost">All</button>
+                  <button type="button" class="pill pill--ghost">Breaking</button>
+                  <button type="button" class="pill pill--ghost">Earnings</button>
+                </div>
+              </div>
+
+              <!-- 新闻卡片 1：Breaking / Bearish -->
+              <article class="news-card news-card--flash">
+                <div class="news-card__meta">
+                  <div class="news-card__tags">
+                    <span class="tag tag--breaking">BREAKING</span>
+                    <span class="news-card__source">2M AGO • REUTERS</span>
+                  </div>
+                  <span class="news-card__ext" aria-hidden="true">↗</span>
+                </div>
+                <h4 class="news-card__headline">
+                  Fed Official Hints at Sustained Rates Amid Core Inflation Resilience
+                </h4>
+                <p class="news-card__body">
+                  Chicago Fed President emphasizes that while progress has been made, the 'last mile' of
+                  inflation control may require restrictive policy for longer than…
+                </p>
+                <div class="news-card__footer">
+                  <span class="sentiment-pill sentiment-pill--bear">
+                    <span class="sentiment-pill__dot"></span>
+                    BEARISH SENTIMENT
+                  </span>
+                  <span class="news-card__related">Related: SPY, TLT, DXY</span>
+                </div>
+              </article>
+
+              <!-- 新闻卡片 2：Earnings / Bullish -->
+              <article class="news-card">
+                <div class="news-card__meta">
+                  <div class="news-card__tags">
+                    <span class="tag tag--earnings">EARNINGS</span>
+                    <span class="news-card__source">14M AGO • BLOOMBERG</span>
+                  </div>
+                  <span class="news-card__ext" aria-hidden="true">↗</span>
+                </div>
+                <h4 class="news-card__headline">
+                  NVDA Data Center Revenue Forecast Shatters Expectations
+                </h4>
+                <p class="news-card__body">
+                  The chip giant reports a 265% year-over-year increase in data center sales, signaling
+                  continued robust demand for AI infrastructure in the enterprise…
+                </p>
+                <div class="news-card__footer">
+                  <span class="sentiment-pill sentiment-pill--bull">
+                    <span class="sentiment-pill__dot"></span>
+                    STRONG BULLISH
+                  </span>
+                  <span class="news-card__related">Related: NVDA, AMD, TSM</span>
+                </div>
+              </article>
+
+              <!-- 新闻卡片 3：Tech / Neutral -->
+              <article class="news-card">
+                <div class="news-card__meta">
+                  <div class="news-card__tags">
+                    <span class="tag tag--tech">TECH</span>
+                    <span class="news-card__source">38M AGO • WSJ</span>
+                  </div>
+                  <span class="news-card__ext" aria-hidden="true">↗</span>
+                </div>
+                <h4 class="news-card__headline">Apple Explores Strategic Pivot into Household Robotics</h4>
+                <p class="news-card__body">
+                  Following the cancellation of its electric vehicle project, engineers at Cupertino are
+                  reportedly pivoting toward personal robotics for home…
+                </p>
+                <div class="news-card__footer">
+                  <span class="sentiment-pill sentiment-pill--neutral">
+                    <span class="sentiment-pill__dot"></span>
+                    NEUTRAL / SPECULATIVE
+                  </span>
+                  <span class="news-card__related">Related: AAPL, IRBT</span>
+                </div>
+              </article>
+            </section>
+
+            <!-- 右栏：板块情绪、宏观日历、AI 摘要 -->
+            <aside class="column column--aside" aria-label="市场辅助信息">
+              <!-- Sector Sentiment -->
+              <section class="panel" aria-labelledby="sector-heading">
+                <h3 id="sector-heading" class="section-head__title section-head__title--compact">
+                  <span class="section-head__layers" aria-hidden="true"></span>
+                  Sector Sentiment
+                </h3>
+                <div class="panel__body panel__body--glass">
+                  <div class="sector-grid">
+                    <div class="sector-tile sector-tile--greed">
+                      <p class="sector-tile__name">TECHNOLOGY</p>
+                      <p class="sector-tile__score">+0.82</p>
+                      <p class="sector-tile__mood">EXTREME GREED</p>
+                    </div>
+                    <div class="sector-tile sector-tile--fear">
+                      <p class="sector-tile__name">ENERGY</p>
+                      <p class="sector-tile__score sector-tile__score--neg">-0.45</p>
+                      <p class="sector-tile__mood">MODERATE FEAR</p>
+                    </div>
+                    <div class="sector-tile sector-tile--neutral">
+                      <p class="sector-tile__name">FINANCIALS</p>
+                      <p class="sector-tile__score sector-tile__score--amber">+0.12</p>
+                      <p class="sector-tile__mood">NEUTRAL</p>
+                    </div>
+                    <div class="sector-tile sector-tile--bull">
+                      <p class="sector-tile__name">HEALTHCARE</p>
+                      <p class="sector-tile__score">+0.38</p>
+                      <p class="sector-tile__mood">BULLISH</p>
+                    </div>
+                  </div>
+
+                  <!-- 综合恐惧贪婪指数模拟条 -->
+                  <div class="gauge">
+                    <div class="gauge__head">
+                      <span class="gauge__label">AGGREGATE FEAR &amp; GREED</span>
+                      <span class="gauge__value">68 / Greed</span>
+                    </div>
+                    <div class="gauge__track" role="img" aria-label="综合指数约 68，偏向贪婪">
+                      <div class="gauge__fill"></div>
+                      <div class="gauge__marker" style="left: 68%"></div>
+                    </div>
+                    <div class="gauge__ticks">
+                      <span>FEAR</span>
+                      <span>NEUTRAL</span>
+                      <span>GREED</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Macro Calendar -->
+              <section class="panel" aria-labelledby="macro-heading">
+                <h3 id="macro-heading" class="section-head__title section-head__title--compact">
+                  <span class="section-head__calendar" aria-hidden="true"></span>
+                  Macro Calendar
+                </h3>
+                <div class="panel__body panel__body--glass panel__body--flush">
+                  <div class="cal-header">
+                    <span class="cal-header__date">Tomorrow, Oct 14</span>
+                    <a class="cal-header__link" href="#calendar">Full Calendar</a>
+                  </div>
+                  <ul class="cal-list">
+                    <li class="cal-row">
+                      <div class="cal-row__main">
+                        <time class="cal-time">08:30</time>
+                        <div class="cal-row__info">
+                          <span class="cal-row__title">Core CPI (MoM)</span>
+                          <span class="cal-row__bars" aria-hidden="true">▮▮▮</span>
+                        </div>
+                      </div>
+                      <div class="cal-row__nums">
+                        <span>Est: 0.3%</span>
+                        <span>Prev: 0.4%</span>
+                      </div>
+                    </li>
+                    <li class="cal-row cal-row--border">
+                      <div class="cal-row__main">
+                        <time class="cal-time">10:30</time>
+                        <div class="cal-row__info">
+                          <span class="cal-row__title">Crude Oil Inventories</span>
+                          <span class="cal-row__bars cal-row__bars--short" aria-hidden="true">▮▮</span>
+                        </div>
+                      </div>
+                      <div class="cal-row__nums">
+                        <span>Est: -1.2M</span>
+                        <span>Prev: 3.2M</span>
+                      </div>
+                    </li>
+                    <li class="cal-row cal-row--border">
+                      <div class="cal-row__main">
+                        <time class="cal-time">14:00</time>
+                        <div class="cal-row__info">
+                          <span class="cal-row__title">FOMC Meeting Minutes</span>
+                          <span class="cal-row__bars" aria-hidden="true">▮▮▮</span>
+                        </div>
+                      </div>
+                      <div class="cal-row__nums cal-row__nums--end">
+                        <span class="chip-vol">High Volatility</span>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </section>
+
+              <!-- AI Insights -->
+              <section class="panel panel--ai" aria-labelledby="ai-heading">
+                <h3 id="ai-heading" class="section-head__title section-head__title--compact">
+                  <span class="section-head__ai" aria-hidden="true"></span>
+                  AI SIGNAL SUMMARY
+                </h3>
+                <p class="ai-copy">
+                  "The convergence of hawkish Fed rhetoric and robust tech earnings creates a polarized risk
+                  environment. While NVDA anchors bullish momentum, CPI data tomorrow acts as the primary
+                  tail-risk for equity valuations."
+                </p>
+                <div class="ai-foot">
+                  <span class="ai-conf">Confidence: 88%</span>
+                  <button type="button" class="ai-btn">Read Analysis</button>
+                </div>
+              </section>
+            </aside>
+          </div>
+        </main>
+
+        <!-- 右下角悬浮：添加自选提醒（设计稿为圆形按钮） -->
+        <button type="button" class="fab" aria-label="添加自选提醒">
+          <span class="fab__plus" aria-hidden="true">+</span>
+        </button>
+      </div>
+    </div>
+  </body>
+</html>
