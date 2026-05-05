@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FundMaster — Portfolio Overview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/shell.css" />
+    <link rel="stylesheet" href="css/dashboard-widgets.css" />
+    <link rel="stylesheet" href="css/page-portfolio-overview.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="sidebar__brand">
+          <img class="sidebar__logo" src="assets/icons/logo.png" width="32" height="32" alt="" />
+          <div class="sidebar__titles">
+            <h1 class="sidebar__name">FundMaster</h1>
+            <p class="sidebar__tagline">STRATEGIC CAPITAL</p>
+          </div>
+        </div>
+        <nav class="sidebar__nav" aria-label="功能菜单">
+          <a class="nav-link" href="global-investment.html">
+            <img class="nav-link__icon" src="assets/icons/nav-overview.png" width="20" height="20" alt="" />
+            Overview
+          </a>
+          <a class="nav-link nav-link--active" href="portfolio-overview.html" aria-current="page">
+            <img class="nav-link__icon" src="assets/icons/nav-portfolio.png" width="20" height="20" alt="" />
+            Portfolio
+          </a>
+          <a class="nav-link" href="fund-deep-dive.html">
+            <img class="nav-link__icon" src="assets/icons/nav-analytics.png" width="20" height="20" alt="" />
+            Analytics
+          </a>
+          <a class="nav-link" href="market-hub.html">
+            <img class="nav-link__icon" src="assets/icons/nav-markets.png" width="20" height="20" alt="" />
+            Markets
+          </a>
+          <a class="nav-link" href="index.html">
+            <img class="nav-link__icon" src="assets/icons/nav-news.png" width="20" height="20" alt="" />
+            News
+          </a>
+          <a class="nav-link" href="ai-insights.html">
+            <img class="nav-link__icon" src="assets/icons/nav-ai-insights.png" width="20" height="20" alt="" />
+            AI Insights
+          </a>
+          <a class="nav-link" href="settings.html">
+            <img class="nav-link__icon" src="assets/icons/nav-settings.png" width="20" height="20" alt="" />
+            Settings
+          </a>
+        </nav>
+        <div class="sidebar__footer">
+          <button type="button" class="btn-upgrade">
+            <span class="btn-upgrade__icon" aria-hidden="true">◇</span>
+            Upgrade to Pro
+          </button>
+        </div>
+      </aside>
+      <div class="main-shell">
+      <header class="top-bar">
+        <div class="search-field" role="search">
+          <img class="search-field__icon-img" src="assets/icons/header-search.png" width="16" height="16" alt="" />
+          <label class="visually-hidden" for="po-q">搜索</label>
+          <input id="po-q" class="search-field__input" type="search" placeholder="Search markets or funds..." autocomplete="off" />
+        </div>
+        <div class="top-bar__actions">
+          <button type="button" class="icon-btn" aria-label="通知"><img class="icon-btn__img" src="assets/icons/header-bell.png" width="18" height="18" alt="" /></button>
+          <button type="button" class="icon-btn" aria-label="帮助"><img class="icon-btn__img" src="assets/icons/header-help.png" width="18" height="18" alt="" /></button>
+          <button type="button" class="avatar-btn" aria-label="用户资料"><img class="avatar-btn__img" src="assets/icons/header-avatar.png" width="32" height="32" alt="" /></button>
+        </div>
+      </header>
+        <main class="content">
+          <header class="page-head">
+            <div>
+              <h2 class="page-head__title">Portfolio Overview</h2>
+              <p class="page-head__sub">Holdings table + AI commentary — Figma 11:2408 / 42:2.</p>
+            </div>
+            <div class="toolbar">
+              <a class="btn-outline" href="equity-funds.html">Equity sleeve</a>
+              <a class="btn-outline" href="debt-funds.html">Debt sleeve</a>
+            </div>
+          </header>
+          <section class="glass-panel po-summary">
+            <h3 class="section-head__title section-head__title--compact">Total Account Assets</h3>
+            <div class="po-split">
+              <div><p class="muted">Daily gain/loss</p><p class="po-big pos">+¥500.00</p></div>
+              <div class="po-table-labels muted sm">Asset / Value · Daily return · Sector · Holdings</div>
+            </div>
+          </section>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Asset</th><th>Value</th><th>Daily</th><th>Return</th><th>Sector</th></tr></thead>
+              <tbody>
+                <tr><td>Tianyuan Huiteng Tech ETF</td><td>¥2,000.00</td><td>+¥500.00</td><td class="pos">+1.00%</td><td class="pos">+1.2%</td></tr>
+                <tr><td>—</td><td>+¥5,000.00</td><td>—</td><td class="pos">+10.0%</td><td>—</td></tr>
+                <tr><td>Global Semiconductor Index</td><td>¥4,500.00</td><td>-¥120.00</td><td class="neg">-0.24%</td><td class="neg">-0.8%</td></tr>
+                <tr><td>Clean Energy Strategic Fund</td><td>¥3,200.00</td><td>—</td><td>—</td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <button type="button" class="btn-outline" style="margin-top:12px">Add New Holding</button>
+          <section class="glass-panel" style="margin-top:24px">
+            <h3 class="section-head__title section-head__title--compact">AI Portfolio Analysis</h3>
+            <p class="muted">AI Assistant Selection</p>
+            <div class="po-ai">
+              <div><span class="muted sm">Signal</span><div><span class="chip chip--warn">Yellow</span></div></div>
+              <div><span class="muted sm">Detailed analysis</span><p>Balanced exposure with concentration in AI-linked names.</p></div>
+              <div><span class="muted sm">Rebalancing</span><ul>
+                <li>Increase Tianyuan Huiteng Tech ETF by 2.5%.</li>
+                <li>Rotate profits from infrastructure into green energy strategic sleeve.</li>
+              </ul></div>
+            </div>
+          </section>
+        </main>
+
+        <button type="button" class="fab" aria-label="快捷操作"><span class="fab__plus" aria-hidden="true">+</span></button>
+      </div>
+    </div>
+  </body>
+</html>
