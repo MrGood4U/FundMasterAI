@@ -13,3 +13,6 @@ class Config:
     REDIS_HOST = os.environ.get('REDIS_HOST') or 'localhost'
     REDIS_PORT = int(os.environ.get('REDIS_PORT') or 6379)
     REDIS_DB = int(os.environ.get('REDIS_DB') or 0)
+
+    # Http Configuration
+    HTTP_PORT = int(os.environ.get('MARKET_HTTP_PORT') or 5001)
