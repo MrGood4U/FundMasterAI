@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FundMaster — Fund Deep Dive</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/shell.css" />
+    <link rel="stylesheet" href="css/dashboard-widgets.css" />
+    <link rel="stylesheet" href="css/page-fund-deep-dive.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="sidebar__brand">
+          <img class="sidebar__logo" src="assets/icons/logo.png" width="32" height="32" alt="" />
+          <div class="sidebar__titles">
+            <h1 class="sidebar__name">FundMaster</h1>
+            <p class="sidebar__tagline">STRATEGIC CAPITAL</p>
+          </div>
+        </div>
+        <nav class="sidebar__nav" aria-label="功能菜单">
+          <a class="nav-link" href="global-investment.html">
+            <img class="nav-link__icon" src="assets/icons/nav-overview.png" width="20" height="20" alt="" />
+            Overview
+          </a>
+          <a class="nav-link" href="portfolio-overview.html">
+            <img class="nav-link__icon" src="assets/icons/nav-portfolio.png" width="20" height="20" alt="" />
+            Portfolio
+          </a>
+          <a class="nav-link nav-link--active" href="fund-deep-dive.html" aria-current="page">
+            <img class="nav-link__icon" src="assets/icons/nav-analytics.png" width="20" height="20" alt="" />
+            Analytics
+          </a>
+          <a class="nav-link" href="market-hub.html">
+            <img class="nav-link__icon" src="assets/icons/nav-markets.png" width="20" height="20" alt="" />
+            Markets
+          </a>
+          <a class="nav-link" href="index.html">
+            <img class="nav-link__icon" src="assets/icons/nav-news.png" width="20" height="20" alt="" />
+            News
+          </a>
+          <a class="nav-link" href="ai-insights.html">
+            <img class="nav-link__icon" src="assets/icons/nav-ai-insights.png" width="20" height="20" alt="" />
+            AI Insights
+          </a>
+          <a class="nav-link" href="settings.html">
+            <img class="nav-link__icon" src="assets/icons/nav-settings.png" width="20" height="20" alt="" />
+            Settings
+          </a>
+        </nav>
+        <div class="sidebar__footer">
+          <button type="button" class="btn-upgrade">
+            <span class="btn-upgrade__icon" aria-hidden="true">◇</span>
+            Upgrade to Pro
+          </button>
+        </div>
+      </aside>
+      <div class="main-shell">
+      <header class="top-bar">
+        <div class="search-field" role="search">
+          <img class="search-field__icon-img" src="assets/icons/header-search.png" width="16" height="16" alt="" />
+          <label class="visually-hidden" for="q">搜索</label>
+          <input id="q" class="search-field__input" type="search" placeholder="Search funds..." autocomplete="off" />
+        </div>
+        <div class="top-bar__actions">
+          <button type="button" class="icon-btn" aria-label="通知"><img class="icon-btn__img" src="assets/icons/header-bell.png" width="18" height="18" alt="" /></button>
+          <button type="button" class="icon-btn" aria-label="帮助"><img class="icon-btn__img" src="assets/icons/header-help.png" width="18" height="18" alt="" /></button>
+          <button type="button" class="avatar-btn" aria-label="用户资料"><img class="avatar-btn__img" src="assets/icons/header-avatar.png" width="32" height="32" alt="" /></button>
+        </div>
+      </header>
+        <main class="content">
+          <nav class="breadcrumb" aria-label="面包屑">
+            <a href="fund-deep-dive.html">Funds</a><span class="breadcrumb__sep">›</span>
+            <a href="#">Global Tech Equities</a><span class="breadcrumb__sep">›</span>
+            <span>MasterTech Growth Fund</span>
+          </nav>
+          <header class="page-head">
+            <div>
+              <h2 class="page-head__title">MasterTech Growth Fund</h2>
+              <p class="page-head__sub">High-conviction global technology allocation with active risk overlays.</p>
+            </div>
+            <span class="chip chip--live">Active</span>
+          </header>
+          <div class="kpi-row">
+            <div class="kpi-card"><p class="kpi-card__label">Ticker</p><p class="kpi-card__value">MTGF.QX</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">NAV</p><p class="kpi-card__value">$248.12</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">24H Change</p><p class="kpi-card__value">+2.41%</p><p class="kpi-card__hint">vs prior close</p></div>
+          </div>
+          <div class="toolbar"><button type="button" class="btn-outline">Prospectus</button></div>
+          <section class="glass-panel fd-matrix">
+            <div class="section-head">
+              <h3 class="section-head__title"><span class="section-head__bolt" aria-hidden="true"></span>Performance Matrix</h3>
+              <div class="pill-group" role="group">
+                <button type="button" class="pill pill--ghost">1M</button>
+                <button type="button" class="pill pill--ghost">3M</button>
+                <button type="button" class="pill pill--ghost">1Y</button>
+                <button type="button" class="pill pill--ghost">ALL</button>
+              </div>
+            </div>
+            <p class="fd-caption">Historical NAV growth over selected period</p>
+            <div class="fd-chart" role="img" aria-label="NAV 曲线示意图"></div>
+            <div class="fd-stats">
+              <div><span class="fd-stats__k">Oct 24, 2023</span><span class="fd-stats__v">$214.85</span></div>
+              <div><span class="fd-stats__k">YTD Return</span><span class="fd-stats__v pos">+18.4%</span></div>
+              <div><span class="fd-stats__k">1Y Return</span><span class="fd-stats__v pos">+32.1%</span></div>
+              <div><span class="fd-stats__k">3Y Annualized</span><span class="fd-stats__v pos">+14.2%</span></div>
+              <div><span class="fd-stats__k">Since Inception</span><span class="fd-stats__v pos">+144.5%</span></div>
+            </div>
+          </section>
+          <div class="two-col">
+            <section class="glass-panel">
+              <h3 class="section-head__title section-head__title--compact">Risk Assessment</h3>
+              <ul class="fd-risk">
+                <li><div><strong>Sharpe Ratio</strong><span class="muted">Risk-adjusted return quality</span></div><em>2.14</em></li>
+                <li><div><strong>Standard Deviation</strong><span class="muted">Volatility over 1 year</span></div><em>12.8%</em></li>
+                <li><div><strong>Alpha</strong><span class="muted">Excess return vs benchmark</span></div><em>4.2</em></li>
+                <li><div><strong>Beta</strong><span class="muted">Market correlation factor</span></div><em>1.08</em></li>
+              </ul>
+            </section>
+            <section class="glass-panel">
+              <h3 class="section-head__title section-head__title--compact">Asset Allocation</h3>
+              <p class="fd-caption">14 holdings · sector weights</p>
+              <ul class="fd-alloc">
+                <li><span>Software &amp; SaaS</span><span>65.2%</span><div class="bar-track"><div class="bar-fill" style="width:65.2%"></div></div></li>
+                <li><span>Semiconductors</span><span>18.4%</span><div class="bar-track"><div class="bar-fill" style="width:18.4%"></div></div></li>
+                <li><span>Cloud Infrastructure</span><span>12.1%</span><div class="bar-track"><div class="bar-fill" style="width:12.1%"></div></div></li>
+                <li><span>Cash / Liquid</span><span>4.3%</span><div class="bar-track"><div class="bar-fill" style="width:4.3%"></div></div></li>
+              </ul>
+            </section>
+          </div>
+          <section class="glass-panel fd-mgmt">
+            <h3 class="section-head__title section-head__title--compact">Management Team</h3>
+            <div class="fd-mgmt__card">
+              <div class="fd-avatar" aria-hidden="true"></div>
+              <div>
+                <p class="fd-mgmt__name">Dr. Elena Thorne</p>
+                <p class="fd-mgmt__role">Chief Portfolio Manager</p>
+                <div class="fd-mgmt__meta"><span>Experience · 18+ Years</span><span>AUM Lead · $4.2B</span></div>
+              </div>
+            </div>
+          </section>
+          <section class="glass-panel">
+            <h3 class="section-head__title section-head__title--compact">Top Holdings</h3>
+            <div class="data-table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Ticker</th><th>Name</th><th>Weight</th></tr></thead>
+                <tbody>
+                  <tr><td>NVDA</td><td>NVIDIA Corp.</td><td>9.2%</td></tr>
+                  <tr><td>MSFT</td><td>Microsoft</td><td>8.4%</td></tr>
+                  <tr><td>AAPL</td><td>Apple Inc.</td><td>7.9%</td></tr>
+                  <tr><td>TSM</td><td>TSMC Ltd.</td><td>6.1%</td></tr>
+                  <tr><td>GOOGL</td><td>Alphabet</td><td>5.8%</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section class="glass-panel">
+            <h3 class="section-head__title section-head__title--compact">Investment Strategy &amp; Philosophy</h3>
+            <p class="fd-strat">The fund maintains a concentrated book in secular growth technology while using macro overlays to dampen drawdowns during liquidity shocks.</p>
+          </section>
+        </main>
+
+        <button type="button" class="fab" aria-label="快捷操作"><span class="fab__plus" aria-hidden="true">+</span></button>
+      </div>
+    </div>
+  </body>
+</html>

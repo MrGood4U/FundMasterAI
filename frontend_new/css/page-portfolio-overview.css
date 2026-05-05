@@ -1,0 +1,38 @@
+/* Figma 11:2408 / 42:2 Portfolio Overview */
+
+.po-summary {
+  margin-bottom: 0;
+}
+
+.po-split {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.po-big {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 28px;
+}
+
+.po-table-labels {
+  max-width: 28rem;
+}
+
+.po-ai {
+  display: grid;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.po-ai ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}

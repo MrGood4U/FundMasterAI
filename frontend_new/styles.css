@@ -1,0 +1,3 @@
+/* 兼容旧引用：News 页 = shell + 快讯专题样式 */
+@import url("css/shell.css");
+@import url("css/page-news.css");
