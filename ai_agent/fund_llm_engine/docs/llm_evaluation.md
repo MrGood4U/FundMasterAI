@@ -109,9 +109,9 @@ python3 scripts/evaluate_analysis_output.py \
 
 当前仓库至少可以先拿这 3 份做回归：
 
-- [examples/mock_input.json](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/examples/mock_input.json:1)
-- [examples/real_input_005827.json](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/examples/real_input_005827.json:1)
-- [examples/real_input_008163.json](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/examples/real_input_008163.json:1)
+- [examples/mock_input.json](../examples/mock_input.json)
+- [examples/real_input_005827.json](../examples/real_input_005827.json)
+- [examples/real_input_008163.json](../examples/real_input_008163.json)
 
 后续建议再补至少 2 份：
 

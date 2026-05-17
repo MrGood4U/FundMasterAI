@@ -2,7 +2,7 @@
 
 这个样例文件对应：
 
-- [real_input_003358.json](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/examples/real_input_003358.json:1)
+- [real_input_003358.json](../examples/real_input_003358.json)
 
 ## 为什么选这只基金
 

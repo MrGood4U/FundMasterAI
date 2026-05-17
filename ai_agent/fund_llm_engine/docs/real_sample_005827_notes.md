@@ -2,7 +2,7 @@
 
 这个样例文件对应：
 
-- [real_input_005827.json](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/examples/real_input_005827.json:1)
+- [real_input_005827.json](../examples/real_input_005827.json)
 
 ## 这份样例里哪些字段是公开数据
 

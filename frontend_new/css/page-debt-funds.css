@@ -1,0 +1,18 @@
+/* Figma 11:2610 Debt Funds */
+
+.debt-chart {
+  min-height: 160px;
+  margin-top: 12px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, rgba(255, 197, 99, 0.12), transparent 70%),
+    linear-gradient(90deg, rgba(0, 229, 255, 0.06), transparent);
+  border: 1px solid var(--border-subtle);
+}
+
+.debt-legend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}

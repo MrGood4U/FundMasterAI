@@ -108,17 +108,26 @@ class SentimentAgent(BaseAgent):
         news_signal_count = len(active_items)
         has_structured_news = features.data_quality_flags.get("has_structured_news", False)
         has_news_signal = features.data_quality_flags.get("has_news_signal", False)
-
         if not has_news_signal:
-            raw_score = 55.0
-        else:
-            raw_score = 60 + (positive_count * 6) - (negative_count * 7) - (risk_event_count * 4)
-            if positive_count and not negative_count:
-                raw_score += 2
-            if negative_count and positive_count == 0:
-                raw_score -= 3
-            if has_structured_news:
-                raw_score += 2
+            return AgentOutput(
+                agent_name=self.name,
+                status="skipped",
+                score=None,
+                stance="insufficient_data",
+                key_points=["No recent news signal was provided."],
+                risks=["Sentiment analysis was skipped because no news or event signals were provided."],
+                recommendations=["Add recent news or event summaries before relying on sentiment-driven conclusions."],
+                confidence=0.0,
+                narrative="Sentiment analysis skipped: no news or event signals were provided.",
+            )
+
+        raw_score = 60 + (positive_count * 6) - (negative_count * 7) - (risk_event_count * 4)
+        if positive_count and not negative_count:
+            raw_score += 2
+        if negative_count and positive_count == 0:
+            raw_score -= 3
+        if has_structured_news:
+            raw_score += 2
         score = clamp(raw_score)
         stance = score_to_stance(score)
 
@@ -135,7 +144,8 @@ class SentimentAgent(BaseAgent):
 
         system_prompt = (
             "You are a fund sentiment analyst. Assess whether recent news flow is supportive, neutral, or adverse "
-            "for the fund, and keep the explanation grounded in the provided signals."
+            "for the fund, and keep the explanation grounded in the provided signals. Use only the provided news items. "
+            "Do not infer sentiment from outside market knowledge."
         )
         user_prompt = (
             f"Fund: {features.fund_info.name} ({features.fund_info.code})\n"

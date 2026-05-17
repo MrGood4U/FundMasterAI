@@ -12,11 +12,11 @@ class AkshareStock:
             return None
 
 
-    def eastmoney_a_spot_one(self):
+    def eastmoney_a_spot_all(self):
         df = ak.stock_zh_a_spot_em()
         return df
-    
-    
+
+
     def eastmoney_a_hist(self, code: str, period: str, start_date: str, end_date: str, adjust: str):
         periods = ['daily', 'weekly', 'monthly'] # 日线、周线、月线
         if period not in periods:
@@ -26,6 +26,13 @@ class AkshareStock:
             adjust = ""
         df = ak.stock_zh_a_hist(symbol = code, period = period, start_date = start_date, end_date = end_date, adjust = adjust)
         return df
+
+
+    def eastmoney_a_bid_ask(self, code: str):
+        df = ak.stock_bid_ask_em(symbol = code)
+        df_pivot = df.pivot_table(values="value", columns="item").reset_index(drop=True)
+        return df_pivot
+
 
     def sina_a_hist(self, code: str, period: str, start_date: str, end_date: str, adjust: str):
         adjusts = ['qfq', 'hfq', 'qfq-factor', 'hfq-factor']
@@ -54,5 +61,11 @@ class AkshareStock:
             return self.eastmoney_a_hist(code, period, start_date, end_date, adjust)
         elif platform == "sina":
             return self.sina_a_hist(code, period, start_date, end_date, adjust)
+        else:
+            return None
+
+    def a_bid_ask(self, platform: str, code: str):
+        if platform == "eastmoney":
+            return self.eastmoney_a_bid_ask(code)
         else:
             return None

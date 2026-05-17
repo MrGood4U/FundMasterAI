@@ -1,5 +1,6 @@
 from datetime import datetime
 import akshare as ak
+from flask import current_app
 
 class AksharePublicFund:
     def eastmoney_real_time(self, symbol: str):
@@ -10,15 +11,17 @@ class AksharePublicFund:
         return None
 
 
-    def eastmoney_hist_min(self, symbol: str, code: str, start_date: str, end_date: str, period: str, adjust: str):
+    def eastmoney_hist_min(self, symbol:str, code: str, start_date: str, end_date: str, period: str, adjust: str):
+
         adjusts = ['', 'qfq', 'hfq'] # 不复权、前复权、后复权
         if adjust not in adjusts:
-            return None
-        
+            adjusts = 'hfq'
+
         periods = ['1', '5', '15', '30', '60'] # 1分钟、5分钟、15分钟、30分钟、60分钟
         if period not in periods:
             return None
-        
+
+
         symbols = ['ETF', 'LOF']
         if symbol not in symbols:
             return None
@@ -35,11 +38,11 @@ class AksharePublicFund:
         adjusts = ['', 'qfq', 'hfq'] # 不复权、前复权、后复权
         if adjust not in adjusts:
             return None
-        
+
         periods = ['daily', 'weekly', 'monthly'] # 日线、周线、月线
         if period not in periods:
             return None
-        
+
         symbols = ['ETF', 'LOF']
         if symbol not in symbols:
             return None
@@ -57,8 +60,8 @@ class AksharePublicFund:
         mask = (result["date"] >= pd.to_datetime(start_date)) & (result["date"] <= pd.to_datetime(end_date))
         result = result.loc[mask]
         return result
-        
-    
+
+
     def tonghuashun_real_time(self, symbol: str):
         tonghuashun_symbol = ["股票型", "债券型", "混合型", "ETF", "LOF", "QDII", "保本型", "指数型", ""]
         if symbol not in tonghuashun_symbol:
@@ -66,7 +69,7 @@ class AksharePublicFund:
         today = datetime.now().strftime("%Y%m%d")
         return ak.fund_etf_category_ths(symbol=symbol, date=today)
 
-    
+
     def sina_real_time(self, symbol: str):
         sina_symbol = ["封闭式基金", "ETF基金", "LOF基金"]
         if symbol not in sina_symbol:
@@ -99,3 +102,9 @@ class AksharePublicFund:
             return self.sina_hist(symbol, code, start_date, end_date, period, adjust)
         else:
             return None
+
+    def get_fund_name_list(self):
+        return ak.fund_name_em()
+
+    def open_fund_nav(self, code: str):
+        return ak.fund_open_fund_info_em(symbol=code, indicator="单位净值走势")

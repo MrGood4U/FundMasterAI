@@ -185,8 +185,11 @@ class AgentsTest(unittest.TestCase):
         payload.news_items = []
         result = SentimentAgent(MockLLMClient("no news narrative")).analyze(FeatureBuilder().build(payload))
 
+        self.assertEqual(result.status, "skipped")
+        self.assertIsNone(result.score)
+        self.assertEqual(result.stance, "insufficient_data")
         self.assertIn("No recent news signal was provided.", result.key_points)
-        self.assertIn("No recent news items were provided, so sentiment coverage is limited.", result.risks)
+        self.assertIn("Sentiment analysis was skipped because no news or event signals were provided.", result.risks)
         self.assertLessEqual(result.confidence, 0.5)
 
     def test_sector_agent_returns_structured_output(self):
@@ -212,8 +215,33 @@ class AgentsTest(unittest.TestCase):
         payload.industry_exposure = {}
         result = SectorAgent(MockLLMClient("no sector narrative")).analyze(FeatureBuilder().build(payload))
 
+        self.assertEqual(result.status, "skipped")
+        self.assertIsNone(result.score)
+        self.assertEqual(result.stance, "insufficient_data")
         self.assertIn("No industry exposure breakdown was provided.", result.key_points)
-        self.assertIn("Sector view is incomplete because industry exposure data is missing.", result.risks)
+        self.assertIn("Sector analysis was skipped because industry exposure data is missing.", result.risks)
+
+    def test_exposure_agent_skips_when_portfolio_breakdown_is_missing(self):
+        payload = build_sample_input()
+        payload.industry_exposure = {}
+        payload.top_holdings_weight = None
+        result = ExposureAgent(MockLLMClient("unused")).analyze(FeatureBuilder().build(payload))
+
+        self.assertEqual(result.status, "skipped")
+        self.assertIsNone(result.score)
+        self.assertEqual(result.stance, "insufficient_data")
+        self.assertIn("Portfolio exposure data was not provided.", result.key_points)
+
+    def test_sentiment_agent_skips_when_news_is_missing(self):
+        payload = build_sample_input()
+        payload.news_summary = []
+        payload.news_items = []
+        result = SentimentAgent(MockLLMClient("unused")).analyze(FeatureBuilder().build(payload))
+
+        self.assertEqual(result.status, "skipped")
+        self.assertIsNone(result.score)
+        self.assertEqual(result.stance, "insufficient_data")
+        self.assertIn("No recent news signal was provided.", result.key_points)
 
     def test_safe_analyze_isolates_agent_failures(self):
         result = PerformanceAgent(BrokenLLMClient()).safe_analyze(build_sample_features())

@@ -10,6 +10,19 @@ class SectorAgent(BaseAgent):
     def analyze(self, features: FundFeaturePack) -> AgentOutput:
         industry_exposure = features.industry_exposure_breakdown
         has_industry_exposure = features.data_quality_flags.get("has_industry_exposure", False)
+        if not has_industry_exposure:
+            return AgentOutput(
+                agent_name=self.name,
+                status="skipped",
+                score=None,
+                stance="insufficient_data",
+                key_points=["No industry exposure breakdown was provided."],
+                risks=["Sector analysis was skipped because industry exposure data is missing."],
+                recommendations=["Add a fuller industry breakdown before making sector-level conclusions."],
+                confidence=0.0,
+                narrative="Sector analysis skipped: industry exposure data was not provided.",
+            )
+
         client_risk_profile = features.extra_context.get("client_risk_profile", "")
 
         ranked_sectors = sorted(industry_exposure.items(), key=lambda item: item[1], reverse=True)
@@ -50,7 +63,8 @@ class SectorAgent(BaseAgent):
         top_sectors_text = ", ".join(f"{name}:{weight:.1%}" for name, weight in ranked_sectors[:3]) or "N/A"
         system_prompt = (
             "You are a sector allocation analyst. Explain whether the fund's industry positioning looks diversified "
-            "or concentrated, and what that means for sector-style exposure."
+            "or concentrated, and what that means for sector-style exposure. Use only the provided sector data. "
+            "Do not infer sectors or holdings from the fund name, manager, or outside knowledge."
         )
         user_prompt = (
             f"Fund: {features.fund_info.name} ({features.fund_info.code})\n"

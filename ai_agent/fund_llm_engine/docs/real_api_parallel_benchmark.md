@@ -101,11 +101,11 @@ time ./.venv/bin/python scripts/run_golden_suite.py \
 
 保存目录：
 
-- [outputs/golden_case_results_real_v1.4_parallel](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/outputs/golden_case_results_real_v1.4_parallel)
+- [outputs/golden_case_results_real_v1.4_parallel](../outputs/golden_case_results_real_v1.4_parallel)
 
 示例：
 
-- [real_003358_fixed_income_duration_real_result.json](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/outputs/golden_case_results_real_v1.4_parallel/real_003358_fixed_income_duration_real_result.json:1)
+- [real_003358_fixed_income_duration_real_result.json](../outputs/golden_case_results_real_v1.4_parallel/real_003358_fixed_income_duration_real_result.json)
 
 该样例的 metadata 中记录：
 
@@ -121,7 +121,7 @@ time ./.venv/bin/python scripts/run_golden_suite.py \
 ## 报告文件
 
 - 串行基准报告：
-  - [golden_suite_real_v1.4_serial_baseline.json](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/outputs/golden_suite_real_v1.4_serial_baseline.json:1)
+  - [golden_suite_real_v1.4_serial_baseline.json](../outputs/golden_suite_real_v1.4_serial_baseline.json)
 - 并行报告：
-  - [golden_suite_real_v1.4_parallel_with_results.json](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/outputs/golden_suite_real_v1.4_parallel_with_results.json:1)
+  - [golden_suite_real_v1.4_parallel_with_results.json](../outputs/golden_suite_real_v1.4_parallel_with_results.json)
 

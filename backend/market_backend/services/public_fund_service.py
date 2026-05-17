@@ -15,7 +15,7 @@ class PublicFundService:
         elif name is not None:
             get_one_result = [item for item in data if ("名称" in item and item["名称"] == name) or ("基金名称" in item and item["基金名称"] == name)]
         return get_one_result
-    
+
     def get_all_real_time(self, platform: str = None, symbol: str = None):
         df = self.akapi.real_time(symbol, platform)
         return df.to_dict(orient="records")
@@ -23,7 +23,16 @@ class PublicFundService:
     def get_hist(self, symbol: str, platform: str, code: str, start_date: str, end_date: str, period: str, adjust: str):
         df = self.akapi.hist(symbol, platform, code, start_date, end_date, period, adjust)
         return df.to_dict(orient="records")
-    
-    def get_hist_min(self, symbol: str, platform: str, code: str, start_date: str, end_date: str, period: str, adjust: str):
+
+    def get_hist_min(self, symbol:str, platform: str, code: str, start_date: str, end_date: str, period: str, adjust: str):
         df = self.akapi.hist_min(symbol, platform, code, start_date, end_date, period, adjust)
+        print(df)
+        return df.to_dict(orient="records")
+
+    def get_fund_name_list(self):
+        df = self.akapi.get_fund_name_list()
+        return df.to_dict(orient="records")
+
+    def get_open_fund_nav(self, code: str):
+        df = self.akapi.open_fund_nav(code)
         return df.to_dict(orient="records")

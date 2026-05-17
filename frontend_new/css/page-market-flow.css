@@ -1,0 +1,105 @@
+/* Figma 11:1391 Market Flow + partial Global Investment */
+
+.mf-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.mf-heat {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mf-heat li {
+  display: grid;
+  grid-template-columns: 1fr 48px;
+  gap: 8px 12px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.mf-heat .bar-track {
+  grid-column: 1 / -1;
+}
+
+.mf-btn {
+  margin-top: 16px;
+}
+
+.mf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mf-list li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(68, 72, 79, 0.15);
+}
+
+.mf-list li:last-child {
+  border-bottom: none;
+}
+
+.gi-months {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.gi-matrix {
+  min-height: 220px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, rgba(129, 236, 255, 0.1) 0%, transparent 40%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 31px,
+      rgba(255, 255, 255, 0.04) 31px,
+      rgba(255, 255, 255, 0.04) 32px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 31px,
+      rgba(255, 255, 255, 0.04) 31px,
+      rgba(255, 255, 255, 0.04) 32px
+    );
+  border: 1px solid var(--border-subtle);
+}
+
+.gi-ai {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gi-ai li {
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(21, 26, 33, 0.65);
+  border: 1px solid rgba(68, 72, 79, 0.25);
+}
+
+.gi-sent {
+  justify-content: flex-start;
+}

@@ -4,16 +4,16 @@
 
 这个仓库是一个独立的 Python 项目：
 
-- 项目入口和依赖声明在 [pyproject.toml](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/pyproject.toml:1)
+- 项目入口和依赖声明在 [pyproject.toml](../pyproject.toml)
 - 当前要求 Python `>=3.11`
 - 推荐给仓库单独创建 `.venv`
 
-仓库不会提交虚拟环境目录，`.venv/` 已在 [.gitignore](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/.gitignore:1) 中忽略。
+仓库不会提交虚拟环境目录，`.venv/` 已在 [.gitignore](../.gitignore) 中忽略。
 
 ## 创建环境
 
 ```bash
-cd /Users/shiling/Downloads/aiagents-stock/fund-llm-engine
+cd .
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -e .
@@ -26,7 +26,7 @@ pip install -e .
 - `openai>=1.12.0`
 - `python-dotenv>=1.0.0`
 
-这些依赖定义在 [pyproject.toml](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/pyproject.toml:11)。
+这些依赖定义在 [pyproject.toml](../pyproject.toml:11)。
 
 ## 配置真实模型
 
@@ -43,15 +43,15 @@ cp .env.example .env
 - `LLM_MODEL`
 - `LLM_TIMEOUT_SECONDS`
 
-默认建议值在 [.env.example](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/.env.example:1)：
+默认建议值在 [.env.example](../.env.example)：
 
 - `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`
 - `LLM_MODEL=gemini-3-flash-preview`
 
-代码会在 [src/fund_llm/config.py](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/src/fund_llm/config.py:1) 里自动读取这些变量。
+代码会在 [src/fund_llm/config.py](../src/fund_llm/config.py) 里自动读取这些变量。
 
 如果团队需要在 Gemini 和 DeepSeek 之间切换，参考
-[docs/provider_setup.md](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/docs/provider_setup.md:1)。
+[docs/provider_setup.md](./provider_setup.md)。
 
 ## 验证顺序
 

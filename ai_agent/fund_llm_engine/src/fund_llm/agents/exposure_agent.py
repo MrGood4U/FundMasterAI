@@ -12,6 +12,19 @@ class ExposureAgent(BaseAgent):
         top_holdings_weight = features.exposure_metrics.get("top_holdings_weight", 0.0)
         has_industry_exposure = features.data_quality_flags.get("has_industry_exposure", False)
         has_top_holdings = features.data_quality_flags.get("has_top_holdings_weight", False)
+        if not has_industry_exposure and not has_top_holdings:
+            return AgentOutput(
+                agent_name=self.name,
+                status="skipped",
+                score=None,
+                stance="insufficient_data",
+                key_points=["Portfolio exposure data was not provided."],
+                risks=["Exposure analysis was skipped because industry exposure and top holdings weight are missing."],
+                recommendations=["Add industry exposure and top holdings weight before drawing exposure conclusions."],
+                confidence=0.0,
+                narrative="Exposure analysis skipped: industry exposure and top holdings weight were not provided.",
+            )
+
         fund_tags = features.fund_tags[:3]
         manager_tenure = features.operational_metrics.manager_tenure_years
         fund_size = features.operational_metrics.fund_size_billion
@@ -38,7 +51,10 @@ class ExposureAgent(BaseAgent):
         score = clamp(raw_score)
         stance = score_to_stance(score)
 
-        system_prompt = "You are a fund exposure analyst. Explain the portfolio concentration and exposure profile."
+        system_prompt = (
+            "You are a fund exposure analyst. Explain the portfolio concentration and exposure profile. "
+            "Use only the provided fields. Do not infer holdings, sectors, manager behavior, or fund style from outside knowledge."
+        )
         user_prompt = (
             f"Fund: {features.fund_info.name} ({features.fund_info.code})\n"
             f"Category: {features.fund_info.category}\n"

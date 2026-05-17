@@ -2,11 +2,11 @@
 
 这个样例文件对应：
 
-- [real_input_008163.json](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/examples/real_input_008163.json:1)
+- [real_input_008163.json](../examples/real_input_008163.json)
 
 ## 为什么选这只基金
 
-这只基金和 [real_input_005827.json](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/examples/real_input_005827.json:1) 风格差异很大：
+这只基金和 [real_input_005827.json](../examples/real_input_005827.json) 风格差异很大：
 
 - `005827` 更像高集中主动权益
 - `008163` 是红利低波指数 ETF 联接

@@ -17,7 +17,7 @@ def get_one_real_time():
         return jsonify({"message": "args not found"}), 404
 
     service = PublicFundService()
-    result = service.get_public_fund_one_real_time(data.get("name"), data.get("code"), data.get("platform"), data.get("symbol"))
+    result = service.get_one_real_time(data.get("name"), data.get("code"), data.get("platform"), data.get("symbol"))
 
     return jsonify({"code": 200, "data": result, "message": "success"}), 200
 
@@ -30,7 +30,7 @@ def get_all_real_time():
         return jsonify({"message": "args not found"}), 404
 
     service = PublicFundService()
-    result = service.get_public_fund_all_real_time(data.get("platform"), data.get("symbol"))
+    result = service.get_all_real_time(data.get("platform"), data.get("symbol"))
 
     return jsonify({"code": 200, "data": result, "message": "success"}), 200
 
@@ -42,7 +42,7 @@ def get_public_fund_hist():
     if data.get("platform") is None or data.get("symbol") is None:
         return jsonify({"message": "args not found"}), 404
     service = PublicFundService()
-    result = service.get_public_fund_hist(data.get("symbol"), data.get("platform"), data.get("code"), data.get("start_date"), data.get("end_date"), date.get("period"), data.get("adjust"))
+    result = service.get_hist(data.get("symbol"), data.get("platform"), data.get("code"), data.get("start_date"), data.get("end_date"), data.get("period"), data.get("adjust"))
     
     return jsonify({"code": 200, "data": result, "message": "success"}), 200
 
@@ -51,9 +51,24 @@ def get_public_fund_hist_min():
     data = request.get_json()
     if data is None:
         return jsonify({"message": "args not found"}), 404
-    if data.get("platform") is None or data.get("symbol") is None:
+    if data.get("platform") is None or data.get("code") is None:
         return jsonify({"message": "args not found"}), 404
     service = PublicFundService()
-    result = service.get_public_fund_hist_min(data.get("symbol"), data.get("platform"), data.get("code"), data.get("start_date"), data.get("end_date"), date.get("period"), data.get("adjust"))
+    result = service.get_hist_min(data.get("symbol"), data.get("platform"), data.get("code"), data.get("start_date"), data.get("end_date"), data.get("period"), data.get("adjust"))
     
+    return jsonify({"code": 200, "data": result, "message": "success"}), 200
+
+@public_fund_bp.get("/fund_name_list")
+def get_public_fund_name_list():
+    service = PublicFundService()
+    result = service.get_fund_name_list()
+    return jsonify({"code": 200, "data": result, "message": "success"}), 200
+
+@public_fund_bp.post("/open_nav")
+def get_open_fund_nav():
+    data = request.get_json()
+    if data is None or data.get("code") is None:
+        return jsonify({"message": "args not found"}), 404
+    service = PublicFundService()
+    result = service.get_open_fund_nav(data.get("code"))
     return jsonify({"code": 200, "data": result, "message": "success"}), 200

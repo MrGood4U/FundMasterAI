@@ -33,7 +33,10 @@ class RiskAgent(BaseAgent):
         score = clamp(raw_score)
         stance = score_to_stance(score)
 
-        system_prompt = "You are a fund risk analyst. Explain the fund's main risk profile."
+        system_prompt = (
+            "You are a fund risk analyst. Explain the fund's main risk profile using only the provided risk metrics. "
+            "Do not infer holdings, sectors, manager behavior, or market causes from outside knowledge."
+        )
         user_prompt = (
             f"Fund: {features.fund_info.name} ({features.fund_info.code})\n"
             f"Max drawdown: {max_drawdown:.4f}\n"

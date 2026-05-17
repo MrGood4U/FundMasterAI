@@ -1,8 +1,11 @@
 # fund-llm-engine
 
-面向基金分析场景的 LLM 专仓。
+面向基金分析场景的 LLM / 多智能体分析模块。
 
-这个仓库只保留“大模型 / 多智能体 / 解释生成”相关的核心模块，不包含：
+这个目录只保留“大模型 / 多智能体 / 解释生成”相关的核心模块。仓库根目录的
+`backend/` 和 `frontend_new/` 只用于端到端 demo 联调。
+
+本模块本身不负责：
 
 - 前端页面
 - 数据库
@@ -10,7 +13,7 @@
 - PDF 导出
 - 股票策略模块
 
-当前目录是从参考项目中抽离出来的本地独立仓库骨架，后续可以直接移动到你们组项目外单独维护，也可以作为大仓库里的子模块原型继续演进。
+当前目录可以作为大仓库里的 AI Agent 子模块继续演进，也可以独立安装和测试。
 
 ## 当前包含的内容
 
@@ -36,26 +39,31 @@ fund-llm-engine/
 ## 快速开始
 
 ```bash
-cd fund-llm-engine
+cd ai_agent/fund_llm_engine
 python3 -m unittest discover -s tests
 ```
 
 ## 本地环境
 
-这个仓库是一个独立的 Python 项目，依赖声明在 [pyproject.toml](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/pyproject.toml:1)，当前要求：
+这个模块是一个独立的 Python 项目，依赖声明在 [pyproject.toml](pyproject.toml)，当前要求：
 
 - Python `>=3.11`
 - 运行依赖：
   - `openai>=1.12.0`
   - `python-dotenv>=1.0.0`
+- 后端联调依赖：
+  - `akshare`
+  - `flask`
+  - `flask-openapi3`
+  - `pandas`
 
 推荐给这个项目单独建一个本地虚拟环境 `.venv`：
 
 ```bash
-cd /Users/shiling/Downloads/aiagents-stock/fund-llm-engine
+cd ai_agent/fund_llm_engine
 python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e ".[backend]"
 ```
 
 如果你要跑真实 Gemini demo，再补一份本地 `.env`：
@@ -70,7 +78,7 @@ cp .env.example .env
 - `LLM_BASE_URL`
 - `LLM_MODEL`
 
-当前默认推荐值已经写在 [.env.example](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/.env.example:1)：
+当前默认推荐值已经写在 [.env.example](.env.example)：
 
 - `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`
 - `LLM_MODEL=gemini-3-flash-preview`

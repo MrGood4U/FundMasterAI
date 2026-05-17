@@ -33,7 +33,7 @@ FundAnalysisInput
 - `orchestration/engine.py`
   负责注册、执行、失败隔离和最终汇总
 
-更详细的智能体模块设计见 [agent_architecture_design.md](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/docs/agent_architecture_design.md:1)。
+更详细的智能体模块设计见 [agent_architecture_design.md](./agent_architecture_design.md)。
 
 ## 当前 MVP Agents
 

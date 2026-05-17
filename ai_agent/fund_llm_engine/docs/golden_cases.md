@@ -60,7 +60,7 @@
 
 当前 manifest 在：
 
-- [examples/golden_cases_manifest.json](/Users/shiling/Downloads/aiagents-stock/fund-llm-engine/examples/golden_cases_manifest.json:1)
+- [examples/golden_cases_manifest.json](../examples/golden_cases_manifest.json)
 
 每个 case 里会写：
 

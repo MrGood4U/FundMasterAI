@@ -38,7 +38,10 @@ class PerformanceAgent(BaseAgent):
         score = clamp(raw_score)
         stance = score_to_stance(score)
 
-        system_prompt = "You are a professional fund performance analyst. Explain the fund's recent performance using the provided metrics."
+        system_prompt = (
+            "You are a professional fund performance analyst. Explain the fund's recent performance using only "
+            "the provided metrics. Do not infer holdings, sectors, manager behavior, or market causes from outside knowledge."
+        )
         user_prompt = (
             f"Fund: {features.fund_info.name} ({features.fund_info.code})\n"
             f"Asset type: {features.fund_info.asset_type}\n"

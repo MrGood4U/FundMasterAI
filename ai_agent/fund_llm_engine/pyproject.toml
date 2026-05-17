@@ -13,9 +13,16 @@ dependencies = [
   "python-dotenv>=1.0.0",
 ]
 
+[project.optional-dependencies]
+backend = [
+  "akshare>=1.18.0",
+  "flask>=3.1.0",
+  "flask-openapi3>=4.3.0",
+  "pandas>=2.2.0",
+]
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
