@@ -16,9 +16,13 @@ def create_app():
     # Register blueprints here
     from views.public_fund_view import public_fund_bp
     from views.stock_view import stock_bp
-    
+    from views.crypto_view import crypto_bp
+    from views.meta_view import meta_bp
+
     app.register_blueprint(public_fund_bp)
     app.register_blueprint(stock_bp)
+    app.register_blueprint(crypto_bp)
+    app.register_blueprint(meta_bp)
 
     @app.route('/')
     def hello_world():
