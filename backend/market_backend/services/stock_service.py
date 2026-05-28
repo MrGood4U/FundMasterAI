@@ -1,5 +1,6 @@
 from daos.market_dao import MarketDao
 from apis.akshare_stock_api import AkshareStock
+from utils.kline_generator import KLineGenerator
 import pandas as pd
 
 class StockService:
@@ -22,3 +23,11 @@ class StockService:
     def get_a_bid_ask(self, platform: str, code: str):
         df = self.akapi.a_bid_ask(platform, code)
         return df.to_dict(orient="records")
+
+    def get_a_hist_kline(self, platform: str, code: str, period: str,
+                         start_date: str, end_date: str, adjust: str):
+        df = self.akapi.a_hist(platform, code, period, start_date, end_date, adjust)
+        if df is None or df.empty:
+            return []
+        gen = KLineGenerator(df)
+        return gen.all().to_dict(orient="records")
