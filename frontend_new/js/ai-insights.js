@@ -136,8 +136,16 @@ async function runAnalysis(event) {
     setStatus("Complete");
   } catch (error) {
     setStatus("Error", "warn");
+    fields.fundName.textContent = "Analysis failed";
+    fields.fundWindow.textContent = error.message;
+    fields.overallRating.textContent = "--";
+    fields.overallScore.textContent = "--";
+    fields.navCount.textContent = "--";
+    fields.llmMode.textContent = "--";
     fields.summary.textContent = error.message;
     fields.agentHealth.textContent = "failed";
+    fields.successTools.textContent = "--";
+    fields.errorTools.textContent = "--";
   }
 }
 
