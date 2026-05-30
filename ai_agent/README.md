@@ -21,6 +21,13 @@ GET http://127.0.0.1:5000/api/news/functions?tag=fund
 GET http://127.0.0.1:5002/api/portfolio/functions
 ```
 
+If `news_backend` is moved to another local port, set `NEWS_BACKEND_URL`
+before starting `fund_llm_engine/app.py`. For example:
+
+```bash
+export NEWS_BACKEND_URL=http://127.0.0.1:5010
+```
+
 The LLM engine now uses `fund_llm.adapters.BackendFunctionClient` to discover
 those functions and call them over HTTP. The current fund analysis path uses:
 
@@ -60,6 +67,9 @@ curl -s -X POST http://127.0.0.1:5003/api/ai/fund/analyze \
   -d '{"code":"000001","mock":true}'
 ```
 
+For real LLM mode, create `fund_llm_engine/.env` from `.env.example`, fill in
+`LLM_API_KEY`, and call the endpoint with `"mock": false`.
+
 See `fund_llm_engine/README.md` and
-`fund_llm_engine/docs/agent_architecture_design.md` for module scope,
-contracts, provider setup, and integration notes.
+`fund_llm_engine/docs/dev_backend_integration_handoff.md` for module scope,
+contracts, provider setup, integration notes, and the latest routing status.
