@@ -19,8 +19,8 @@ class AlertService:
         if kwargs["trigger_mode"] not in ("price", "pct"):
             return {"error": "trigger_mode must be price or pct"}
 
-        if kwargs["asset_type"] not in ("stock", "fund", "crypto"):
-            return {"error": "asset_type must be stock, fund, or crypto"}
+        if kwargs["asset_type"] not in ("stock", "fund", "bond", "crypto"):
+            return {"error": "asset_type must be stock, fund, bond, or crypto"}
 
         # Validate trigger values
         trigger_mode = kwargs["trigger_mode"]

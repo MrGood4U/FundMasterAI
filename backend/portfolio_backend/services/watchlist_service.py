@@ -13,8 +13,8 @@ class WatchlistService:
             if field not in kwargs or kwargs[field] is None:
                 return {"error": f"{field} is required"}
 
-        if kwargs["asset_type"] not in ("stock", "fund", "crypto"):
-            return {"error": "asset_type must be stock, fund, or crypto"}
+        if kwargs["asset_type"] not in ("stock", "fund", "bond", "crypto"):
+            return {"error": "asset_type must be stock, fund, bond, or crypto"}
 
         watch_id = self.dao.add(
             asset_type=kwargs["asset_type"],

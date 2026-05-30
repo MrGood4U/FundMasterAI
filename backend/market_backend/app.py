@@ -18,11 +18,13 @@ def create_app():
     from views.stock_view import stock_bp
     from views.crypto_view import crypto_bp
     from views.meta_view import meta_bp
+    from views.bond_view import bond_bp
 
     app.register_blueprint(public_fund_bp)
     app.register_blueprint(stock_bp)
     app.register_blueprint(crypto_bp)
     app.register_blueprint(meta_bp)
+    app.register_blueprint(bond_bp)
 
     @app.route('/')
     def hello_world():

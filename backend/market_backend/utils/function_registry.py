@@ -939,6 +939,252 @@ FUNCTIONS = [
     },
 
     # =====================================================================
+    # 债券
+    # =====================================================================
+    {
+        "name": "get_bond_spot_quote",
+        "description": "获取全市场债券实时报价行情。包含各报价机构的买入/卖出净价和对应收益率。适合查看债券的市场定价和流动性。",
+        "path": "/api/market/bond/spot_quote",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "bond_name": "债券简称",
+            "bond_code": "债券代码",
+            "quote_institution": "报价机构",
+            "buying_clean_price": "买入净价",
+            "selling_clean_price": "卖出净价",
+            "buying_yield": "买入收益率(%)",
+            "selling_yield": "卖出收益率(%)",
+        },
+    },
+    {
+        "name": "get_bond_spot_deal",
+        "description": "获取全市场债券成交行情。包含成交净价、最新收益率、涨跌幅、加权收益率和成交量。适合分析债券的实际交易活跃度和价格走势。",
+        "path": "/api/market/bond/spot_deal",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "bond_name": "债券简称",
+            "bond_code": "债券代码",
+            "deal_clean_price": "成交净价",
+            "latest_yield": "最新收益率(%)",
+            "change": "涨跌",
+            "weighted_yield": "加权收益率(%)",
+            "volume": "交易量",
+        },
+    },
+    {
+        "name": "get_bond_spot_quote_search",
+        "description": "按债券代码或名称搜索单只债券的实时报价行情。返回各报价机构的买入/卖出净价和收益率。",
+        "path": "/api/market/bond/spot_quote_search",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "bond_code": {
+                    "type": "string",
+                    "description": "债券代码。与 bond_name 二选一",
+                },
+                "bond_name": {
+                    "type": "string",
+                    "description": "债券名称/简称。与 bond_code 二选一",
+                },
+            },
+            "required": [],
+        },
+        "returns": {
+            "bond_name": "债券简称",
+            "bond_code": "债券代码",
+            "quote_institution": "报价机构",
+            "buying_clean_price": "买入净价",
+            "selling_clean_price": "卖出净价",
+            "buying_yield": "买入收益率(%)",
+            "selling_yield": "卖出收益率(%)",
+        },
+    },
+    {
+        "name": "get_bond_spot_deal_search",
+        "description": "按债券代码或名称搜索单只债券的成交行情。包含成交净价、最新收益率、涨跌幅和加权收益率。适用于关注具体个债的成交状况。",
+        "path": "/api/market/bond/spot_deal_search",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "bond_code": {
+                    "type": "string",
+                    "description": "债券代码。与 bond_name 二选一",
+                },
+                "bond_name": {
+                    "type": "string",
+                    "description": "债券名称/简称。与 bond_code 二选一",
+                },
+            },
+            "required": [],
+        },
+        "returns": {
+            "bond_name": "债券简称",
+            "bond_code": "债券代码",
+            "deal_clean_price": "成交净价",
+            "latest_yield": "最新收益率(%)",
+            "change": "涨跌",
+            "weighted_yield": "加权收益率(%)",
+            "volume": "交易量",
+        },
+    },
+    {
+        "name": "get_bond_info_search",
+        "description": "搜索债券基本信息。可按债券名称、代码、发行主体、债券类型、付息方式、发行年份、债项评级、主承销商等多维度筛选。适合寻找符合特定条件的债券。",
+        "path": "/api/market/bond/info_search",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "bond_name": {
+                    "type": "string",
+                    "description": "债券简称，支持模糊搜索",
+                },
+                "bond_code": {
+                    "type": "string",
+                    "description": "债券代码",
+                },
+                "bond_issue": {
+                    "type": "string",
+                    "description": "发行人/受托机构",
+                },
+                "bond_type": {
+                    "type": "string",
+                    "description": "债券类型，如 国债、企业债、中期票据 等",
+                },
+                "coupon_type": {
+                    "type": "string",
+                    "description": "付息方式，如 附息、贴现、利随本清 等",
+                },
+                "issue_year": {
+                    "type": "string",
+                    "description": "发行年份，如 2025",
+                },
+                "grade": {
+                    "type": "string",
+                    "description": "最新债项评级，如 AAA、AA+、AA 等",
+                },
+                "underwriter": {
+                    "type": "string",
+                    "description": "主承销商",
+                },
+            },
+            "required": [],
+        },
+        "returns": {
+            "bond_name": "债券简称",
+            "bond_code": "债券代码",
+            "issuer_or_trustee": "发行人/受托机构",
+            "bond_type": "债券类型",
+            "issue_date": "发行日期",
+            "latest_bond_rating": "最新债项评级",
+            "query_code": "查询代码",
+        },
+    },
+    {
+        "name": "get_bond_china_yield",
+        "description": "获取中国国债收益率曲线数据。返回各期限（3月/6月/1年/3年/5年/7年/10年/30年）的收益率。日期范围不能超过1年。用于分析利率期限结构、判断市场对宏观经济的预期。",
+        "path": "/api/market/bond/china_yield",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "start_date": {
+                    "type": "string",
+                    "description": "起始日期，格式 YYYYMMDD，如 20250101。与 end_date 间隔不超过1年",
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": "结束日期，格式 YYYYMMDD，如 20250528",
+                },
+            },
+            "required": ["start_date", "end_date"],
+        },
+        "returns": {
+            "bond_name": "债券简称",
+            "bond_code": "债券代码",
+            "curve_name": "收益率曲线名称",
+            "date": "日期",
+            "yield_3m": "3月期收益率(%)",
+            "yield_6m": "6月期收益率(%)",
+            "yield_1y": "1年期收益率(%)",
+            "yield_3y": "3年期收益率(%)",
+            "yield_5y": "5年期收益率(%)",
+            "yield_7y": "7年期收益率(%)",
+            "yield_10y": "10年期收益率(%)",
+            "yield_30y": "30年期收益率(%)",
+        },
+    },
+    {
+        "name": "get_bond_china_yield_search",
+        "description": "按曲线名称搜索中国国债收益率曲线数据。支持模糊匹配曲线名称（如 国债、政策性银行债 等）。可用于关注特定类型债券的收益率曲线。",
+        "path": "/api/market/bond/china_yield_search",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "curve_name": {
+                    "type": "string",
+                    "description": "曲线名称，支持模糊匹配，如 国债、政策性银行债、中短期票据 等",
+                },
+                "start_date": {
+                    "type": "string",
+                    "description": "起始日期，格式 YYYYMMDD。与 end_date 间隔不超过1年",
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": "结束日期，格式 YYYYMMDD",
+                },
+            },
+            "required": ["curve_name", "start_date", "end_date"],
+        },
+        "returns": {
+            "bond_name": "债券简称",
+            "bond_code": "债券代码",
+            "curve_name": "收益率曲线名称",
+            "date": "日期",
+            "yield_3m": "3月期收益率(%)",
+            "yield_6m": "6月期收益率(%)",
+            "yield_1y": "1年期收益率(%)",
+            "yield_3y": "3年期收益率(%)",
+            "yield_5y": "5年期收益率(%)",
+            "yield_7y": "7年期收益率(%)",
+            "yield_10y": "10年期收益率(%)",
+            "yield_30y": "30年期收益率(%)",
+        },
+    },
+    {
+        "name": "get_bond_name_by_code",
+        "description": "根据债券代码查询对应的债券名称/简称。适合在只有代码时需要确认债券全称的场景。",
+        "path": "/api/market/bond/get_name_by_code",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "bond_code": {
+                    "type": "string",
+                    "description": "债券代码",
+                },
+            },
+            "required": ["bond_code"],
+        },
+        "returns": {
+            "_note": "直接返回债券名称字符串，而非对象数组",
+        },
+    },
+
+    # =====================================================================
     # 加密货币
     # =====================================================================
     {
@@ -1093,10 +1339,11 @@ def get_all_functions():
 
 
 def get_functions_by_tag(tag: str):
-    """按标签筛选函数。tag 为 stock / fund / crypto。"""
+    """按标签筛选函数。tag 为 stock / fund / bond / crypto。"""
     prefix_map = {
         "stock": "get_stock",
         "fund": "get_fund",
+        "bond": "get_bond",
         "crypto": "get_crypto",
     }
     prefix = prefix_map.get(tag)
