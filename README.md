@@ -173,13 +173,21 @@ cd ai_agent/fund_llm_engine
 cp .env.example .env
 ```
 
-Fill in:
+For DeepSeek, fill in:
 
 ```text
-LLM_API_KEY=
-LLM_BASE_URL=
-LLM_MODEL=
+LLM_API_KEY=your DeepSeek API key
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-v4-flash
 ```
+
+You can also use the legacy-compatible model name:
+
+```text
+LLM_MODEL=deepseek-chat
+```
+
+DeepSeek docs say `deepseek-chat` will be deprecated, so `deepseek-v4-flash` is preferred. `.env` is local secret config and should not be committed.
 
 Then call:
 

@@ -169,13 +169,21 @@ cd ai_agent/fund_llm_engine
 cp .env.example .env
 ```
 
-填写：
+如果使用 DeepSeek，可以直接按下面这样填写：
 
 ```text
-LLM_API_KEY=
-LLM_BASE_URL=
-LLM_MODEL=
+LLM_API_KEY=你的 DeepSeek API Key
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-v4-flash
 ```
+
+也可以用兼容旧模型名：
+
+```text
+LLM_MODEL=deepseek-chat
+```
+
+但 DeepSeek 官方文档提示 `deepseek-chat` 后续会弃用，优先建议使用 `deepseek-v4-flash`。`.env` 是本地私密配置，不会上传，也不要提交到仓库。
 
 然后调用：
 
@@ -259,10 +267,12 @@ cp .env.example .env
 填写：
 
 ```text
-LLM_API_KEY=你的本地模型 API key
-LLM_BASE_URL=模型服务地址
-LLM_MODEL=模型名称
+LLM_API_KEY=你的 DeepSeek API Key
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-v4-flash
 ```
+
+如果换成 Gemini 或其他 OpenAI-compatible provider，只需要把 `LLM_BASE_URL` 和 `LLM_MODEL` 换成对应服务的值。
 
 ### 后端需要提供什么
 
