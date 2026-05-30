@@ -305,9 +305,7 @@ Currently missing or not yet connected:
 bond holdings
 asset allocation
 industry allocation
-fund type routing
 bond-specific exposure analysis
-structured data coverage reporting
 ```
 
 ## Backend API Gap Analysis
@@ -375,9 +373,11 @@ The LLM should summarize evidence, not decide the data pipeline.
 
 ## Recommended Next Development Plan
 
-### Step 1: Add Fund Type Router
+### Step 1: Keep Fund Type Router As The Routing Source
 
-Add deterministic classification inside the AI engine:
+Status: completed on `aiagent-use-dev-backend`.
+
+The AI engine now uses deterministic classification:
 
 ```text
 fund_type string -> normalized_fund_type
@@ -403,7 +403,9 @@ The router should use:
 - optional `tracking_index` from `get_fund_info_index`
 - no LLM judgment
 
-### Step 2: Add Data Coverage Object
+### Step 2: Keep Data Coverage Object In The AI Response
+
+Status: completed on `aiagent-use-dev-backend`.
 
 The AI response should include a structured coverage object:
 
@@ -539,8 +541,8 @@ Useful test fund codes:
 Tests passed earlier on this branch:
 
 ```text
-python3.11 -m unittest discover -s tests
-49 tests OK
+python3 -m unittest discover -s tests
+59 tests OK
 ```
 
 Frontend JavaScript syntax check passed:
