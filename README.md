@@ -2,6 +2,11 @@
 
 Integrated demo branch for the FundMasterAI frontend, backend, and AI Agent.
 
+Language:
+
+- English: this file
+- Chinese: [README.zh-CN.md](README.zh-CN.md)
+
 This branch connects:
 
 ```text
@@ -43,6 +48,7 @@ Important AI Agent docs:
 ai_agent/README.md
 ai_agent/fund_llm_engine/README.md
 ai_agent/fund_llm_engine/docs/dev_backend_integration_handoff.md
+ai_agent/fund_llm_engine/docs/midterm_report_zh.md
 ```
 
 ## Prerequisites
@@ -81,7 +87,7 @@ python3 -m unittest discover -s tests
 Current expected result:
 
 ```text
-57 tests OK
+59 tests OK
 ```
 
 Frontend syntax check:
