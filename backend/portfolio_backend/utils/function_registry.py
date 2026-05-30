@@ -23,7 +23,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "asset_code": {
                     "type": "string",
@@ -86,7 +86,7 @@ FUNCTIONS = [
         },
         "returns": {
             "id": "交易记录ID",
-            "asset_type": "资产类型（stock/fund/crypto）",
+            "asset_type": "资产类型（stock/fund/bond/crypto）",
             "asset_code": "资产代码",
             "asset_name": "资产名称",
             "trans_type": "交易方向（buy/sell）",
@@ -177,7 +177,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型筛选",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "asset_code": {
                     "type": "string",
@@ -229,7 +229,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型筛选",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "page": {
                     "type": "integer",
@@ -275,7 +275,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "asset_code": {
                     "type": "string",
@@ -304,7 +304,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "asset_code": {
                     "type": "string",
@@ -475,7 +475,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型筛选",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "page": {
                     "type": "integer",
@@ -510,7 +510,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "asset_code": {
                     "type": "string",
@@ -569,7 +569,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型筛选",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "page": {
                     "type": "integer",
@@ -589,6 +589,142 @@ FUNCTIONS = [
             "page_size": "每页条数",
         },
     },
+
+    # =====================================================================
+    # Allocation 资产配置
+    # =====================================================================
+    {
+        "name": "get_current_allocation",
+        "description": "获取当前各类资产（stock/fund/bond/crypto）的持仓市值与占比。基于实时行情计算市值，用于了解当前实际配置状态。",
+        "path": "/api/portfolio/allocation/current",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "items": "各类资产配置数组",
+            "total_market_value": "总市值",
+            "total_cost": "总成本",
+            "_item_fields": {
+                "asset_type": "资产大类（stock/fund/bond/crypto）",
+                "market_value": "该类别持仓总市值",
+                "pct": "该类别占总市值的百分比",
+                "total_cost": "该类别持仓总成本",
+            },
+        },
+    },
+    {
+        "name": "set_target_allocation",
+        "description": "设定目标资产配置比例。传入各资产类别的目标百分比（总和必须为100）。通常由Agent根据用户风险偏好推荐后调用。例如 risk-averse: {stock:30, fund:30, bond:35, crypto:5}；aggressive: {stock:50, fund:20, bond:10, crypto:20}。",
+        "path": "/api/portfolio/allocation/target",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "stock": {
+                    "type": "number",
+                    "description": "股票目标占比(%)",
+                },
+                "fund": {
+                    "type": "number",
+                    "description": "基金目标占比(%)",
+                },
+                "bond": {
+                    "type": "number",
+                    "description": "债券目标占比(%)",
+                },
+                "crypto": {
+                    "type": "number",
+                    "description": "加密货币目标占比(%)",
+                },
+            },
+            "required": [],
+        },
+        "returns": {
+            "targets": "已保存的目标配置对象",
+            "message": "ok",
+        },
+    },
+    {
+        "name": "get_target_allocation",
+        "description": "读取已保存的目标资产配置比例。Agent 可用于确认用户当前策略后再做出推荐。",
+        "path": "/api/portfolio/allocation/target",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "_note": "返回如 {\"stock\": 40, \"fund\": 30, \"bond\": 20, \"crypto\": 10}，仅包含已设定的资产类别的字段",
+        },
+    },
+    {
+        "name": "get_allocation_drift",
+        "description": "计算当前配置与目标配置的偏离度。返回每类资产的当前占比、目标占比、差值及状态（超配/低配/正常）。偏离超过5%标记为超配或低配，是触发再平衡的信号。",
+        "path": "/api/portfolio/allocation/drift",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "items": "偏离度数组",
+            "total_market_value": "总市值",
+            "_item_fields": {
+                "asset_type": "资产大类",
+                "current_pct": "当前实际占比(%)",
+                "target_pct": "目标占比(%)",
+                "diff_pct": "差值(当前-目标)，正=超配，负=低配",
+                "status": "状态：超配/低配/正常",
+            },
+        },
+    },
+
+    # =====================================================================
+    # Sector 行业暴露
+    # =====================================================================
+    {
+        "name": "get_sector_exposure",
+        "description": "穿透持仓汇总各行业的市值分布。直接持有的个股按名称关键词归入行业；持有的基金通过调market_backend获取基金持仓明细后再按行业归类。债券和加密货币分别归入'债券'和'加密货币'。",
+        "path": "/api/portfolio/sector/exposure",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "items": "行业分布数组（按市值降序）",
+            "total_market_value": "总市值",
+            "_item_fields": {
+                "sector": "行业名称（医药/科技/金融/消费/新能源/汽车/制造等）",
+                "market_value": "该行业持仓市值",
+                "pct": "该行业占总市值的百分比",
+            },
+        },
+    },
+    {
+        "name": "get_sector_concentration",
+        "description": "行业与个股集中度分析。返回前3大行业占比、前5大个股占比及风险标记。若单行业占比>70%、单一个股占比>20%或前5个股合计>50%，会给出警告。",
+        "path": "/api/portfolio/sector/concentration",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "top3_sectors": "前3大行业列表（含sector/market_value/pct）",
+            "top3_sectors_pct": "前3大行业合计占比(%)",
+            "top5_stocks": "前5大个股列表（含code/name/market_value/pct）",
+            "top5_stocks_pct": "前5大个股合计占比(%)",
+            "warnings": "风险警告字符串数组，如 ['前3大行业占比 85%，集中度过高']",
+        },
+    },
 ]
 
 
@@ -598,12 +734,14 @@ def get_all_functions():
 
 
 def get_functions_by_tag(tag: str):
-    """按标签筛选函数。tag 为 transaction / holding / alert / watchlist。"""
+    """按标签筛选函数。tag 为 transaction / holding / alert / watchlist / allocation / sector。"""
     prefix_map = {
         "transaction": "create_transaction",
         "holding": "get_holdings",
         "alert": "create_alert",
         "watchlist": "add_to_watchlist",
+        "allocation": "get_current_allocation",
+        "sector": "get_sector_exposure",
     }
     tag_names = {
         "transaction": ["create_transaction", "get_transaction", "update_transaction",
@@ -612,6 +750,9 @@ def get_functions_by_tag(tag: str):
         "alert": ["create_alert", "get_alert", "update_alert",
                   "delete_alert", "list_alerts"],
         "watchlist": ["add_to_watchlist", "remove_from_watchlist", "list_watchlist"],
+        "allocation": ["get_current_allocation", "set_target_allocation",
+                       "get_target_allocation", "get_allocation_drift"],
+        "sector": ["get_sector_exposure", "get_sector_concentration"],
     }
     names = tag_names.get(tag)
     if names is None:
