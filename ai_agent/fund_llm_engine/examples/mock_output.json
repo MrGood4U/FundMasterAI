@@ -1,0 +1,136 @@
+{
+  "request_id": "mock-demo-001",
+  "overall_rating": "hold",
+  "overall_score": 60.5,
+  "key_thesis": [
+    "Benchmark-relative context is available for cross-checking the agent views.",
+    "Recent news flow is available as an additional sentiment cross-check.",
+    "Sector exposure breakdown is available for industry-level cross-checking.",
+    "Fund role tags include core_holding, active_equity, consumer_tilt.",
+    "Agent confidence is broadly solid under the current input coverage."
+  ],
+  "main_risks": [
+    "Available return history is still limited for a fuller trend read.",
+    "Top holdings weight is relatively high.",
+    "Current concentration may feel aggressive for a balanced risk profile.",
+    "Volatility is high for a conservative investor.",
+    "Risk history is still too short for a fuller rolling-risk assessment."
+  ],
+  "action_plan": [
+    "Match any allocation to a balanced risk profile.",
+    "Wait for a longer performance history before making a stronger conviction call.",
+    "Keep any allocation sized for a balanced risk profile and diversify around it.",
+    "Treat the current risk read as preliminary until a longer history is available.",
+    "Recent news tone is supportive, but still confirm it with hard performance data."
+  ],
+  "agent_outputs": [
+    {
+      "agent_name": "PerformanceAgent",
+      "status": "success",
+      "score": 70.34285714285716,
+      "stance": "positive",
+      "key_points": [
+        "Total return is 8.00%.",
+        "Max drawdown is -2.86%.",
+        "Sample excess return versus benchmark is 4.00%."
+      ],
+      "risks": [
+        "Available return history is still limited for a fuller trend read."
+      ],
+      "recommendations": [
+        "Wait for a longer performance history before making a stronger conviction call."
+      ],
+      "confidence": 0.78,
+      "narrative": "Mock analysis narrative."
+    },
+    {
+      "agent_name": "ExposureAgent",
+      "status": "success",
+      "score": 42.940000000000005,
+      "stance": "neutral",
+      "key_points": [
+        "Industry concentration is 35.00%.",
+        "Top holdings weight is 58.00%.",
+        "Fund role/style tags include core_holding, active_equity, consumer_tilt.",
+        "Manager tenure is 4.5 years.",
+        "Fund size is about 28.6 billion."
+      ],
+      "risks": [
+        "Top holdings weight is relatively high.",
+        "Current concentration may feel aggressive for a balanced risk profile."
+      ],
+      "recommendations": [
+        "Keep any allocation sized for a balanced risk profile and diversify around it."
+      ],
+      "confidence": 0.8,
+      "narrative": "Mock analysis narrative."
+    },
+    {
+      "agent_name": "RiskAgent",
+      "status": "success",
+      "score": 60.11459169368378,
+      "stance": "neutral",
+      "key_points": [
+        "Annualized volatility is 71.57%.",
+        "Max drawdown is -2.86%."
+      ],
+      "risks": [
+        "Volatility is high for a conservative investor.",
+        "Risk history is still too short for a fuller rolling-risk assessment."
+      ],
+      "recommendations": [
+        "Treat the current risk read as preliminary until a longer history is available."
+      ],
+      "confidence": 0.8,
+      "narrative": "Mock analysis narrative."
+    },
+    {
+      "agent_name": "SentimentAgent",
+      "status": "success",
+      "score": 70,
+      "stance": "positive",
+      "key_points": [
+        "Processed 2 recent news signal(s).",
+        "Positive news signals count is 1.",
+        "Recent news topics include 消费复苏, 白酒行业."
+      ],
+      "risks": [],
+      "recommendations": [
+        "Recent news tone is supportive, but still confirm it with hard performance data."
+      ],
+      "confidence": 0.78,
+      "narrative": "Mock analysis narrative."
+    },
+    {
+      "agent_name": "SectorAgent",
+      "status": "success",
+      "score": 59.099999999999994,
+      "stance": "neutral",
+      "key_points": [
+        "Top sector is 食品饮料 at 35.00%.",
+        "Top two sectors together account for 55.00%.",
+        "Sector breadth covers 3 disclosed sector bucket(s)."
+      ],
+      "risks": [],
+      "recommendations": [
+        "Sector positioning looks reasonably balanced for diversified allocation."
+      ],
+      "confidence": 0.76,
+      "narrative": "Mock analysis narrative."
+    }
+  ],
+  "summary": "Mock analysis narrative.",
+  "missing_fields": [],
+  "metadata": {
+    "success_agent_count": "5",
+    "error_agent_count": "0",
+    "average_confidence": "0.78",
+    "has_benchmark": "true",
+    "has_news_signal": "true",
+    "has_sector_context": "true",
+    "news_item_count": "2",
+    "client_risk_profile": "balanced",
+    "agent_health": "healthy",
+    "fund_tags": "core_holding,active_equity,consumer_tilt"
+  }
+}
