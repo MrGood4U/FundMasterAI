@@ -1,3 +1,5 @@
+import unittest
+
 from fund_llm.adapters.backend_function_client import (
     BackendFunctionClient,
     BackendService,
@@ -124,3 +126,70 @@ def test_build_fund_input_from_backend_functions_maps_core_fields():
     assert payload.extra_context["data_source"] == "backend_function_registry"
     assert payload.extra_context["normalized_fund_type"] == "mixed_fund"
     assert "get_fund_hist" in payload.extra_context["available_backend_tools"]
+
+
+def test_build_fund_input_treats_small_holding_percentages_as_percent_units():
+    def transport(method, url, payload, timeout):
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_holds", "path": "/holds", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_analysis", "path": "/analysis", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_profit_probability", "path": "/profit", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {
+                "code": 200,
+                "data": [
+                    {"name": "get_public_fund_announcement", "path": "/ann", "method": "POST", "parameters": {}}
+                ],
+                "message": "success",
+            }
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2026-01-01", "unit_net_value": "1.00"},
+                    {"date": "2026-01-02", "unit_net_value": "1.04"},
+                ],
+            }
+        if url.endswith("/basic"):
+            return {"code": 200, "data": [{"fund_name": "Index Fund", "fund_type": "股票型-标准指数"}]}
+        if url.endswith("/holds"):
+            return {
+                "code": 200,
+                "data": [
+                    {"stock_name": "A", "net_value_pct": 18.33, "quarter": "2026年1季度股票投资明细"},
+                    {"stock_name": "B", "net_value_pct": 0.70, "quarter": "2026年1季度股票投资明细"},
+                    {"stock_name": "C", "net_value_pct": 16.14, "quarter": "2026年1季度股票投资明细"},
+                ],
+            }
+        return {"code": 200, "data": []}
+
+    services = {
+        "market": BackendService("market", "http://market", "/api/market/functions"),
+        "news": BackendService("news", "http://news", "/api/news/functions"),
+        "portfolio": BackendService("portfolio", "http://portfolio", "/api/portfolio/functions"),
+    }
+    client = BackendFunctionClient(services=services, transport=transport)
+
+    payload = build_fund_input_from_backend_functions("161725", client=client, top_holdings_n=2)
+
+    assert round(payload.top_holdings_weight, 4) == 0.3447
+    assert '"stock_name": "A"' in payload.extra_context["top_holdings"]
+    assert '"stock_name": "C"' in payload.extra_context["top_holdings"]
+    assert '"stock_name": "B"' not in payload.extra_context["top_holdings"]
+
+
+class BackendFunctionClientRegressionTest(unittest.TestCase):
+    def test_small_holding_percentages_are_run_by_unittest(self):
+        test_build_fund_input_treats_small_holding_percentages_as_percent_units()
+
+
+if __name__ == "__main__":
+    unittest.main()
