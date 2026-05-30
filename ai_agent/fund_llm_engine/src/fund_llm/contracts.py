@@ -194,6 +194,8 @@ class FundAnalysisInput:
 class FundFeaturePack:
     request_id: str
     fund_info: FundInfo
+    normalized_fund_type: str
+    fund_family: str
     return_metrics: Dict[str, float]
     risk_metrics: Dict[str, float]
     exposure_metrics: Dict[str, float]
@@ -201,6 +203,7 @@ class FundFeaturePack:
     benchmark_metrics: Dict[str, float] = field(default_factory=dict)
     data_quality_metrics: Dict[str, int] = field(default_factory=dict)
     data_quality_flags: Dict[str, bool] = field(default_factory=dict)
+    data_coverage: Dict[str, str] = field(default_factory=dict)
     news_summary: List[str] = field(default_factory=list)
     news_items: List[NewsItem] = field(default_factory=list)
     missing_fields: List[str] = field(default_factory=list)

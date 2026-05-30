@@ -24,6 +24,7 @@ from fund_llm.contracts import (
     NavPoint,
     NewsItem,
 )
+from fund_llm.fund_routing import classify_fund_type
 
 
 JsonDict = Dict[str, Any]
@@ -352,6 +353,7 @@ def build_fund_input_from_backend_functions(
         category=str(basic_info.get("fund_type") or "unknown"),
         manager=basic_info.get("fund_manager"),
     )
+    fund_type_profile = classify_fund_type(fund_info.category)
 
     current_year = datetime.now().year
     candidate_years = [portfolio_year] if portfolio_year else [str(current_year), str(current_year - 1)]
@@ -395,6 +397,14 @@ def build_fund_input_from_backend_functions(
     successful_tools = [item["function"] for item in tool_trace if item["status"] == "success"]
     errored_tools = [item["function"] for item in tool_trace if item["status"] == "error"]
 
+    fund_tags = [
+        "backend-function-registry",
+        "open-fund",
+        fund_type_profile.normalized_type,
+    ]
+    if fund_type_profile.family not in {"unknown", fund_type_profile.normalized_type}:
+        fund_tags.append(fund_type_profile.family)
+
     return FundAnalysisInput(
         request_id=f"backend-tools-{code}-{window.as_of_date}",
         fund_info=fund_info,
@@ -403,14 +413,18 @@ def build_fund_input_from_backend_functions(
         top_holdings_weight=top_holdings_weight,
         news_items=news_items,
         analysis_window=window,
-        fund_tags=["backend-function-registry", "open-fund"],
+        fund_tags=fund_tags,
         operational_metrics=operational_metrics,
         extra_context={
             "data_source": "backend_function_registry",
             "client_risk_profile": client_risk_profile,
+            "raw_fund_type": fund_type_profile.raw_type,
+            "normalized_fund_type": fund_type_profile.normalized_type,
+            "fund_family": fund_type_profile.family,
             "portfolio_year": str(portfolio_year or ""),
             "holdings_count": str(len(top_holdings)),
             "news_count": str(len(news_items)),
+            "available_backend_tools": ",".join(sorted(tool_client.functions)),
             "successful_backend_tools": ",".join(successful_tools),
             "errored_backend_tools": ",".join(errored_tools),
             "tool_trace": _json_preview(tool_trace),

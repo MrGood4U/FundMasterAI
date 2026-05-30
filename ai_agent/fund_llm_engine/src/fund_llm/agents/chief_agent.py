@@ -22,14 +22,24 @@ class ChiefAgent:
         successful_outputs = [
             output for output in agent_outputs if output.status == "success" and output.score is not None
         ]
-        skipped_outputs = [output for output in agent_outputs if output.status == "skipped"]
+        not_applicable_outputs = [
+            output for output in agent_outputs if output.status == "skipped" and output.stance == "not_applicable"
+        ]
+        skipped_outputs = [
+            output
+            for output in agent_outputs
+            if output.status == "skipped" and output not in not_applicable_outputs
+        ]
         error_outputs = [
             output
             for output in agent_outputs
-            if output not in successful_outputs and output not in skipped_outputs
+            if output not in successful_outputs
+            and output not in skipped_outputs
+            and output not in not_applicable_outputs
         ]
         valid_scores = [output.score for output in successful_outputs if output.score is not None]
-        average_confidence = mean([output.confidence for output in agent_outputs]) if agent_outputs else 0.0
+        confidence_outputs = [output for output in agent_outputs if output not in not_applicable_outputs]
+        average_confidence = mean([output.confidence for output in confidence_outputs]) if confidence_outputs else 0.0
 
         overall_score = mean(valid_scores) if valid_scores else 0.0
         if error_outputs:
@@ -45,6 +55,10 @@ class ChiefAgent:
             chief_key_points.append("Recent news flow is available as an additional sentiment cross-check.")
         if features.data_quality_flags.get("has_industry_exposure"):
             chief_key_points.append("Sector exposure breakdown is available for industry-level cross-checking.")
+        if not_applicable_outputs:
+            chief_key_points.append(
+                f"{len(not_applicable_outputs)} agent module(s) were not applicable to {features.normalized_fund_type}."
+            )
         if features.fund_tags:
             chief_key_points.append(f"Fund role tags include {', '.join(features.fund_tags[:3])}.")
         if average_confidence >= 0.75:
@@ -65,7 +79,10 @@ class ChiefAgent:
             chief_risks.append("No benchmark series was provided, so relative performance checks remain limited.")
         if not features.data_quality_flags.get("has_news_signal"):
             chief_risks.append("No recent news flow was provided, so event-driven sentiment context remains limited.")
-        if not features.data_quality_flags.get("has_industry_exposure"):
+        if (
+            features.data_quality_flags.get("sector_analysis_applicable", True)
+            and not features.data_quality_flags.get("has_industry_exposure")
+        ):
             chief_risks.append("No industry exposure breakdown was provided, so sector-level context remains limited.")
 
         chief_actions = []
@@ -94,6 +111,7 @@ class ChiefAgent:
         )
         user_prompt = (
             f"Fund: {features.fund_info.name} ({features.fund_info.code})\n"
+            f"Normalized fund type: {features.normalized_fund_type}\n"
             f"Overall score: {overall_score:.2f}\n"
             f"Overall rating: {overall_rating}\n"
             f"Average agent confidence: {average_confidence:.2f}\n"
@@ -101,6 +119,7 @@ class ChiefAgent:
             f"Fund tags: {features.fund_tags}\n"
             f"Client risk profile: {client_risk_profile}\n"
             f"Data quality flags: {features.data_quality_flags}\n"
+            f"Data coverage: {features.data_coverage}\n"
             f"Missing fields: {features.missing_fields}\n"
             f"Key thesis candidates: {key_thesis}\n"
             f"Risk candidates: {main_risks}\n"
@@ -113,8 +132,11 @@ class ChiefAgent:
         metadata = {
             "success_agent_count": str(len(successful_outputs)),
             "skipped_agent_count": str(len(skipped_outputs)),
+            "not_applicable_agent_count": str(len(not_applicable_outputs)),
             "error_agent_count": str(len(error_outputs)),
             "average_confidence": f"{average_confidence:.2f}",
+            "normalized_fund_type": features.normalized_fund_type,
+            "fund_family": features.fund_family,
             "has_benchmark": str(features.data_quality_flags.get("has_benchmark", False)).lower(),
             "has_news_signal": str(features.data_quality_flags.get("has_news_signal", False)).lower(),
             "has_sector_context": str(features.data_quality_flags.get("has_industry_exposure", False)).lower(),
@@ -123,6 +145,8 @@ class ChiefAgent:
             "agent_health": "healthy" if not error_outputs and not skipped_outputs else "partial",
             "fund_tags": ",".join(features.fund_tags[:3]),
         }
+        for key, value in features.data_coverage.items():
+            metadata[f"coverage_{key}"] = value
 
         return FinalAnalysisResult(
             request_id=features.request_id,

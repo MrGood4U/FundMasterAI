@@ -122,3 +122,5 @@ def test_build_fund_input_from_backend_functions_maps_core_fields():
     assert len(payload.news_items) == 1
     assert payload.operational_metrics.fund_size_billion == 2.5
     assert payload.extra_context["data_source"] == "backend_function_registry"
+    assert payload.extra_context["normalized_fund_type"] == "mixed_fund"
+    assert "get_fund_hist" in payload.extra_context["available_backend_tools"]

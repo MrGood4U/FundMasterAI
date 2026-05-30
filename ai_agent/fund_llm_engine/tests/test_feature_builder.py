@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from fund_llm.contracts import BenchmarkInfo, FundAnalysisInput, FundInfo, NavPoint
 from fund_llm.feature_builder import FeatureBuilder
+from fund_llm.fund_routing import MISSING_BACKEND_CAPABILITY, NOT_APPLICABLE
 
 
 def build_long_nav_series(point_count: int, start_nav: float = 1.0) -> list[NavPoint]:
@@ -107,6 +108,39 @@ class FeatureBuilderTest(unittest.TestCase):
         self.assertTrue(features.data_quality_flags["supports_benchmark_return_1y"])
         self.assertEqual(features.data_quality_metrics["nav_point_count"], 280)
         self.assertEqual(features.data_quality_metrics["benchmark_nav_point_count"], 280)
+
+    def test_build_features_marks_bond_equity_fields_not_applicable(self):
+        payload = FundAnalysisInput(
+            request_id="bond-003358",
+            fund_info=FundInfo(
+                code="003358",
+                name="易方达中债7-10年期国开行债券指数A",
+                asset_type="fund_open",
+                category="债券型-债券指数",
+            ),
+            nav_series=[
+                NavPoint(date="2026-01-01", nav=1.00),
+                NavPoint(date="2026-01-02", nav=1.01),
+            ],
+            extra_context={
+                "data_source": "backend_function_registry",
+                "available_backend_tools": "get_fund_hist,get_fund_individual_basic_info,get_fund_portfolio_holds",
+            },
+        )
+
+        features = FeatureBuilder().build(payload)
+
+        self.assertEqual(features.normalized_fund_type, "bond_index_fund")
+        self.assertFalse(features.data_quality_flags["equity_exposure_applicable"])
+        self.assertFalse(features.data_quality_flags["sector_analysis_applicable"])
+        self.assertTrue(features.data_quality_flags["bond_exposure_applicable"])
+        self.assertEqual(features.data_coverage["stock_holdings"], NOT_APPLICABLE)
+        self.assertEqual(features.data_coverage["industry_exposure"], NOT_APPLICABLE)
+        self.assertEqual(features.data_coverage["bond_holdings"], MISSING_BACKEND_CAPABILITY)
+        self.assertNotIn("industry_exposure", features.missing_fields)
+        self.assertNotIn("top_holdings_weight", features.missing_fields)
+        self.assertIn("bond_holdings", features.missing_fields)
+        self.assertIn("asset_allocation", features.missing_fields)
 
 
 if __name__ == "__main__":
