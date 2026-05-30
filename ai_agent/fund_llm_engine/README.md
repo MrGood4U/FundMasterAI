@@ -70,7 +70,7 @@ source .venv/bin/activate
 pip install -e ".[backend]"
 ```
 
-如果你要跑真实 Gemini demo，再补一份本地 `.env`：
+如果你要跑真实 LLM demo，再补一份本地 `.env`：
 
 ```bash
 cp .env.example .env
@@ -82,10 +82,13 @@ cp .env.example .env
 - `LLM_BASE_URL`
 - `LLM_MODEL`
 
-当前默认推荐值已经写在 [.env.example](.env.example)：
+如果使用 DeepSeek，可以直接配置：
 
-- `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`
-- `LLM_MODEL=gemini-3-flash-preview`
+- `LLM_API_KEY=你的 DeepSeek API Key`
+- `LLM_BASE_URL=https://api.deepseek.com`
+- `LLM_MODEL=deepseek-v4-flash`
+
+[.env.example](.env.example) 里也保留了 Gemini 和 DeepSeek 两种 OpenAI-compatible 示例。
 
 建好环境后，建议先做一轮最小验证：
 
@@ -182,17 +185,19 @@ curl -s -X POST http://127.0.0.1:5003/api/ai/fund/analyze \
 
 ## 真实模型接入
 
-当前仓库已经支持单模型真实接入，默认按 Gemini OpenAI-compatible 方式配置：
+当前仓库已经支持单模型真实接入，按 OpenAI-compatible 方式配置：
 
 - `LLM_API_KEY`
 - `LLM_BASE_URL`
 - `LLM_MODEL`
 - `LLM_TIMEOUT_SECONDS`
 
-当前 `.env.example` 已经给出 Gemini 3 Flash 的默认示例：
+DeepSeek 示例：
 
-- `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`
-- `LLM_MODEL=gemini-3-flash-preview`
+- `LLM_BASE_URL=https://api.deepseek.com`
+- `LLM_MODEL=deepseek-v4-flash`
+
+Gemini 示例也保留在 `.env.example` 中。
 
 也兼容旧字段：
 
