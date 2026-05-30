@@ -232,6 +232,18 @@ class AgentsTest(unittest.TestCase):
         self.assertEqual(result.stance, "insufficient_data")
         self.assertIn("Portfolio exposure data was not provided.", result.key_points)
 
+    def test_exposure_agent_marks_bond_funds_not_applicable(self):
+        payload = build_sample_input()
+        payload.fund_info.category = "债券型-债券指数"
+        payload.industry_exposure = {}
+        payload.top_holdings_weight = None
+
+        result = ExposureAgent(MockLLMClient("unused")).analyze(FeatureBuilder().build(payload))
+
+        self.assertEqual(result.status, "skipped")
+        self.assertEqual(result.stance, "not_applicable")
+        self.assertIn("bond_index_fund", result.key_points[0])
+
     def test_sentiment_agent_skips_when_news_is_missing(self):
         payload = build_sample_input()
         payload.news_summary = []
@@ -242,6 +254,17 @@ class AgentsTest(unittest.TestCase):
         self.assertIsNone(result.score)
         self.assertEqual(result.stance, "insufficient_data")
         self.assertIn("No recent news signal was provided.", result.key_points)
+
+    def test_sector_agent_marks_bond_funds_not_applicable(self):
+        payload = build_sample_input()
+        payload.fund_info.category = "债券型-债券指数"
+        payload.industry_exposure = {}
+
+        result = SectorAgent(MockLLMClient("unused")).analyze(FeatureBuilder().build(payload))
+
+        self.assertEqual(result.status, "skipped")
+        self.assertEqual(result.stance, "not_applicable")
+        self.assertIn("bond_index_fund", result.key_points[0])
 
     def test_safe_analyze_isolates_agent_failures(self):
         result = PerformanceAgent(BrokenLLMClient()).safe_analyze(build_sample_features())
@@ -412,6 +435,36 @@ class ChiefAgentTest(unittest.TestCase):
         self.assertEqual(result.metadata["error_agent_count"], "1")
         self.assertEqual(result.metadata["agent_health"], "partial")
         self.assertTrue(any("final view is only partial" in item for item in result.main_risks))
+
+    def test_chief_agent_does_not_treat_not_applicable_as_unhealthy(self):
+        payload = build_sample_input()
+        payload.fund_info.category = "债券型-债券指数"
+        payload.industry_exposure = {}
+        payload.top_holdings_weight = None
+        features = FeatureBuilder().build(payload)
+        chief = ChiefAgent(MockLLMClient("bond chief summary"))
+        agent_outputs = [
+            AgentOutput(
+                agent_name="PerformanceAgent",
+                status="success",
+                score=70.0,
+                stance="positive",
+                key_points=["NAV history is available."],
+                risks=[],
+                recommendations=["Continue monitoring."],
+                confidence=0.8,
+                narrative="performance narrative",
+            ),
+            ExposureAgent(MockLLMClient("unused")).analyze(features),
+            SectorAgent(MockLLMClient("unused")).analyze(features),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(result.metadata["not_applicable_agent_count"], "2")
+        self.assertEqual(result.metadata["skipped_agent_count"], "0")
+        self.assertEqual(result.metadata["agent_health"], "healthy")
+        self.assertTrue(any("not applicable" in item for item in result.key_thesis))
 
 
 if __name__ == "__main__":

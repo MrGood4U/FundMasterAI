@@ -63,6 +63,58 @@ Note: `news_backend` uses `5010` locally because macOS may occupy port `5000`.
 
 ## What Has Been Implemented
 
+### AI Engine Routing Update
+
+Implemented after the initial handoff:
+
+```text
+FundTypeRouter
+DataCoverageChecker
+not_applicable agent handling
+coverage metadata in AI responses
+```
+
+Key files:
+
+```text
+ai_agent/fund_llm_engine/src/fund_llm/fund_routing.py
+ai_agent/fund_llm_engine/src/fund_llm/feature_builder.py
+ai_agent/fund_llm_engine/src/fund_llm/agents/exposure_agent.py
+ai_agent/fund_llm_engine/src/fund_llm/agents/sector_agent.py
+ai_agent/fund_llm_engine/src/fund_llm/agents/chief_agent.py
+```
+
+The AI engine now uses deterministic rules based on backend `fund_type` instead of LLM judgment.
+
+Examples:
+
+```text
+债券型-债券指数 -> bond_index_fund
+混合型-偏股     -> mixed_fund
+股票型         -> equity_fund
+指数型         -> stock_index_fund
+```
+
+For bond-like funds:
+
+- `ExposureAgent` no longer treats missing stock holdings as a neutral signal.
+- `SectorAgent` no longer treats missing equity industry exposure as a neutral signal.
+- Both return `status=skipped` and `stance=not_applicable`.
+- `ChiefAgent` does not treat `not_applicable` as an unhealthy partial failure.
+- Missing bond-specific backend abilities are reported as `missing_backend_capability`.
+
+The AI response now includes structured coverage metadata such as:
+
+```text
+coverage_nav
+coverage_stock_holdings
+coverage_industry_exposure
+coverage_bond_holdings
+coverage_asset_allocation
+normalized_fund_type
+fund_family
+```
+
 ### AI Service
 
 File:
@@ -505,19 +557,16 @@ frontend -> AI service -> backend function registry -> real backend data -> real
 
 ## High-Level Next Task List
 
-1. Add `FundTypeRouter` to normalize backend `fund_type`.
-2. Add structured `data_coverage` to AI service response.
-3. Add backend function support for bond holdings, asset allocation, and industry allocation.
-4. Add or refactor agents so bond funds do not use equity-only sector logic.
-5. Update frontend labels to separate `insufficient_data`, `not_applicable`, and `error`.
-6. Add tests for:
+1. Add backend function support for bond holdings, asset allocation, and industry allocation.
+2. Add a bond-specific exposure agent once backend data is available.
+3. Update frontend labels to separate `insufficient_data`, `not_applicable`, and `error`.
+4. Add tests for the new backend data once those APIs exist:
    - equity/mixed fund route
    - bond fund route
    - no NAV / 422 route
    - missing holdings but valid NAV route
-7. Re-run a real demo with:
+5. Re-run a real demo with:
    - `000001`
    - `003358`
    - one index fund
    - one intentionally invalid/no-NAV code
-

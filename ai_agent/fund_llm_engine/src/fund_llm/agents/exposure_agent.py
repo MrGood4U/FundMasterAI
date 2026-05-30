@@ -10,6 +10,27 @@ class ExposureAgent(BaseAgent):
     def analyze(self, features: FundFeaturePack) -> AgentOutput:
         industry_concentration = features.exposure_metrics.get("industry_concentration", 0.0)
         top_holdings_weight = features.exposure_metrics.get("top_holdings_weight", 0.0)
+        equity_exposure_applicable = features.data_quality_flags.get("equity_exposure_applicable", True)
+        if not equity_exposure_applicable:
+            return AgentOutput(
+                agent_name=self.name,
+                status="skipped",
+                score=None,
+                stance="not_applicable",
+                key_points=[
+                    f"Equity-style exposure analysis is not applicable to {features.normalized_fund_type}."
+                ],
+                risks=[],
+                recommendations=[
+                    "Use bond or asset-allocation data for exposure analysis instead of stock holdings."
+                ],
+                confidence=0.0,
+                narrative=(
+                    "Exposure analysis skipped: this fund type should not be evaluated with equity holdings "
+                    "or sector concentration logic."
+                ),
+            )
+
         has_industry_exposure = features.data_quality_flags.get("has_industry_exposure", False)
         has_top_holdings = features.data_quality_flags.get("has_top_holdings_weight", False)
         if not has_industry_exposure and not has_top_holdings:

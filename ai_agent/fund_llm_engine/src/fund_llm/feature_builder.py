@@ -2,6 +2,13 @@ from math import sqrt
 from typing import Callable, Dict, List, Optional
 
 from fund_llm.contracts import FundAnalysisInput, FundFeaturePack, NavPoint
+from fund_llm.fund_routing import (
+    AVAILABLE,
+    MISSING,
+    MISSING_BACKEND_CAPABILITY,
+    classify_fund_type,
+    build_data_coverage,
+)
 
 TRADING_WINDOWS = {
     "1m": 21,
@@ -118,13 +125,20 @@ class FeatureBuilder:
 
     def build(self, payload: FundAnalysisInput) -> FundFeaturePack:
         missing_fields = payload.validate_required_fields()
+        fund_type_profile = classify_fund_type(payload.fund_info.category)
+        data_coverage = build_data_coverage(payload)
 
         if not payload.nav_series:
             _append_missing(missing_fields, "nav_series")
-        if not payload.industry_exposure:
+        missing_statuses = {MISSING, MISSING_BACKEND_CAPABILITY}
+        if data_coverage.get("industry_exposure") in missing_statuses:
             _append_missing(missing_fields, "industry_exposure")
-        if payload.top_holdings_weight is None:
+        if data_coverage.get("stock_holdings") in missing_statuses:
             _append_missing(missing_fields, "top_holdings_weight")
+        if data_coverage.get("bond_holdings") in missing_statuses:
+            _append_missing(missing_fields, "bond_holdings")
+        if data_coverage.get("asset_allocation") in missing_statuses:
+            _append_missing(missing_fields, "asset_allocation")
         if payload.benchmark and not payload.benchmark_nav_series:
             _append_missing(missing_fields, "benchmark_nav_series")
         normalized_news_summary = list(payload.news_summary)
@@ -211,6 +225,11 @@ class FeatureBuilder:
             "has_top_holdings_weight": payload.top_holdings_weight is not None,
             "has_news_signal": bool(normalized_news_summary or payload.news_items),
             "has_structured_news": bool(payload.news_items),
+            "fund_type_known": data_coverage.get("fund_type") == AVAILABLE,
+            "equity_exposure_applicable": fund_type_profile.equity_exposure_applicable,
+            "sector_analysis_applicable": fund_type_profile.sector_analysis_applicable,
+            "bond_exposure_applicable": fund_type_profile.bond_exposure_applicable,
+            "asset_allocation_required": fund_type_profile.asset_allocation_required,
         }
         for window_name in TRADING_WINDOWS:
             data_quality_flags[f"supports_return_{window_name}"] = f"return_{window_name}" in return_metrics
@@ -221,6 +240,8 @@ class FeatureBuilder:
         return FundFeaturePack(
             request_id=payload.request_id,
             fund_info=payload.fund_info,
+            normalized_fund_type=fund_type_profile.normalized_type,
+            fund_family=fund_type_profile.family,
             return_metrics=return_metrics,
             risk_metrics=risk_metrics,
             exposure_metrics=exposure_metrics,
@@ -228,6 +249,7 @@ class FeatureBuilder:
             benchmark_metrics=benchmark_metrics,
             data_quality_metrics=data_quality_metrics,
             data_quality_flags=data_quality_flags,
+            data_coverage=data_coverage,
             news_summary=normalized_news_summary,
             news_items=payload.news_items,
             missing_fields=missing_fields,

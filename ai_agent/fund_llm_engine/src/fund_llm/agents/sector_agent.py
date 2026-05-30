@@ -9,6 +9,27 @@ class SectorAgent(BaseAgent):
 
     def analyze(self, features: FundFeaturePack) -> AgentOutput:
         industry_exposure = features.industry_exposure_breakdown
+        sector_analysis_applicable = features.data_quality_flags.get("sector_analysis_applicable", True)
+        if not sector_analysis_applicable:
+            return AgentOutput(
+                agent_name=self.name,
+                status="skipped",
+                score=None,
+                stance="not_applicable",
+                key_points=[
+                    f"Equity sector analysis is not applicable to {features.normalized_fund_type}."
+                ],
+                risks=[],
+                recommendations=[
+                    "Use asset-class or bond-holding exposure data instead of equity industry buckets."
+                ],
+                confidence=0.0,
+                narrative=(
+                    "Sector analysis skipped: this fund type does not have meaningful equity industry "
+                    "exposure under the current data model."
+                ),
+            )
+
         has_industry_exposure = features.data_quality_flags.get("has_industry_exposure", False)
         if not has_industry_exposure:
             return AgentOutput(

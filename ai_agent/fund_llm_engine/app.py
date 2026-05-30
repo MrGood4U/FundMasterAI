@@ -22,6 +22,7 @@ from fund_llm.adapters.backend_function_client import (  # noqa: E402
     BackendFunctionClient,
     build_fund_input_from_backend_functions,
 )
+from fund_llm.fund_routing import build_data_coverage, classify_fund_type  # noqa: E402
 from fund_llm.mock_pipeline import run_mock_analysis_for_input  # noqa: E402
 from fund_llm.real_pipeline import run_real_analysis_for_input  # noqa: E402
 
@@ -31,6 +32,7 @@ def _truthy(value) -> bool:
 
 
 def _coverage(payload) -> dict:
+    fund_type_profile = classify_fund_type(payload.fund_info.category)
     return {
         "nav_points": len(payload.nav_series),
         "has_top_holdings_weight": payload.top_holdings_weight is not None,
@@ -38,7 +40,11 @@ def _coverage(payload) -> dict:
         "has_news_items": bool(payload.news_items),
         "fund_name": payload.fund_info.name,
         "fund_type": payload.fund_info.category,
+        "normalized_fund_type": fund_type_profile.normalized_type,
+        "fund_family": fund_type_profile.family,
+        "data_coverage": build_data_coverage(payload),
         "data_source": payload.extra_context.get("data_source", ""),
+        "available_backend_tools": payload.extra_context.get("available_backend_tools", ""),
         "successful_backend_tools": payload.extra_context.get("successful_backend_tools", ""),
         "errored_backend_tools": payload.extra_context.get("errored_backend_tools", ""),
     }
