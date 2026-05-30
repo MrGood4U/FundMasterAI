@@ -86,7 +86,7 @@ cp .env.example .env
 
 - `LLM_API_KEY=你的 DeepSeek API Key`
 - `LLM_BASE_URL=https://api.deepseek.com`
-- `LLM_MODEL=deepseek-v4-flash`
+- `LLM_MODEL=deepseek-v4-pro`
 
 [.env.example](.env.example) 里也保留了 Gemini 和 DeepSeek 两种 OpenAI-compatible 示例。
 
@@ -195,7 +195,7 @@ curl -s -X POST http://127.0.0.1:5003/api/ai/fund/analyze \
 DeepSeek 示例：
 
 - `LLM_BASE_URL=https://api.deepseek.com`
-- `LLM_MODEL=deepseek-v4-flash`
+- `LLM_MODEL=deepseek-v4-pro`
 
 Gemini 示例也保留在 `.env.example` 中。
 

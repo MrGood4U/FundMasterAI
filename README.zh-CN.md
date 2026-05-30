@@ -174,7 +174,7 @@ cp .env.example .env
 ```text
 LLM_API_KEY=你的 DeepSeek API Key
 LLM_BASE_URL=https://api.deepseek.com
-LLM_MODEL=deepseek-v4-flash
+LLM_MODEL=deepseek-v4-pro
 ```
 
 也可以用兼容旧模型名：
@@ -183,7 +183,7 @@ LLM_MODEL=deepseek-v4-flash
 LLM_MODEL=deepseek-chat
 ```
 
-但 DeepSeek 官方文档提示 `deepseek-chat` 后续会弃用，优先建议使用 `deepseek-v4-flash`。`.env` 是本地私密配置，不会上传，也不要提交到仓库。
+但 DeepSeek 官方文档提示 `deepseek-chat` 后续会弃用，真实 demo 优先建议使用质量更高的 `deepseek-v4-pro`。`.env` 是本地私密配置，不会上传，也不要提交到仓库。
 
 然后调用：
 
