@@ -14,8 +14,8 @@ class TransactionService:
         if kwargs["trans_type"] not in ("buy", "sell"):
             return {"error": "trans_type must be buy or sell"}
 
-        if kwargs["asset_type"] not in ("stock", "fund", "crypto"):
-            return {"error": "asset_type must be stock, fund, or crypto"}
+        if kwargs["asset_type"] not in ("stock", "fund", "bond", "crypto"):
+            return {"error": "asset_type must be stock, fund, bond, or crypto"}
 
         trans_id = self.dao.create(
             asset_type=kwargs["asset_type"],

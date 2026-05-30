@@ -339,3 +339,49 @@ FUND_QUOTE_HISTORY_MAP = {
     "累计净值": "accumulated_net_value",
     "涨跌幅": "change_pct",
 }
+
+_BOND_INFO = {
+    "债券简称": "bond_name",
+    "债券代码": "bond_code",
+}
+
+BOND_SPOT_QUOTE_MAP = {
+    **_BOND_INFO,
+    "报价机构": "quote_institution",
+    "买入净价": "buying_clean_price",
+    "卖出净价": "selling_clean_price",
+    "买入收益率": "buying_yield",
+    "卖出收益率": "selling_yield",
+}
+
+BOND_SPOT_DEAL_MAP = {
+    **_BOND_INFO,
+    "成交净价": "deal_clean_price",
+    "最新收益率": "latest_yield",
+    "涨跌": "change",
+    "加权收益率": "weighted_yield",
+    "交易量": "volume",
+}
+
+BOND_INFO_SEARCH_MAP = {
+    **_BOND_INFO,
+    "发行人/受托机构": "issuer_or_trustee",
+    "债券类型": "bond_type",
+    "发行日期": "issue_date",
+    "最新债项评级": "latest_bond_rating",
+    "查询代码": "query_code",
+}
+
+BOND_CHINA_YIELD_MAP = {
+    **_BOND_INFO,
+    "曲线名称": "curve_name",
+    "日期": "date",
+    "3月": "yield_3m",
+    "6月": "yield_6m",
+    "1年": "yield_1y",
+    "3年": "yield_3y",
+    "5年": "yield_5y",
+    "7年": "yield_7y",
+    "10年": "yield_10y",
+    "30年": "yield_30y",
+}

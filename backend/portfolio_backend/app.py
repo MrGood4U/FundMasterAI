@@ -12,12 +12,16 @@ def create_app():
     from views.alert_view import alert_bp
     from views.watchlist_view import watchlist_bp
     from views.meta_view import meta_bp
+    from views.allocation_view import allocation_bp
+    from views.sector_view import sector_bp
 
     app.register_blueprint(transaction_bp)
     app.register_blueprint(holding_bp)
     app.register_blueprint(alert_bp)
     app.register_blueprint(watchlist_bp)
     app.register_blueprint(meta_bp)
+    app.register_blueprint(allocation_bp)
+    app.register_blueprint(sector_bp)
 
     @app.route("/")
     def hello_world():
