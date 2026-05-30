@@ -118,6 +118,8 @@ def create_app() -> Flask:
                     "message": "success",
                 }
             ), 200
+        except ValueError as exc:
+            return jsonify({"code": 422, "data": None, "message": str(exc)}), 422
         except Exception as exc:
             return jsonify({"code": 500, "data": None, "message": str(exc)}), 500
 
