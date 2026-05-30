@@ -264,12 +264,24 @@ def _select_latest_quarter(records: List[JsonDict], quarter_key: str = "quarter"
     return [row for row in records if str(row.get(quarter_key, "")).strip() == latest]
 
 
-def _build_nav_series(records: List[JsonDict], max_points: int) -> List[NavPoint]:
+def _build_nav_series(
+    records: List[JsonDict],
+    max_points: int,
+    *,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> List[NavPoint]:
+    normalized_start_date = _normalize_date(start_date)
+    normalized_end_date = _normalize_date(end_date)
     points: List[NavPoint] = []
     for row in records:
         point_date = _normalize_date(row.get("date") or row.get("净值日期"))
         nav = _to_float(row.get("unit_net_value") or row.get("nav") or row.get("current_unit_net_value"))
         if not point_date or nav is None:
+            continue
+        if normalized_start_date and point_date < normalized_start_date:
+            continue
+        if normalized_end_date and point_date > normalized_end_date:
             continue
         points.append(NavPoint(date=point_date, nav=nav))
     points.sort(key=lambda point: point.date)
@@ -336,7 +348,12 @@ def build_fund_input_from_backend_functions(
     if end_date:
         hist_args["end_date"] = end_date
     nav_records = safe_call("get_fund_hist", hist_args, required=True)
-    nav_series = _build_nav_series(nav_records or [], max_points=max_nav_points)
+    nav_series = _build_nav_series(
+        nav_records or [],
+        max_points=max_nav_points,
+        start_date=start_date,
+        end_date=end_date,
+    )
     if not nav_series:
         raise ValueError(f"No NAV data returned by backend for fund code {code!r}.")
 
