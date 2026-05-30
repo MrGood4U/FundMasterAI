@@ -189,6 +189,108 @@ curl -s -X POST http://127.0.0.1:5003/api/ai/fund/analyze \
   -d '{"code":"003358","start_date":"2025/01/01","mock":false,"llm_timeout_seconds":90}'
 ```
 
+## Integration Notes For Teammates
+
+Frontend pages can use one aggregate AI endpoint:
+
+```text
+POST http://127.0.0.1:5003/api/ai/fund/analyze
+```
+
+Request example:
+
+```json
+{
+  "code": "000001",
+  "start_date": "2025-01-01",
+  "client_risk_profile": "balanced",
+  "mock": false,
+  "max_nav_points": 260
+}
+```
+
+Field notes:
+
+```text
+code                 Fund code, required
+start_date           Analysis start date, accepts 2025-01-01 or 2025/01/01
+client_risk_profile  balanced / conservative / aggressive
+mock                 true for mock LLM, false for real LLM
+max_nav_points       Max NAV points when no explicit start_date is supplied
+```
+
+The current frontend defaults to:
+
+```text
+http://127.0.0.1:5003/api/ai/fund/analyze
+```
+
+If the Agent service uses a different base URL, open the page with:
+
+```text
+http://127.0.0.1:8003/ai-insights.html?agentBase=http://127.0.0.1:5003
+```
+
+or set:
+
+```js
+window.FUNDMASTER_AGENT_BASE = "http://127.0.0.1:5003";
+```
+
+Mock mode versus real LLM mode:
+
+```text
+mock: true
+  Uses the mock LLM for UI and integration testing.
+  Does not need LLM_API_KEY.
+  Still requires market_backend and news_backend because fund data is real.
+
+mock: false
+  Uses the real LLM provider.
+  Requires ai_agent/fund_llm_engine/.env with LLM_API_KEY.
+  .env is ignored by git and should not be committed.
+```
+
+The Agent discovers backend tools through:
+
+```text
+GET http://127.0.0.1:5001/api/market/functions?tag=fund
+GET http://127.0.0.1:5000/api/news/functions?tag=fund
+```
+
+If `news_backend` is running on `5010`, set this before starting the Agent:
+
+```bash
+export NEWS_BACKEND_URL=http://127.0.0.1:5010
+```
+
+Important response fields for frontend rendering:
+
+```text
+data.overall_rating
+data.overall_score
+data.summary
+data.agent_outputs
+data.missing_fields
+data.metadata
+coverage.nav_points
+coverage.fund_type
+coverage.normalized_fund_type
+coverage.data_coverage
+```
+
+Agent statuses should be rendered differently:
+
+```text
+success                   Completed normally
+skipped + insufficient_data
+                          Applicable agent, but required backend data is missing
+skipped + not_applicable  Agent is not meaningful for this fund type
+error                     Real execution failure
+```
+
+HTTP `422` usually means the fund code has insufficient NAV data in the current backend. The Agent refuses to generate an analysis instead of fabricating a report.
+
 Useful real-data test codes:
 
 ```text
