@@ -234,12 +234,71 @@ def test_build_fund_input_applies_start_date_even_without_end_date():
     assert payload.analysis_window.start_date == "2026-01-01"
 
 
+def test_build_fund_input_does_not_truncate_explicit_start_date_window():
+    def transport(method, url, payload, timeout):
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_holds", "path": "/holds", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_analysis", "path": "/analysis", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_profit_probability", "path": "/profit", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {
+                "code": 200,
+                "data": [
+                    {"name": "get_public_fund_announcement", "path": "/ann", "method": "POST", "parameters": {}}
+                ],
+                "message": "success",
+            }
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2025-01-01", "unit_net_value": "1.00"},
+                    {"date": "2025-01-02", "unit_net_value": "1.01"},
+                    {"date": "2025-01-03", "unit_net_value": "1.02"},
+                ],
+            }
+        if url.endswith("/basic"):
+            return {"code": 200, "data": [{"fund_name": "Demo Fund", "fund_type": "混合型-偏股"}]}
+        return {"code": 200, "data": []}
+
+    services = {
+        "market": BackendService("market", "http://market", "/api/market/functions"),
+        "news": BackendService("news", "http://news", "/api/news/functions"),
+        "portfolio": BackendService("portfolio", "http://portfolio", "/api/portfolio/functions"),
+    }
+    client = BackendFunctionClient(services=services, transport=transport)
+
+    payload = build_fund_input_from_backend_functions(
+        "000001",
+        client=client,
+        start_date="2025-01-01",
+        max_nav_points=2,
+    )
+
+    assert [point.date for point in payload.nav_series] == [
+        "2025-01-01",
+        "2025-01-02",
+        "2025-01-03",
+    ]
+
+
 class BackendFunctionClientRegressionTest(unittest.TestCase):
     def test_small_holding_percentages_are_run_by_unittest(self):
         test_build_fund_input_treats_small_holding_percentages_as_percent_units()
 
     def test_start_date_filter_is_run_by_unittest(self):
         test_build_fund_input_applies_start_date_even_without_end_date()
+
+    def test_explicit_start_date_window_is_not_truncated(self):
+        test_build_fund_input_does_not_truncate_explicit_start_date_window()
 
 
 if __name__ == "__main__":

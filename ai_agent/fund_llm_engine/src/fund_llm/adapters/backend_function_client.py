@@ -285,7 +285,7 @@ def _build_nav_series(
             continue
         points.append(NavPoint(date=point_date, nav=nav))
     points.sort(key=lambda point: point.date)
-    if max_points > 0:
+    if max_points > 0 and not normalized_start_date:
         points = points[-max_points:]
     return points
 
