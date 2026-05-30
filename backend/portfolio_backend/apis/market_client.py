@@ -26,6 +26,8 @@ class MarketClient:
             return self._get_stock_price(asset_code)
         elif asset_type == "fund":
             return self._get_fund_price(asset_code)
+        elif asset_type == "bond":
+            return self._get_bond_price(asset_code)
         elif asset_type == "crypto":
             return self._get_crypto_price(asset_code)
         return None
@@ -68,6 +70,22 @@ class MarketClient:
             }
         return None
 
+    def _get_bond_price(self, code: str) -> dict | None:
+        data = self._post("/api/market/bond/spot_quote_search", {
+            "bond_code": code,
+        })
+        if data and isinstance(data, list) and len(data) > 0:
+            item = data[0]
+            return {
+                "current_price": item.get("buying_clean_price"),
+                "buying_clean_price": item.get("buying_clean_price"),
+                "selling_clean_price": item.get("selling_clean_price"),
+                "buying_yield": item.get("buying_yield"),
+                "selling_yield": item.get("selling_yield"),
+                "quote_institution": item.get("quote_institution"),
+            }
+        return None
+
     def _get_crypto_price(self, symbol: str) -> dict | None:
         data = self._post("/api/market/crypto/ticker", {
             "symbol": symbol,
@@ -81,3 +99,16 @@ class MarketClient:
                 "volume": data.get("vol_24h"),
             }
         return None
+
+    def get_fund_portfolio_holds(self, fund_code: str, year: str = None) -> list:
+        """获取基金持仓股票明细。"""
+        from datetime import datetime
+        body = {"code": fund_code}
+        if year:
+            body["year"] = year
+        else:
+            body["year"] = str(datetime.now().year)
+        data = self._post("/api/market/fund_public/portfolio_holds", body)
+        if data and isinstance(data, list):
+            return data
+        return []
