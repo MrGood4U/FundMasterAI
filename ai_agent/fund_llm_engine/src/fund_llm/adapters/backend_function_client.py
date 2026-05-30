@@ -119,7 +119,7 @@ def _percent_to_fraction(value: Any) -> Optional[float]:
     number = _to_float(value)
     if number is None:
         return None
-    return number / 100.0 if abs(number) > 1.0 else number
+    return number / 100.0
 
 
 def _aum_to_billion(value: Any) -> Optional[float]:
