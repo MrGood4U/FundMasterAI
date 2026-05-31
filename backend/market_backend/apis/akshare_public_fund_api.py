@@ -20,6 +20,10 @@ from apis.field_mapping import (
     FUND_OPEN_FUND_RANK_EM_MAP,
     FUND_INFO_INDEX_EM_MAP,
     FUND_INDIVIDUAL_BASIC_INFO_MAP,
+    FUND_INDIVIDUAL_DETAIL_HOLD_MAP,
+    FUND_PORTFOLIO_INDUSTRY_ALLOCATION_EM_MAP,
+    FUND_PORTFOLIO_HOLD_STOCK_MAP,
+    FUND_PORTFOLIO_HOLD_BOND_MAP,
 )
 
 
@@ -225,3 +229,32 @@ class AksharePublicFund:
         df = df.reset_index(drop=True)
         df.columns.name = None
         return apply_mapping(df, FUND_INDIVIDUAL_BASIC_INFO_MAP)
+    
+    def get_fund_individual_detail_hold(self, code: str, date: str):
+        df = ak.fund_individual_detail_hold_xq(symbol=code, date=date)
+        return apply_mapping(df, FUND_INDIVIDUAL_DETAIL_HOLD_MAP)
+    
+    # 资产配置只暴露一年中最新的组成数据
+    def get_fund_portfolio_industry_allocation_em(self, code:str, year: str):
+        df = ak.fund_portfolio_industry_allocation_em(symbol=code, date=year)
+        if df is None or df.empty:
+            return []
+        first_date = df.iloc[0]["截止日期"]
+        df = df[df["截止日期"] == first_date]
+        return apply_mapping(df, FUND_PORTFOLIO_INDUSTRY_ALLOCATION_EM_MAP)
+
+    def get_fund_portfolio_hold_stock(self, code: str, year: str):
+        df = ak.fund_portfolio_hold_em(symbol=code, date=year)
+        if df is None or df.empty:
+            return []
+        first_date = df.iloc[0]["截止日期"]
+        df = df[df["截止日期"] == first_date]
+        return apply_mapping(df, FUND_PORTFOLIO_HOLD_STOCK_MAP)
+    
+    def get_fund_portfolio_hold_bond(self, code: str, year: str):
+        df = ak.fund_portfolio_bond_hold_em(symbol=code, date=year)
+        if df is None or df.empty:
+            return []
+        first_date = df.iloc[0]["截止日期"]
+        df = df[df["截止日期"] == first_date]
+        return apply_mapping(df, FUND_PORTFOLIO_HOLD_BOND_MAP)

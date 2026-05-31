@@ -701,7 +701,7 @@ FUNCTIONS = [
             "items": "行业分布数组（按市值降序）",
             "total_market_value": "总市值",
             "_item_fields": {
-                "sector": "行业名称（医药/科技/金融/消费/新能源/汽车/制造等）",
+                "sector": "行业名称（制造业/金融业/信息传输软件和信息技术服务业/采矿业/房地产业等）",
                 "market_value": "该行业持仓市值",
                 "pct": "该行业占总市值的百分比",
             },
@@ -725,6 +725,118 @@ FUNCTIONS = [
             "warnings": "风险警告字符串数组，如 ['前3大行业占比 85%，集中度过高']",
         },
     },
+
+    # =====================================================================
+    # Fund Detail 基金明细
+    # =====================================================================
+    {
+        "name": "get_fund_detail_hold",
+        "description": "(本接口为前端准备, agent请使用market_backend提供的接口)查询某只基金在指定时点的资产配置明细（股票/债券/现金等各类资产占净值比例）。",
+        "path": "/api/portfolio/fund/detail_hold",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码，如 000001",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "查询日期，格式 YYYYMMDD, 如 20241231。不传则默认今天",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "asset_type": "资产类型（股票/债券/现金/基金/权证等）",
+            "pct": "占净值比例(%)",
+        },
+    },
+    {
+        "name": "get_fund_industry_allocation",
+        "description": "(本接口为前端准备, agent请使用market_backend提供的接口)查询某只基金在指定年份的行业配置分布（各行业的持仓占比）。",
+        "path": "/api/portfolio/fund/industry_allocation",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码，如 000001",
+                },
+                "year": {
+                    "type": "string",
+                    "description": "查询年份，如 2025。不传则默认当前年份",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "sequence": "序号",
+            "industry_category": "行业类别",
+            "pct": "占净值比例(%)",
+            "market_value": "市值",
+            "as_of_date": "截止时间",
+        },
+    },
+    {
+        "name": "get_fund_stock_holds",
+        "description": "(本接口为前端准备, agent请使用market_backend提供的接口)查询某只基金在指定年份的全部股票持仓明细（包含每只股票的持仓数量、市值、占净值比例等）。",
+        "path": "/api/portfolio/fund/stock_holds",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码，如 000001",
+                },
+                "year": {
+                    "type": "string",
+                    "description": "查询年份，如 2025。不传则默认当前年份",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "sequence": "序号",
+            "stock_code": "股票代码",
+            "stock_name": "股票名称",
+            "pct": "占净值比例(%)",
+            "hold_shares": "持股数",
+            "hold_market_value": "持仓市值",
+            "quarter": "季度",
+        },
+    },
+    {
+        "name": "get_fund_bond_holds",
+        "description": "(本接口为前端准备, agent请使用market_backend提供的接口)查询某只基金在指定年份的全部债券持仓明细（包含每只债券的持仓数量、市值、占净值比例等）。",
+        "path": "/api/portfolio/fund/bond_holds",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码，如 000001",
+                },
+                "year": {
+                    "type": "string",
+                    "description": "查询年份，如 2025。不传则默认当前年份",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "sequence": "序号",
+            "bond_code": "债券代码",
+            "bond_name": "债券名称",
+            "pct": "占净值比例(%)",
+            "hold_market_value": "持仓市值",
+            "quarter": "季度",
+        },
+    },
 ]
 
 
@@ -735,14 +847,6 @@ def get_all_functions():
 
 def get_functions_by_tag(tag: str):
     """按标签筛选函数。tag 为 transaction / holding / alert / watchlist / allocation / sector。"""
-    prefix_map = {
-        "transaction": "create_transaction",
-        "holding": "get_holdings",
-        "alert": "create_alert",
-        "watchlist": "add_to_watchlist",
-        "allocation": "get_current_allocation",
-        "sector": "get_sector_exposure",
-    }
     tag_names = {
         "transaction": ["create_transaction", "get_transaction", "update_transaction",
                         "delete_transaction", "list_transactions"],
@@ -753,6 +857,8 @@ def get_functions_by_tag(tag: str):
         "allocation": ["get_current_allocation", "set_target_allocation",
                        "get_target_allocation", "get_allocation_drift"],
         "sector": ["get_sector_exposure", "get_sector_concentration"],
+        "fund": ["get_fund_detail_hold", "get_fund_industry_allocation",
+                        "get_fund_stock_holds", "get_fund_bond_holds"],
     }
     names = tag_names.get(tag)
     if names is None:
