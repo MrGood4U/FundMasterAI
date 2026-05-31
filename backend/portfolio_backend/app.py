@@ -14,6 +14,7 @@ def create_app():
     from views.meta_view import meta_bp
     from views.allocation_view import allocation_bp
     from views.sector_view import sector_bp
+    from views.fund_detail_view import fund_detail_bp
 
     app.register_blueprint(transaction_bp)
     app.register_blueprint(holding_bp)
@@ -22,6 +23,7 @@ def create_app():
     app.register_blueprint(meta_bp)
     app.register_blueprint(allocation_bp)
     app.register_blueprint(sector_bp)
+    app.register_blueprint(fund_detail_bp)
 
     @app.route("/")
     def hello_world():

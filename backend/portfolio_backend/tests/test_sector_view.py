@@ -7,10 +7,10 @@ class TestGetSectorExposure:
         mock_service = MagicMock()
         mock_service.get_sector_exposure.return_value = {
             "items": [
-                {"sector": "科技", "market_value": 35000.00, "pct": 35.0},
-                {"sector": "金融", "market_value": 25000.00, "pct": 25.0},
-                {"sector": "消费", "market_value": 20000.00, "pct": 20.0},
-                {"sector": "医药", "market_value": 10000.00, "pct": 10.0},
+                {"sector": "制造业", "market_value": 35000.00, "pct": 35.0},
+                {"sector": "金融业", "market_value": 25000.00, "pct": 25.0},
+                {"sector": "信息传输、软件和信息技术服务业", "market_value": 20000.00, "pct": 20.0},
+                {"sector": "采矿业", "market_value": 10000.00, "pct": 10.0},
                 {"sector": "其他", "market_value": 10000.00, "pct": 10.0},
             ],
             "total_market_value": 100000.00,
@@ -22,7 +22,7 @@ class TestGetSectorExposure:
         assert data["code"] == 200
         assert data["data"]["total_market_value"] == 100000.00
         assert len(data["data"]["items"]) == 5
-        assert data["data"]["items"][0]["sector"] == "科技"
+        assert data["data"]["items"][0]["sector"] == "制造业"
         assert data["data"]["items"][0]["pct"] == 35.0
 
     def test_empty_holdings(self, client):
@@ -46,7 +46,7 @@ class TestGetSectorExposure:
             "items": [
                 {"sector": "债券", "market_value": 50000.00, "pct": 50.0},
                 {"sector": "加密货币", "market_value": 30000.00, "pct": 30.0},
-                {"sector": "金融", "market_value": 20000.00, "pct": 20.0},
+                {"sector": "金融业", "market_value": 20000.00, "pct": 20.0},
             ],
             "total_market_value": 100000.00,
         }
@@ -64,9 +64,9 @@ class TestGetSectorConcentration:
         mock_service = MagicMock()
         mock_service.get_sector_concentration.return_value = {
             "top3_sectors": [
-                {"sector": "科技", "market_value": 35000.00, "pct": 35.0},
-                {"sector": "金融", "market_value": 25000.00, "pct": 25.0},
-                {"sector": "消费", "market_value": 20000.00, "pct": 20.0},
+                {"sector": "制造业", "market_value": 35000.00, "pct": 35.0},
+                {"sector": "金融业", "market_value": 25000.00, "pct": 25.0},
+                {"sector": "信息传输、软件和信息技术服务业", "market_value": 20000.00, "pct": 20.0},
             ],
             "top3_sectors_pct": 80.0,
             "top5_stocks": [
@@ -91,7 +91,7 @@ class TestGetSectorConcentration:
         mock_service = MagicMock()
         mock_service.get_sector_concentration.return_value = {
             "top3_sectors": [
-                {"sector": "金融", "market_value": 15000.00, "pct": 15.0},
+                {"sector": "金融业", "market_value": 15000.00, "pct": 15.0},
             ],
             "top3_sectors_pct": 15.0,
             "top5_stocks": [
@@ -112,7 +112,7 @@ class TestGetSectorConcentration:
         mock_service = MagicMock()
         mock_service.get_sector_concentration.return_value = {
             "top3_sectors": [
-                {"sector": "科技", "market_value": 30000.00, "pct": 30.0},
+                {"sector": "制造业", "market_value": 30000.00, "pct": 30.0},
             ],
             "top3_sectors_pct": 30.0,
             "top5_stocks": [
