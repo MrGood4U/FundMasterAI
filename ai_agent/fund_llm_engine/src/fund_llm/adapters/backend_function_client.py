@@ -151,10 +151,12 @@ class BackendFunctionClient:
     def __init__(
         self,
         services: Optional[Mapping[str, BackendService]] = None,
-        timeout_seconds: int = 12,
+        timeout_seconds: Optional[int] = None,
         transport: Optional[Transport] = None,
     ):
         self.services = dict(services or default_services())
+        if timeout_seconds is None:
+            timeout_seconds = int(os.getenv("BACKEND_FUNCTION_TIMEOUT_SECONDS", "75"))
         self.timeout_seconds = timeout_seconds
         self.transport = transport
         self.functions: Dict[str, RegisteredFunction] = {}
