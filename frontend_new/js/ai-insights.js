@@ -120,6 +120,8 @@ async function runAnalysis(event) {
     client_risk_profile: fields.riskProfile.value,
     mock: !fields.realLlm.checked,
     max_nav_points: 260,
+    llm_timeout_seconds: fields.realLlm.checked ? 180 : 60,
+    max_parallel_agents: fields.realLlm.checked ? 3 : 5,
   };
 
   try {

@@ -14,6 +14,42 @@ def _score_to_rating(score: float) -> str:
     return "avoid"
 
 
+def _summary_looks_incomplete(summary: str) -> bool:
+    text = (summary or "").strip()
+    if not text:
+        return True
+    if len(text.split()) < 25:
+        return True
+    return text[-1] not in ".!?"
+
+
+def _build_fallback_summary(
+    features: FundFeaturePack,
+    overall_rating: str,
+    overall_score: float,
+    average_confidence: float,
+    skipped_outputs: list[AgentOutput],
+    error_outputs: list[AgentOutput],
+) -> str:
+    nav_points = features.data_quality_metrics.get("nav_point_count", 0)
+    missing_count = len(features.missing_fields)
+    health_note = "The agent layer completed with usable outputs"
+    if error_outputs:
+        health_note = f"{len(error_outputs)} agent module(s) failed"
+    elif skipped_outputs:
+        health_note = f"{len(skipped_outputs)} agent module(s) were skipped because required data was unavailable"
+
+    return (
+        f"{features.fund_info.name} ({features.fund_info.code}) receives a "
+        f"{overall_rating.upper()} view with an overall score of {overall_score:.2f}/100, "
+        f"based on {nav_points} NAV observations and the currently available backend data. "
+        f"Average agent confidence is {average_confidence:.2f}. "
+        f"{health_note}, so the recommendation should be treated as evidence-aware rather than final. "
+        f"The main limitation is {missing_count} missing field(s), including any unavailable benchmark, "
+        "sector, or allocation data flagged by the system; these should be filled before raising conviction."
+    )
+
+
 class ChiefAgent:
     def __init__(self, llm_client):
         self.llm_client = llm_client
@@ -103,7 +139,8 @@ class ChiefAgent:
             "You are the chief fund advisor. Summarize the multi-agent findings into one final investment view. "
             "Write in English. Use only the supplied metrics, data quality flags, missing fields, and agent reports. "
             "Do not use outside knowledge about the fund, manager, holdings, sectors, or market narrative. "
-            "If a field or agent is missing/skipped, state that it is unavailable instead of inferring it."
+            "If a field or agent is missing/skipped, state that it is unavailable instead of inferring it. "
+            "Keep the final summary under 180 words and end with a complete sentence."
         )
         joined_reports = "\n\n".join(
             f"[{output.agent_name}] status={output.status}, score={output.score}, stance={output.stance}, confidence={output.confidence:.2f}\n{output.narrative}"
@@ -125,9 +162,28 @@ class ChiefAgent:
             f"Risk candidates: {main_risks}\n"
             f"Action plan candidates: {action_plan}\n\n"
             f"Agent reports:\n{joined_reports}\n\n"
-            "Please write a concise final summary."
+            "Please write a concise final summary in two short paragraphs."
         )
-        summary = self.llm_client.chat(system_prompt, user_prompt)
+        summary_source = "llm"
+        try:
+            summary = self.llm_client.chat(system_prompt, user_prompt, max_tokens=700)
+        except Exception:
+            summary = ""
+            summary_source = "deterministic_fallback"
+
+        if (
+            self.llm_client.__class__.__name__ != "MockLLMClient"
+            and _summary_looks_incomplete(summary)
+        ):
+            summary = _build_fallback_summary(
+                features,
+                overall_rating,
+                overall_score,
+                average_confidence,
+                skipped_outputs,
+                error_outputs,
+            )
+            summary_source = "deterministic_fallback"
 
         metadata = {
             "success_agent_count": str(len(successful_outputs)),
@@ -144,6 +200,7 @@ class ChiefAgent:
             "client_risk_profile": client_risk_profile,
             "agent_health": "healthy" if not error_outputs and not skipped_outputs else "partial",
             "fund_tags": ",".join(features.fund_tags[:3]),
+            "summary_source": summary_source,
         }
         for key, value in features.data_coverage.items():
             metadata[f"coverage_{key}"] = value
