@@ -239,22 +239,22 @@ class AksharePublicFund:
         df = ak.fund_portfolio_industry_allocation_em(symbol=code, date=year)
         if df is None or df.empty:
             return []
-        first_date = df.iloc[0]["截止日期"]
-        df = df[df["截止日期"] == first_date]
+        first_date = df.iloc[0]["截止时间"]
+        df = df[df["截止时间"] == first_date]
         return apply_mapping(df, FUND_PORTFOLIO_INDUSTRY_ALLOCATION_EM_MAP)
 
     def get_fund_portfolio_hold_stock(self, code: str, year: str):
         df = ak.fund_portfolio_hold_em(symbol=code, date=year)
         if df is None or df.empty:
             return []
-        first_date = df.iloc[0]["截止日期"]
-        df = df[df["截止日期"] == first_date]
+        first_date = df.iloc[0]["季度"]
+        df = df[df["季度"] == first_date]
         return apply_mapping(df, FUND_PORTFOLIO_HOLD_STOCK_MAP)
     
     def get_fund_portfolio_hold_bond(self, code: str, year: str):
         df = ak.fund_portfolio_bond_hold_em(symbol=code, date=year)
         if df is None or df.empty:
             return []
-        first_date = df.iloc[0]["截止日期"]
-        df = df[df["截止日期"] == first_date]
+        first_date = df.iloc[0]["季度"]
+        df = df[df["季度"] == first_date]
         return apply_mapping(df, FUND_PORTFOLIO_HOLD_BOND_MAP)
