@@ -14,7 +14,7 @@ class PublicFundService:
         df = self.akapi.real_time(symbol, platform)
         data = df.to_dict(orient="records")
         if df is None or df.empty:
-            return []
+            return [], f"no data found for platform: {platform} , symbol: {symbol}"
         df_size = len(data)
         if code is not None:
             get_one_result = [item for item in data if ("code" in item and item["code"] == code) or ("fund_code" in item and item["fund_code"] == code)]
