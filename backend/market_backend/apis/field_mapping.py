@@ -342,6 +342,7 @@ FUND_PORTFOLIO_INDUSTRY_ALLOCATION_EM_MAP = {
     "行业类别": "industry_category",
     "占净值比例": "pct",
     "市值": "market_value",
+    "截止日期": "as_of_date",
     "截止时间": "as_of_date",
 }
 
