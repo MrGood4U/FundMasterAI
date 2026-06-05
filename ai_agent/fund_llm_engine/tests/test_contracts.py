@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from fund_llm.contracts import FinalAnalysisResult, FundAnalysisInput
+from fund_llm.contracts import AnalysisTraceEvent, FinalAnalysisResult, FundAnalysisInput
 from fund_llm.mock_pipeline import build_mock_input, run_mock_analysis
 
 
@@ -100,12 +100,23 @@ class ContractsTest(unittest.TestCase):
 
     def test_final_analysis_result_round_trip(self):
         result = run_mock_analysis()
+        result.analysis_trace.append(
+            AnalysisTraceEvent(
+                category="backend",
+                title="Loaded real fund history",
+                detail="Fetched NAV history through the backend function registry.",
+                evidence={"nav_points": 5},
+                technical={"function": "get_fund_hist"},
+            )
+        )
         round_tripped = FinalAnalysisResult.from_dict(result.to_dict())
 
         self.assertEqual(round_tripped.request_id, result.request_id)
         self.assertEqual(round_tripped.summary, result.summary)
         self.assertEqual(round_tripped.missing_fields, result.missing_fields)
         self.assertEqual(len(round_tripped.agent_outputs), len(result.agent_outputs))
+        self.assertEqual(round_tripped.analysis_trace[-1].title, "Loaded real fund history")
+        self.assertEqual(round_tripped.analysis_trace[-1].evidence["nav_points"], 5)
 
     def test_mock_input_to_dict_contains_extended_contract_fields(self):
         payload = build_mock_input().to_dict()

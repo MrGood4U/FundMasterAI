@@ -248,6 +248,31 @@ class AgentOutput:
 
 
 @dataclass
+class AnalysisTraceEvent:
+    category: str
+    title: str
+    detail: str
+    status: str = "success"
+    evidence: Dict[str, Any] = field(default_factory=dict)
+    technical: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "AnalysisTraceEvent":
+        payload = payload or {}
+        return cls(
+            category=str(payload.get("category", "")),
+            title=str(payload.get("title", "")),
+            detail=str(payload.get("detail", "")),
+            status=str(payload.get("status", "success")),
+            evidence=dict(payload.get("evidence") or {}),
+            technical=dict(payload.get("technical") or {}),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
 class FinalAnalysisResult:
     request_id: str
     overall_rating: str
@@ -259,6 +284,7 @@ class FinalAnalysisResult:
     summary: str
     missing_fields: List[str] = field(default_factory=list)
     metadata: Dict[str, str] = field(default_factory=dict)
+    analysis_trace: List[AnalysisTraceEvent] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, payload: Dict[str, Any]) -> "FinalAnalysisResult":
@@ -277,6 +303,10 @@ class FinalAnalysisResult:
                 str(key): str(value)
                 for key, value in (payload.get("metadata") or {}).items()
             },
+            analysis_trace=[
+                AnalysisTraceEvent.from_dict(item)
+                for item in payload.get("analysis_trace", [])
+            ],
         )
 
     def to_dict(self) -> Dict[str, Any]:

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import sys
+import json
 from pathlib import Path
 
 from flask import Flask, jsonify, request
@@ -22,6 +23,7 @@ from fund_llm.adapters.backend_function_client import (  # noqa: E402
     BackendFunctionClient,
     build_fund_input_from_backend_functions,
 )
+from fund_llm.contracts import AnalysisTraceEvent  # noqa: E402
 from fund_llm.fund_routing import build_data_coverage, classify_fund_type  # noqa: E402
 from fund_llm.mock_pipeline import run_mock_analysis_for_input  # noqa: E402
 from fund_llm.real_pipeline import run_real_analysis_for_input  # noqa: E402
@@ -48,6 +50,112 @@ def _coverage(payload) -> dict:
         "successful_backend_tools": payload.extra_context.get("successful_backend_tools", ""),
         "errored_backend_tools": payload.extra_context.get("errored_backend_tools", ""),
     }
+
+
+def _csv_items(value: str) -> list[str]:
+    return [item for item in str(value or "").split(",") if item]
+
+
+def _json_list(value: str) -> list[dict]:
+    try:
+        parsed = json.loads(value or "[]")
+    except json.JSONDecodeError:
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
+def _build_source_trace(payload) -> list[AnalysisTraceEvent]:
+    coverage = build_data_coverage(payload)
+    available_tools = _csv_items(payload.extra_context.get("available_backend_tools", ""))
+    successful_tools = _csv_items(payload.extra_context.get("successful_backend_tools", ""))
+    errored_tools = _csv_items(payload.extra_context.get("errored_backend_tools", ""))
+    tool_trace = _json_list(payload.extra_context.get("tool_trace", ""))
+    missing_coverage = {
+        key: value
+        for key, value in coverage.items()
+        if value not in {"available", "not_applicable"}
+    }
+    coverage_status = "warning" if missing_coverage else "success"
+
+    return [
+        AnalysisTraceEvent(
+            category="backend",
+            title="Discovered backend tools",
+            detail=(
+                "Loaded callable function definitions from the team backend registries, "
+                "then selected the fund-related tools needed by the AI engine."
+            ),
+            status="success" if available_tools else "warning",
+            evidence={
+                "available_tool_count": len(available_tools),
+                "successful_tool_count": len(successful_tools),
+                "errored_tool_count": len(errored_tools),
+            },
+            technical={
+                "available_backend_tools": available_tools,
+                "successful_backend_tools": successful_tools,
+                "errored_backend_tools": errored_tools,
+            },
+        ),
+        AnalysisTraceEvent(
+            category="backend",
+            title="Loaded real fund history",
+            detail=(
+                "Fetched NAV history through the backend function registry and used those "
+                "records as the quantitative base for return and risk metrics."
+            ),
+            status="success" if payload.nav_series else "error",
+            evidence={
+                "fund_code": payload.fund_info.code,
+                "nav_points": len(payload.nav_series),
+                "start_date": payload.analysis_window.start_date if payload.analysis_window else "",
+                "end_date": payload.analysis_window.end_date if payload.analysis_window else "",
+            },
+            technical={
+                "data_source": payload.extra_context.get("data_source", ""),
+                "required_function": "get_fund_hist",
+                "tool_trace": tool_trace,
+            },
+        ),
+        AnalysisTraceEvent(
+            category="backend",
+            title="Identified fund profile",
+            detail=(
+                "Matched the fund name and type from backend basic information, then routed "
+                "the analysis with deterministic fund-type rules before calling the LLM."
+            ),
+            status="success",
+            evidence={
+                "fund_name": payload.fund_info.name,
+                "raw_fund_type": payload.extra_context.get("raw_fund_type", payload.fund_info.category),
+                "normalized_fund_type": payload.extra_context.get("normalized_fund_type", ""),
+                "fund_family": payload.extra_context.get("fund_family", ""),
+            },
+            technical={
+                "portfolio_year": payload.extra_context.get("portfolio_year", ""),
+                "holdings_count": payload.extra_context.get("holdings_count", "0"),
+                "news_count": payload.extra_context.get("news_count", "0"),
+            },
+        ),
+        AnalysisTraceEvent(
+            category="backend",
+            title="Checked backend data coverage",
+            detail=(
+                "Marked which data categories were available, missing, or not applicable "
+                "for this fund type so skipped agents are not treated as neutral signals."
+            ),
+            status=coverage_status,
+            evidence={
+                "data_coverage": coverage,
+                "missing_or_limited": missing_coverage,
+            },
+            technical={
+                "top_holdings_weight": payload.top_holdings_weight,
+                "industry_exposure_count": len(payload.industry_exposure),
+                "news_item_count": len(payload.news_items),
+            },
+        ),
+    ]
 
 
 def create_app() -> Flask:
@@ -115,6 +223,8 @@ def create_app() -> Flask:
                     max_parallel_agents=int(body.get("max_parallel_agents") or 5),
                 )
                 result.metadata["llm_mode"] = "real"
+
+            result.analysis_trace = _build_source_trace(payload) + result.analysis_trace
 
             return jsonify(
                 {
