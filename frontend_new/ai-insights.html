@@ -79,8 +79,8 @@
             </div>
             <span class="chip chip--live" data-analysis-status>Ready</span>
           </header>
-          <section class="glass-panel ai-hero">
-            <div class="ai-hero__grid">
+	          <section class="glass-panel ai-hero">
+	            <div class="ai-hero__grid">
               <form class="ai-form" data-analysis-form>
                 <label>
                   <span>Fund code</span>
@@ -114,10 +114,31 @@
             <div class="ai-confbox">
               <p>Current Fund</p>
               <p class="ai-confbox__n" data-fund-name>Waiting</p>
-              <span data-fund-window>Run analysis to load backend data.</span>
-            </div>
-          </section>
-          <div class="two-col">
+	              <span data-fund-window>Run analysis to load backend data.</span>
+	            </div>
+	          </section>
+	          <section class="glass-panel ai-evidence">
+	            <div class="section-head">
+	              <h3 class="section-head__title section-head__title--compact">Analysis Evidence</h3>
+	              <span class="muted sm" data-evidence-count>idle</span>
+	            </div>
+	            <ol class="analysis-trace" data-analysis-trace>
+	              <li>
+	                <div>
+	                  <span class="trace-status trace-status--idle">Waiting</span>
+	                  <strong>Ready to collect evidence</strong>
+	                  <p>Run an analysis to show backend data collection, metric calculation, specialist checks, and final aggregation.</p>
+	                </div>
+	              </li>
+	            </ol>
+	            <details class="technical-evidence">
+	              <summary>Technical evidence</summary>
+	              <ul data-technical-evidence>
+	                <li>No backend or agent trace has been recorded yet.</li>
+	              </ul>
+	            </details>
+	          </section>
+	          <div class="two-col">
             <section class="glass-panel">
               <h3 class="section-head__title section-head__title--compact">Backend Data Coverage</h3>
               <div class="source-summary" data-source-summary>

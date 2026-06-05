@@ -5,6 +5,8 @@ const keyThesis = document.querySelector("[data-key-thesis]");
 const mainRisks = document.querySelector("[data-main-risks]");
 const actionPlan = document.querySelector("[data-action-plan]");
 const agentRows = document.querySelector("[data-agent-rows]");
+const analysisTrace = document.querySelector("[data-analysis-trace]");
+const technicalEvidence = document.querySelector("[data-technical-evidence]");
 
 const fields = {
   fundCode: document.querySelector("[data-fund-code]"),
@@ -22,6 +24,16 @@ const fields = {
   agentHealth: document.querySelector("[data-agent-health]"),
   successTools: document.querySelector("[data-success-tools]"),
   errorTools: document.querySelector("[data-error-tools]"),
+  evidenceCount: document.querySelector("[data-evidence-count]"),
+};
+
+const AGENT_LABELS = {
+  PerformanceAgent: "Performance Check",
+  ExposureAgent: "Exposure Check",
+  RiskAgent: "Risk Check",
+  SentimentAgent: "News Check",
+  SectorAgent: "Sector Check",
+  ChiefAgent: "Final Aggregation",
 };
 
 function endpoint() {
@@ -67,7 +79,7 @@ function renderAgents(agents) {
   agents.forEach((agent) => {
     const row = document.createElement("tr");
     [
-      agent.agent_name,
+      AGENT_LABELS[agent.agent_name] || agent.agent_name,
       agent.stance,
       agent.score == null ? "--" : Number(agent.score).toFixed(1),
       `${Math.round(Number(agent.confidence || 0) * 100)}%`,
@@ -78,6 +90,97 @@ function renderAgents(agents) {
       row.append(cell);
     });
     agentRows.append(row);
+  });
+}
+
+function formatEvidenceValue(value) {
+  if (Array.isArray(value)) {
+    return value.length ? value.join(", ") : "none";
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value)
+      .slice(0, 4)
+      .map(([key, item]) => `${key}: ${formatEvidenceValue(item)}`)
+      .join("; ");
+  }
+  if (value === null || value === undefined || value === "") {
+    return "--";
+  }
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? String(value) : value.toFixed(4);
+  }
+  return String(value);
+}
+
+function renderTrace(trace) {
+  if (!analysisTrace || !technicalEvidence) {
+    return;
+  }
+
+  const events = Array.isArray(trace) ? trace : [];
+  analysisTrace.innerHTML = "";
+  technicalEvidence.innerHTML = "";
+  if (fields.evidenceCount) {
+    fields.evidenceCount.textContent = events.length ? `${events.length} evidence steps` : "idle";
+  }
+
+  if (!events.length) {
+    const item = document.createElement("li");
+    const body = document.createElement("div");
+    const badge = document.createElement("span");
+    badge.className = "trace-status trace-status--idle";
+    badge.textContent = "Waiting";
+    const title = document.createElement("strong");
+    title.textContent = "Ready to collect evidence";
+    const detail = document.createElement("p");
+    detail.textContent = "Run an analysis to show backend data collection, metric calculation, specialist checks, and final aggregation.";
+    body.append(badge, title, detail);
+    item.append(body);
+    analysisTrace.append(item);
+
+    const empty = document.createElement("li");
+    empty.textContent = "No backend or agent trace has been recorded yet.";
+    technicalEvidence.append(empty);
+    return;
+  }
+
+  events.forEach((event) => {
+    const item = document.createElement("li");
+    const body = document.createElement("div");
+    const badge = document.createElement("span");
+    const status = event.status || "success";
+    badge.className = `trace-status trace-status--${status}`;
+    badge.textContent = status;
+
+    const title = document.createElement("strong");
+    title.textContent = event.title || "Analysis step";
+    const detail = document.createElement("p");
+    detail.textContent = event.detail || "";
+    body.append(badge, title, detail);
+
+    const evidenceEntries = Object.entries(event.evidence || {}).slice(0, 4);
+    if (evidenceEntries.length) {
+      const evidence = document.createElement("div");
+      evidence.className = "trace-evidence";
+      evidenceEntries.forEach(([key, value]) => {
+        const chip = document.createElement("span");
+        chip.textContent = `${key}: ${formatEvidenceValue(value)}`;
+        evidence.append(chip);
+      });
+      body.append(evidence);
+    }
+
+    item.append(body);
+    analysisTrace.append(item);
+
+    const technical = document.createElement("li");
+    const technicalPayload = {
+      category: event.category,
+      evidence: event.evidence || {},
+      technical: event.technical || {},
+    };
+    technical.textContent = `${event.title || "Analysis step"} · ${JSON.stringify(technicalPayload)}`;
+    technicalEvidence.append(technical);
   });
 }
 
@@ -108,6 +211,7 @@ function renderResult(payload) {
   listItems(mainRisks, analysis.main_risks);
   listItems(actionPlan, analysis.action_plan);
   renderAgents(analysis.agent_outputs);
+  renderTrace(analysis.analysis_trace);
 }
 
 async function runAnalysis(event) {
@@ -148,6 +252,7 @@ async function runAnalysis(event) {
     fields.agentHealth.textContent = "failed";
     fields.successTools.textContent = "--";
     fields.errorTools.textContent = "--";
+    renderTrace([]);
   }
 }
 

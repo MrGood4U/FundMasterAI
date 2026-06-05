@@ -71,6 +71,10 @@ class EngineTest(unittest.TestCase):
         self.assertTrue(all(output.status == "success" for output in result.agent_outputs))
         self.assertEqual(result.metadata["agent_execution_mode"], "parallel")
         self.assertEqual(result.metadata["agent_worker_count"], "5")
+        self.assertGreaterEqual(len(result.analysis_trace), 7)
+        self.assertEqual(result.analysis_trace[0].title, "Calculated fund metrics")
+        self.assertIn("Evaluated performance", [event.title for event in result.analysis_trace])
+        self.assertIn("Combined specialist views", [event.title for event in result.analysis_trace])
 
     def test_engine_runs_specialist_agents_in_parallel(self):
         state = {"active": 0, "max_active": 0}
@@ -126,6 +130,7 @@ class EngineTest(unittest.TestCase):
         self.assertEqual([output.agent_name for output in result.agent_outputs], ["AgentA", "AgentB", "AgentC"])
         self.assertEqual(result.metadata["agent_execution_mode"], "parallel")
         self.assertEqual(result.metadata["agent_worker_count"], "3")
+        self.assertEqual(result.analysis_trace[-1].technical["execution_mode"], "parallel")
 
 
 if __name__ == "__main__":
