@@ -21,6 +21,7 @@ const fields = {
   fundName: document.querySelector("[data-fund-name]"),
   fundWindow: document.querySelector("[data-fund-window]"),
   summary: document.querySelector("[data-summary]"),
+  scoreExplanation: document.querySelector("[data-score-explanation]"),
   agentHealth: document.querySelector("[data-agent-health]"),
   successTools: document.querySelector("[data-success-tools]"),
   errorTools: document.querySelector("[data-error-tools]"),
@@ -196,6 +197,7 @@ function renderResult(payload) {
   fields.fundName.textContent = coverage.fund_name || "Unknown fund";
   fields.fundWindow.textContent = analysis.request_id || "Analysis completed.";
   fields.summary.textContent = analysis.summary || "Analysis completed.";
+  fields.scoreExplanation.textContent = analysis.score_explanation || "No rating explanation returned.";
   fields.agentHealth.textContent = metadata.agent_health || "ready";
   fields.successTools.textContent = coverage.successful_backend_tools || "--";
   fields.errorTools.textContent = coverage.errored_backend_tools || "--";
@@ -249,6 +251,7 @@ async function runAnalysis(event) {
     fields.navCount.textContent = "--";
     fields.llmMode.textContent = "--";
     fields.summary.textContent = error.message;
+    fields.scoreExplanation.textContent = "No rating explanation available because the analysis request failed.";
     fields.agentHealth.textContent = "failed";
     fields.successTools.textContent = "--";
     fields.errorTools.textContent = "--";

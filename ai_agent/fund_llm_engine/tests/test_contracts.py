@@ -113,10 +113,28 @@ class ContractsTest(unittest.TestCase):
 
         self.assertEqual(round_tripped.request_id, result.request_id)
         self.assertEqual(round_tripped.summary, result.summary)
+        self.assertEqual(round_tripped.score_explanation, result.score_explanation)
         self.assertEqual(round_tripped.missing_fields, result.missing_fields)
         self.assertEqual(len(round_tripped.agent_outputs), len(result.agent_outputs))
         self.assertEqual(round_tripped.analysis_trace[-1].title, "Loaded real fund history")
         self.assertEqual(round_tripped.analysis_trace[-1].evidence["nav_points"], 5)
+
+    def test_final_analysis_result_from_dict_keeps_old_payloads_compatible(self):
+        result = FinalAnalysisResult.from_dict(
+            {
+                "request_id": "old-result",
+                "overall_rating": "hold",
+                "overall_score": 61.0,
+                "key_thesis": ["thesis"],
+                "main_risks": ["risk"],
+                "action_plan": ["action"],
+                "agent_outputs": [],
+                "summary": "legacy summary without score explanation",
+            }
+        )
+
+        self.assertEqual(result.request_id, "old-result")
+        self.assertEqual(result.score_explanation, "")
 
     def test_mock_input_to_dict_contains_extended_contract_fields(self):
         payload = build_mock_input().to_dict()

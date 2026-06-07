@@ -217,12 +217,14 @@ analyze(features: FundFeaturePack) -> AgentOutput
 - `action_plan`
 - `agent_outputs`
 - `summary`
+- `score_explanation`
 - `missing_fields`
 - `metadata`
 
 前端可以先消费这些字段：
 
 - `summary` 展示 AI 总结
+- `score_explanation` 展示为什么是当前评级/分数，适合作为 "Why This Rating" 模块
 - `overall_rating` / `overall_score` 展示评级和分数
 - `key_thesis` 展示核心观点
 - `main_risks` 展示风险提示

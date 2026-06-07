@@ -14,6 +14,90 @@ def _score_to_rating(score: float) -> str:
     return "avoid"
 
 
+def _agent_display_name(agent_name: str) -> str:
+    labels = {
+        "PerformanceAgent": "Performance",
+        "ExposureAgent": "Portfolio exposure",
+        "RiskAgent": "Risk control",
+        "SentimentAgent": "News signal",
+        "SectorAgent": "Sector context",
+    }
+    return labels.get(agent_name, agent_name)
+
+
+def _score_contribution_phrase(score: float) -> str:
+    if score >= 75:
+        return "strongly supports the rating"
+    if score >= 60:
+        return "supports the rating"
+    if score >= 45:
+        return "keeps the view mixed"
+    return "pulls the rating down"
+
+
+def _build_score_explanation(
+    overall_rating: str,
+    overall_score: float,
+    successful_outputs: list[AgentOutput],
+    skipped_outputs: list[AgentOutput],
+    not_applicable_outputs: list[AgentOutput],
+    error_outputs: list[AgentOutput],
+) -> str:
+    if not successful_outputs:
+        return (
+            "No successful specialist scores were available, so the final rating has low conviction. "
+            "Review missing or failed agent outputs before using the recommendation."
+        )
+
+    score_items = []
+    drag_items = []
+    support_items = []
+    for output in successful_outputs:
+        if output.score is None:
+            continue
+        label = _agent_display_name(output.agent_name)
+        score_items.append(f"{label} scored {output.score:.1f} and {_score_contribution_phrase(output.score)}")
+        if output.score < 45:
+            drag_items.append(f"{label} ({output.score:.1f})")
+        elif output.score >= 75:
+            support_items.append(f"{label} ({output.score:.1f})")
+
+    explanation = (
+        f"The {overall_rating.upper()} rating comes from the current average of "
+        f"{len(successful_outputs)} successful specialist score(s), resulting in {overall_score:.1f}/100. "
+        f"{'; '.join(score_items)}."
+    )
+
+    if drag_items and support_items:
+        explanation += (
+            f" Strong contributors such as {', '.join(support_items)} are offset by weaker signals from "
+            f"{', '.join(drag_items)}, which is why the rating is not higher."
+        )
+    elif drag_items:
+        explanation += f" The rating is held back by weaker signals from {', '.join(drag_items)}."
+    elif support_items and overall_rating != "buy":
+        explanation += (
+            f" {', '.join(support_items)} supports the view, but the remaining specialist scores keep "
+            "the final rating below the BUY range."
+        )
+
+    if skipped_outputs:
+        explanation += (
+            f" {len(skipped_outputs)} specialist module(s) were skipped because required data was unavailable; "
+            "they are not treated as neutral scores."
+        )
+    if not_applicable_outputs:
+        explanation += (
+            f" {len(not_applicable_outputs)} module(s) were marked not applicable for this fund type."
+        )
+    if error_outputs:
+        explanation += (
+            f" {len(error_outputs)} module(s) failed and applied an additional score penalty."
+        )
+
+    return explanation
+
+
 def _summary_looks_incomplete(summary: str) -> bool:
     text = (summary or "").strip()
     if not text:
@@ -82,6 +166,14 @@ class ChiefAgent:
             overall_score = max(0.0, overall_score - (len(error_outputs) * 3))
         overall_score = round(overall_score, 2)
         overall_rating = _score_to_rating(overall_score)
+        score_explanation = _build_score_explanation(
+            overall_rating,
+            overall_score,
+            successful_outputs,
+            skipped_outputs,
+            not_applicable_outputs,
+            error_outputs,
+        )
 
         client_risk_profile = features.extra_context.get("client_risk_profile", "")
         chief_key_points = []
@@ -214,6 +306,7 @@ class ChiefAgent:
             action_plan=action_plan,
             agent_outputs=agent_outputs,
             summary=summary,
+            score_explanation=score_explanation,
             missing_fields=features.missing_fields,
             metadata=metadata,
         )
