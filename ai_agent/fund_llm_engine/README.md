@@ -170,8 +170,13 @@ curl -s -X POST http://127.0.0.1:5003/api/ai/fund/analyze \
 - 把真实模型结果直接存成文件：`python3 scripts/run_real_demo.py examples/mock_input.json --output outputs/real_result.json`
 - 跑一遍输出质量评估：`python3 scripts/evaluate_analysis_output.py --input examples/mock_input.json --mode mock`
 - 跑整套 golden cases：`python3 scripts/run_golden_suite.py --mode mock`
+- 生成 AI 联调评分快照：`python3 scripts/score_guardrails.py snapshot --output outputs/score_snapshot_before.json`
+- 对比改动前后分数：`python3 scripts/score_guardrails.py compare --before outputs/score_snapshot_before.json --after outputs/score_snapshot_after.json --fail-on-unexpected`
+- 检查是否误改队友后端：`python3 scripts/score_guardrails.py scope-check`
 
 其中 `mock demo` 不需要联网，也不需要 API Key，会直接输出一份完整的分析结果 JSON。
+
+评分与协作护栏的详细说明见 [docs/score_guardrails_zh.md](docs/score_guardrails_zh.md)。建议每次改 AI Agent 前先保存一份 before 快照，改完保存 after 快照，再运行 compare 和 scope-check。
 
 当前 `FeatureBuilder` 已支持：
 
