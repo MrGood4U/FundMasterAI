@@ -142,6 +142,7 @@ def _result_text(result: FinalAnalysisResult) -> str:
     fragments.extend(result.main_risks)
     fragments.extend(result.action_plan)
     fragments.append(result.summary)
+    fragments.append(result.score_explanation)
     for output in result.agent_outputs:
         fragments.extend(output.key_points)
         fragments.extend(output.risks)

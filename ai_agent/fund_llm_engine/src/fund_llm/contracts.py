@@ -282,6 +282,7 @@ class FinalAnalysisResult:
     action_plan: List[str]
     agent_outputs: List[AgentOutput]
     summary: str
+    score_explanation: str = ""
     missing_fields: List[str] = field(default_factory=list)
     metadata: Dict[str, str] = field(default_factory=dict)
     analysis_trace: List[AnalysisTraceEvent] = field(default_factory=list)
@@ -298,6 +299,7 @@ class FinalAnalysisResult:
             action_plan=[str(item) for item in payload.get("action_plan", [])],
             agent_outputs=[AgentOutput.from_dict(item) for item in payload.get("agent_outputs", [])],
             summary=str(payload.get("summary", "")),
+            score_explanation=str(payload.get("score_explanation", "")),
             missing_fields=[str(item) for item in payload.get("missing_fields", [])],
             metadata={
                 str(key): str(value)

@@ -49,7 +49,12 @@ def _joined_text(values: List[str]) -> str:
 
 
 def _strings_from_result(result: FinalAnalysisResult) -> List[str]:
-    texts = list(result.key_thesis) + list(result.main_risks) + list(result.action_plan) + [result.summary]
+    texts = (
+        list(result.key_thesis)
+        + list(result.main_risks)
+        + list(result.action_plan)
+        + [result.summary, result.score_explanation]
+    )
     for output in result.agent_outputs:
         texts.extend(output.key_points)
         texts.extend(output.risks)

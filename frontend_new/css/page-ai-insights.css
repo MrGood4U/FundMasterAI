@@ -284,6 +284,24 @@
   overflow-wrap: anywhere;
 }
 
+.rating-explanation {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(68, 72, 79, 0.25);
+}
+
+.rating-explanation h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.rating-explanation p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
 .three-col {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

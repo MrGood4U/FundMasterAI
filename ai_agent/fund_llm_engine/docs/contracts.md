@@ -70,9 +70,12 @@
 - `action_plan`
 - `agent_outputs`
 - `summary`
+- `score_explanation`
 
 ### 当前新增字段
 
+- `score_explanation`
+  用确定性文本解释最终评分和评级的形成原因，例如哪些 specialist score 支持评级、哪些分数拉低评级；不替代 `summary`
 - `missing_fields`
   用于告诉下游这次分析里有哪些输入字段缺失或未齐备
 - `metadata`
