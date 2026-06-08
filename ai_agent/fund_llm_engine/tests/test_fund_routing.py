@@ -55,7 +55,32 @@ class FundRoutingTest(unittest.TestCase):
         self.assertEqual(coverage["bond_holdings"], MISSING_BACKEND_CAPABILITY)
         self.assertEqual(coverage["asset_allocation"], MISSING_BACKEND_CAPABILITY)
 
+    def test_coverage_accepts_new_bond_and_asset_backend_tools(self):
+        payload = FundAnalysisInput(
+            request_id="demo-bond-rich",
+            fund_info=FundInfo(
+                code="003358",
+                name="易方达中债7-10年期国开行债券指数A",
+                asset_type="fund_open",
+                category="债券型-债券指数",
+            ),
+            nav_series=[NavPoint(date="2026-01-01", nav=1.0)],
+            extra_context={
+                "data_source": "backend_function_registry",
+                "available_backend_tools": (
+                    "get_fund_hist,get_fund_individual_basic_info,"
+                    "get_fund_portfolio_hold_bond,get_fund_individual_detail_hold"
+                ),
+                "bond_holdings_count": "3",
+                "asset_allocation_count": "4",
+            },
+        )
+
+        coverage = build_data_coverage(payload)
+
+        self.assertEqual(coverage["bond_holdings"], AVAILABLE)
+        self.assertEqual(coverage["asset_allocation"], AVAILABLE)
+
 
 if __name__ == "__main__":
     unittest.main()
-

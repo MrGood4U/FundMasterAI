@@ -195,7 +195,11 @@ def build_data_coverage(payload: "FundAnalysisInput") -> Dict[str, str]:
         coverage["stock_holdings"] = (
             AVAILABLE
             if payload.top_holdings_weight is not None
-            else _missing_status(payload, available_tools, ["get_fund_portfolio_holds"])
+            else _missing_status(
+                payload,
+                available_tools,
+                ["get_fund_portfolio_holds", "get_fund_portfolio_hold_stock"],
+            )
         )
         coverage["industry_exposure"] = (
             AVAILABLE
@@ -217,7 +221,11 @@ def build_data_coverage(payload: "FundAnalysisInput") -> Dict[str, str]:
             else _missing_status(
                 payload,
                 available_tools,
-                ["get_fund_bond_holdings", "get_fund_portfolio_bond_holdings"],
+                [
+                    "get_fund_bond_holdings",
+                    "get_fund_portfolio_bond_holdings",
+                    "get_fund_portfolio_hold_bond",
+                ],
             )
         )
     else:
@@ -230,11 +238,14 @@ def build_data_coverage(payload: "FundAnalysisInput") -> Dict[str, str]:
             else _missing_status(
                 payload,
                 available_tools,
-                ["get_fund_asset_allocation", "get_fund_hold_structure"],
+                [
+                    "get_fund_asset_allocation",
+                    "get_fund_hold_structure",
+                    "get_fund_individual_detail_hold",
+                ],
             )
         )
     else:
         coverage["asset_allocation"] = NOT_APPLICABLE
 
     return coverage
-

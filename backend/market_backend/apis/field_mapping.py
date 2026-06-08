@@ -332,6 +332,39 @@ FUND_INDIVIDUAL_BASIC_INFO_MAP = {
     "投资目标": "investment_objective",
 }
 
+FUND_INDIVIDUAL_DETAIL_HOLD_MAP = {
+    "资产类型": "asset_type",
+    "仓位占比": "pct",
+}
+
+FUND_PORTFOLIO_INDUSTRY_ALLOCATION_EM_MAP = {
+    "序号": "sequence",
+    "行业类别": "industry_category",
+    "占净值比例": "pct",
+    "市值": "market_value",
+    "截止日期": "as_of_date",
+    "截止时间": "as_of_date",
+}
+
+FUND_PORTFOLIO_HOLD_STOCK_MAP = {
+    "序号": "sequence", 
+    "股票代码": "stock_code",
+    "股票名称": "stock_name",
+    "占净值比例": "pct",
+    "持股数": "hold_shares",
+    "持仓市值": "hold_market_value",
+    "季度": "quarter",
+}
+
+FUND_PORTFOLIO_HOLD_BOND_MAP = {
+    "序号": "sequence",
+    "债券代码": "bond_code",
+    "债券名称": "bond_name",
+    "占净值比例": "pct",
+    "持仓市值": "hold_market_value",
+    "季度": "quarter",
+}
+
 
 FUND_QUOTE_HISTORY_MAP = {
     "日期": "date",

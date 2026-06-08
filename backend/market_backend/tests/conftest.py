@@ -141,3 +141,159 @@ def sample_crypto_ma():
             {"datetime": 1716854460000, "close_price": 96620.0, "ma": [96585.0, None]},
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Sample DataFrames for individual_basic_info (raw akshare return: item/value format)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def sample_fund_individual_basic_info_raw_df():
+    """Simulates raw ak.fund_individual_basic_info_xq() return with item/value columns.
+    The API transposes this (set_index('item').T), then maps Chinese→English columns."""
+    return pd.DataFrame([
+        {"item": "基金代码", "value": "000001"},
+        {"item": "基金名称", "value": "华夏成长混合"},
+        {"item": "成立时间", "value": "20010921"},
+        {"item": "最新规模", "value": "85.6亿"},
+        {"item": "基金公司", "value": "华夏基金管理有限公司"},
+        {"item": "基金经理", "value": "张三"},
+        {"item": "托管银行", "value": "中国银行"},
+        {"item": "基金类型", "value": "混合型"},
+        {"item": "评级机构", "value": "晨星"},
+        {"item": "基金评级", "value": "★★★★★"},
+        {"item": "投资策略", "value": "稳健增长策略"},
+        {"item": "投资目标", "value": "长期资本增值"},
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Sample DataFrames for individual_basic_info (mapped, after API transposes & renames)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def sample_fund_individual_basic_info_mapped_df():
+    """Simulates AksharePublicFund.get_fund_individual_basic_info() return."""
+    return pd.DataFrame([{
+        "fund_code": "000001",
+        "fund_name": "华夏成长混合",
+        "inception_date": "20010921",
+        "latest_aum": "85.6亿",
+        "fund_company": "华夏基金管理有限公司",
+        "fund_manager": "张三",
+        "custodian_bank": "中国银行",
+        "fund_type": "混合型",
+        "rating_agency": "晨星",
+        "fund_rating": "★★★★★",
+        "investment_strategy": "稳健增长策略",
+        "investment_objective": "长期资本增值",
+    }])
+
+
+# ---------------------------------------------------------------------------
+# Sample DataFrames for individual_detail_hold
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def sample_fund_individual_detail_hold_raw_df():
+    """Simulates raw ak.fund_individual_detail_hold_xq() return."""
+    return pd.DataFrame([
+        {"资产类型": "股票", "仓位占比": "65.80%"},
+        {"资产类型": "债券", "仓位占比": "25.30%"},
+        {"资产类型": "现金", "仓位占比": "8.90%"},
+    ])
+
+
+@pytest.fixture
+def sample_fund_individual_detail_hold_mapped_df():
+    """Simulates AksharePublicFund.get_fund_individual_detail_hold() return."""
+    return pd.DataFrame([
+        {"asset_type": "股票", "pct": "65.80%"},
+        {"asset_type": "债券", "pct": "25.30%"},
+        {"asset_type": "现金", "pct": "8.90%"},
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Sample DataFrames for portfolio_industry_allocation
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def sample_portfolio_industry_allocation_raw_df():
+    """Simulates raw ak.fund_portfolio_industry_allocation_em() return.
+    Contains two '截止日期' groups; the API filters to the first date only."""
+    return pd.DataFrame([
+        {"截止日期": "2025Q4", "序号": 1, "行业类别": "制造业", "占净值比例": "45.20", "市值": "38.7亿"},
+        {"截止日期": "2025Q4", "序号": 2, "行业类别": "金融业", "占净值比例": "20.10", "市值": "17.2亿"},
+        {"截止日期": "2025Q3", "序号": 1, "行业类别": "制造业", "占净值比例": "42.80", "市值": "36.5亿"},
+    ])
+
+
+@pytest.fixture
+def sample_portfolio_industry_allocation_mapped_df():
+    """Simulates AksharePublicFund.get_fund_portfolio_industry_allocation_em() return
+    (filtered to first date only, English column names)."""
+    return pd.DataFrame([
+        {"sequence": 1, "industry_category": "制造业", "pct": "45.20",
+         "market_value": "38.7亿", "as_of_date": "2025Q4"},
+        {"sequence": 2, "industry_category": "金融业", "pct": "20.10",
+         "market_value": "17.2亿", "as_of_date": "2025Q4"},
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Sample DataFrames for portfolio_hold_stock
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def sample_portfolio_hold_stock_raw_df():
+    """Simulates raw ak.fund_portfolio_hold_em() return for stocks."""
+    return pd.DataFrame([
+        {"截止日期": "2025Q4", "序号": 1, "股票代码": "600519", "股票名称": "贵州茅台",
+         "占净值比例": "9.85", "持股数": "120.5万", "持仓市值": "21.6亿", "季度": "2025Q4"},
+        {"截止日期": "2025Q4", "序号": 2, "股票代码": "000858", "股票名称": "五粮液",
+         "占净值比例": "7.52", "持股数": "200.0万", "持仓市值": "16.5亿", "季度": "2025Q4"},
+        {"截止日期": "2025Q3", "序号": 1, "股票代码": "600519", "股票名称": "贵州茅台",
+         "占净值比例": "9.20", "持股数": "118.0万", "持仓市值": "20.1亿", "季度": "2025Q3"},
+    ])
+
+
+@pytest.fixture
+def sample_portfolio_hold_stock_mapped_df():
+    """Simulates AksharePublicFund.get_fund_portfolio_hold_stock() return."""
+    return pd.DataFrame([
+        {"sequence": 1, "stock_code": "600519", "stock_name": "贵州茅台",
+         "pct": "9.85", "hold_shares": "120.5万", "hold_market_value": "21.6亿",
+         "quarter": "2025Q4"},
+        {"sequence": 2, "stock_code": "000858", "stock_name": "五粮液",
+         "pct": "7.52", "hold_shares": "200.0万", "hold_market_value": "16.5亿",
+         "quarter": "2025Q4"},
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Sample DataFrames for portfolio_hold_bond
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def sample_portfolio_hold_bond_raw_df():
+    """Simulates raw ak.fund_portfolio_bond_hold_em() return."""
+    return pd.DataFrame([
+        {"截止日期": "2025Q4", "序号": 1, "债券代码": "200210", "债券名称": "20国开10",
+         "占净值比例": "5.20", "持仓市值": "4.45亿", "季度": "2025Q4"},
+        {"截止日期": "2025Q4", "序号": 2, "债券代码": "210203", "债券名称": "21国开03",
+         "占净值比例": "3.80", "持仓市值": "3.25亿", "季度": "2025Q4"},
+        {"截止日期": "2025Q3", "序号": 1, "债券代码": "200210", "债券名称": "20国开10",
+         "占净值比例": "5.50", "持仓市值": "4.70亿", "季度": "2025Q3"},
+    ])
+
+
+@pytest.fixture
+def sample_portfolio_hold_bond_mapped_df():
+    """Simulates AksharePublicFund.get_fund_portfolio_hold_bond() return."""
+    return pd.DataFrame([
+        {"sequence": 1, "bond_code": "200210", "bond_name": "20国开10",
+         "pct": "5.20", "hold_market_value": "4.45亿", "quarter": "2025Q4"},
+        {"sequence": 2, "bond_code": "210203", "bond_name": "21国开03",
+         "pct": "3.80", "hold_market_value": "3.25亿", "quarter": "2025Q4"},
+    ])

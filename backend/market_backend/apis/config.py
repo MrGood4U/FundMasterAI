@@ -10,20 +10,14 @@ config_path = os.path.join(script_dir, "config.ini")
 
 config = ConfigParser()
 config.read(config_path)
-
-
-def _get_config_value(section: str, option: str, fallback: str = "") -> str:
-    return config.get(section, option, fallback=fallback)
-
-
 config_dict = {
     'okx': {
-        "api_key": _get_config_value('okx', 'API_KEY'),
-        "api_secret": _get_config_value('okx', 'API_SECRET'),
-        "api_pass": _get_config_value('okx', 'API_PASS'),
+        "api_key": config.get('okx', 'API_KEY'),
+        "api_secret": config.get('okx', 'API_SECRET'),
+        "api_pass": config.get('okx', 'API_PASS'),
     },
     'tickflow': {
-        "api_key": _get_config_value('tick_flow', 'API_KEY'),
+        "api_key": config.get('tick_flow', 'API_KEY'),
     }
 }
 
