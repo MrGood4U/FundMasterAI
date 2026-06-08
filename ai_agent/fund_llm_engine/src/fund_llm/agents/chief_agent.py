@@ -112,25 +112,48 @@ def _build_fallback_summary(
     overall_rating: str,
     overall_score: float,
     average_confidence: float,
+    successful_outputs: list[AgentOutput],
     skipped_outputs: list[AgentOutput],
     error_outputs: list[AgentOutput],
 ) -> str:
     nav_points = features.data_quality_metrics.get("nav_point_count", 0)
-    missing_count = len(features.missing_fields)
-    health_note = "The agent layer completed with usable outputs"
+    scored_outputs = [output for output in successful_outputs if output.score is not None]
+    health_note = f"{len(scored_outputs)} specialist check(s) completed"
     if error_outputs:
         health_note = f"{len(error_outputs)} agent module(s) failed"
     elif skipped_outputs:
         health_note = f"{len(skipped_outputs)} agent module(s) were skipped because required data was unavailable"
 
+    score_note = "No specialist score was available, so conviction is low."
+    if scored_outputs:
+        strongest = max(scored_outputs, key=lambda output: output.score or 0.0)
+        weakest = min(scored_outputs, key=lambda output: output.score or 0.0)
+        score_note = (
+            f"The strongest signal is {_agent_display_name(strongest.agent_name)} "
+            f"({strongest.score:.1f}/100), while the weakest is {_agent_display_name(weakest.agent_name)} "
+            f"({weakest.score:.1f}/100)."
+        )
+
+    limitation_notes = []
+    if features.missing_fields:
+        limitation_notes.append(f"missing required payload fields: {', '.join(features.missing_fields[:4])}")
+    if skipped_outputs:
+        limitation_notes.append(f"{len(skipped_outputs)} specialist check(s) skipped because input data was unavailable")
+    if error_outputs:
+        limitation_notes.append(f"{len(error_outputs)} specialist check(s) failed")
+    if limitation_notes:
+        coverage_note = "Remaining limitations: " + "; ".join(limitation_notes) + "."
+    else:
+        coverage_note = "No required payload fields are missing under the currently integrated backend contract."
+
     return (
         f"{features.fund_info.name} ({features.fund_info.code}) receives a "
         f"{overall_rating.upper()} view with an overall score of {overall_score:.2f}/100, "
-        f"based on {nav_points} NAV observations and the currently available backend data. "
-        f"Average agent confidence is {average_confidence:.2f}. "
-        f"{health_note}, so the recommendation should be treated as evidence-aware rather than final. "
-        f"The main limitation is {missing_count} missing field(s), including any unavailable benchmark, "
-        "sector, or allocation data flagged by the system; these should be filled before raising conviction."
+        f"based on {nav_points} NAV observations and backend function-registry data. "
+        f"This is an evidence-based aggregation, not a direct prompt-only answer: {health_note}, "
+        f"with average confidence of {average_confidence:.2f}. "
+        f"{score_note} {coverage_note} "
+        "Use this view as a decision aid and review the specialist evidence before making an allocation."
     )
 
 
@@ -229,10 +252,12 @@ class ChiefAgent:
 
         system_prompt = (
             "You are the chief fund advisor. Summarize the multi-agent findings into one final investment view. "
-            "Write in English. Use only the supplied metrics, data quality flags, missing fields, and agent reports. "
+            "Write in clear user-facing English. Use only the supplied metrics, data quality flags, missing fields, and agent reports. "
             "Do not use outside knowledge about the fund, manager, holdings, sectors, or market narrative. "
             "If a field or agent is missing/skipped, state that it is unavailable instead of inferring it. "
-            "Keep the final summary under 180 words and end with a complete sentence."
+            "Do not describe zero missing fields as a limitation. "
+            "Explain the main reason for the rating by naming the strongest and weakest specialist signals. "
+            "Keep the final summary under 160 words and end with a complete sentence."
         )
         joined_reports = "\n\n".join(
             f"[{output.agent_name}] status={output.status}, score={output.score}, stance={output.stance}, confidence={output.confidence:.2f}\n{output.narrative}"
@@ -272,6 +297,7 @@ class ChiefAgent:
                 overall_rating,
                 overall_score,
                 average_confidence,
+                successful_outputs,
                 skipped_outputs,
                 error_outputs,
             )
