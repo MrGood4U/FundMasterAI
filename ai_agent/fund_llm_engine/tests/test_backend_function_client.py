@@ -55,6 +55,7 @@ def test_build_fund_input_from_backend_functions_maps_core_fields():
                         {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
                         {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
                         {"name": "get_fund_portfolio_holds", "path": "/holds", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_industry_allocation", "path": "/industry", "method": "POST", "parameters": {}},
                         {"name": "get_fund_individual_analysis", "path": "/analysis", "method": "POST", "parameters": {}},
                         {"name": "get_fund_profit_probability", "path": "/profit", "method": "POST", "parameters": {}},
                     ],
@@ -96,6 +97,14 @@ def test_build_fund_input_from_backend_functions_maps_core_fields():
                     {"stock_name": "B", "net_value_pct": "9.5", "quarter": "2025Q4"},
                 ],
             }
+        if url.endswith("/industry"):
+            return {
+                "code": 200,
+                "data": [
+                    {"industry_category": "Technology", "pct": "35.0", "as_of_date": "2025-12-31"},
+                    {"industry_category": "Healthcare", "pct": "15.0", "as_of_date": "2025-12-31"},
+                ],
+            }
         if url.endswith("/ann"):
             return {
                 "code": 200,
@@ -121,6 +130,7 @@ def test_build_fund_input_from_backend_functions_maps_core_fields():
     assert payload.fund_info.manager == "Manager A"
     assert len(payload.nav_series) == 2
     assert payload.top_holdings_weight == 0.25
+    assert payload.industry_exposure == {"Technology": 0.35, "Healthcare": 0.15}
     assert len(payload.news_items) == 1
     assert payload.operational_metrics.fund_size_billion == 2.5
     assert payload.extra_context["data_source"] == "backend_function_registry"

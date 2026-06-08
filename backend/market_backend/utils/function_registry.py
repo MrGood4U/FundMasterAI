@@ -937,6 +937,114 @@ FUNCTIONS = [
             "investment_objective": "投资目标",
         },
     },
+    {
+        "name": "get_fund_individual_detail_hold",
+        "description": "获取基金持仓的资产类型分布（股票、债券、现金等各类资产的仓位占比）。用于分析基金的资产配置结构和风险敞口。",
+        "path": "/api/market/fund_public/individual_detail_hold",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "报告日期，格式 YYYYMMDD。不传则返回最新一期",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "asset_type": "资产类型",
+            "pct": "仓位占比(%)",
+        },
+    },
+    {
+        "name": "get_fund_portfolio_industry_allocation",
+        "description": "获取基金持仓的行业配置分布。展示在各行业的市值和占净值比例，用于分析基金的投资风格和行业偏好。",
+        "path": "/api/market/fund_public/portfolio_industry_allocation",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码",
+                },
+                "year": {
+                    "type": "string",
+                    "description": "年份，如 2025, 默认为当前年份",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "sequence": "序号",
+            "industry_category": "行业类别",
+            "pct": "占净值比例(%)",
+            "market_value": "市值",
+            "as_of_date": "截止时间",
+        },
+    },
+    {
+        "name": "get_fund_portfolio_hold_stock",
+        "description": "获取基金持仓股票明细（仅股票）。展示每只股票的持股数、持仓市值和占净值比例，比 portfolio_holds 的持仓数据更精炼（仅含股票，不含其他资产）。",
+        "path": "/api/market/fund_public/portfolio_hold_stock",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码",
+                },
+                "year": {
+                    "type": "string",
+                    "description": "年份，如 2025, 默认为当前年份",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "sequence": "序号",
+            "stock_code": "股票代码",
+            "stock_name": "股票名称",
+            "pct": "占净值比例(%)",
+            "hold_shares": "持股数",
+            "hold_market_value": "持仓市值",
+            "quarter": "季度",
+        },
+    },
+    {
+        "name": "get_fund_portfolio_hold_bond",
+        "description": "获取基金持仓债券明细。展示每只债券的持仓市值和占净值比例，用于分析债券型基金的信用风险暴露和久期策略。",
+        "path": "/api/market/fund_public/portfolio_hold_bond",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码",
+                },
+                "year": {
+                    "type": "string",
+                    "description": "年份，如 2025, 默认为当前年份",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "sequence": "序号",
+            "bond_code": "债券代码",
+            "bond_name": "债券名称",
+            "pct": "占净值比例(%)",
+            "hold_market_value": "持仓市值",
+            "quarter": "季度",
+        },
+    },
 
     # =====================================================================
     # 债券

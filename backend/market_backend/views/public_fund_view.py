@@ -226,3 +226,68 @@ def get_individual_basic_info():
     service = PublicFundService()
     result = service.get_fund_individual_basic_info(data.get("code"))
     return jsonify({"code": 200, "data": result, "message": "success"}), 200
+
+
+@public_fund_bp.post("/individual_detail_hold")
+def get_individual_detail_hold():
+    data = request.get_json()
+    if data is None:
+        return jsonify({"message": "args not found"}), 404
+    if data.get("code") is None:
+        return jsonify({"message": "code is required"}), 404
+
+    # date 8位数字, 不填的话应该改为默认今天的日期
+    service = PublicFundService()
+    result = service.get_fund_individual_detail_hold(
+        code=data.get("code"),
+        date=data.get("date", datetime.now().strftime("%Y%m%d"))
+    )
+    return jsonify({"code": 200, "data": result, "message": "success"}), 200
+
+
+@public_fund_bp.post("/portfolio_industry_allocation")
+def get_portfolio_industry_allocation():
+    data = request.get_json()
+    if data is None:
+        return jsonify({"message": "args not found"}), 404
+    if data.get("code") is None:
+        return jsonify({"message": "code is required"}), 404
+
+    service = PublicFundService()
+    result = service.get_fund_portfolio_industry_allocation_em(
+        code=data.get("code"),
+        year=data.get("year", str(datetime.now().year)),
+    )
+    return jsonify({"code": 200, "data": result, "message": "success"}), 200
+
+
+@public_fund_bp.post("/portfolio_hold_stock")
+def get_portfolio_hold_stock():
+    data = request.get_json()
+    if data is None:
+        return jsonify({"message": "args not found"}), 404
+    if data.get("code") is None:
+        return jsonify({"message": "code is required"}), 404
+
+    service = PublicFundService()
+    result = service.get_fund_portfolio_hold_stock(
+        code=data.get("code"),
+        year=data.get("year", str(datetime.now().year)),
+    )
+    return jsonify({"code": 200, "data": result, "message": "success"}), 200
+
+
+@public_fund_bp.post("/portfolio_hold_bond")
+def get_portfolio_hold_bond():
+    data = request.get_json()
+    if data is None:
+        return jsonify({"message": "args not found"}), 404
+    if data.get("code") is None:
+        return jsonify({"message": "code is required"}), 404
+
+    service = PublicFundService()
+    result = service.get_fund_portfolio_hold_bond(
+        code=data.get("code"),
+        year=data.get("year", str(datetime.now().year)),
+    )
+    return jsonify({"code": 200, "data": result, "message": "success"}), 200

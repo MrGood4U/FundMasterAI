@@ -14,7 +14,7 @@ class PublicFundService:
         df = self.akapi.real_time(symbol, platform)
         data = df.to_dict(orient="records")
         if df is None or df.empty:
-            return []
+            return [], f"no data found for platform: {platform} , symbol: {symbol}"
         df_size = len(data)
         if code is not None:
             get_one_result = [item for item in data if ("code" in item and item["code"] == code) or ("fund_code" in item and item["fund_code"] == code)]
@@ -130,3 +130,27 @@ class PublicFundService:
         if df is None or df.empty:
             return []
         return df.to_dict(orient="records")
+
+    def get_fund_individual_detail_hold(self, code: str, date: str):
+        df = self.akapi.get_fund_individual_detail_hold(code, date)
+        if df is None or df.empty:
+            return []
+        return df.to_dict(orient="records")
+
+    def get_fund_portfolio_industry_allocation_em(self, code: str, year: str):
+        result = self.akapi.get_fund_portfolio_industry_allocation_em(code, year)
+        if isinstance(result, list) or result is None or result.empty:
+            return []
+        return result.to_dict(orient="records")
+
+    def get_fund_portfolio_hold_stock(self, code: str, year: str):
+        result = self.akapi.get_fund_portfolio_hold_stock(code, year)
+        if isinstance(result, list) or result is None or result.empty:
+            return []
+        return result.to_dict(orient="records")
+
+    def get_fund_portfolio_hold_bond(self, code: str, year: str):
+        result = self.akapi.get_fund_portfolio_hold_bond(code, year)
+        if isinstance(result, list) or result is None or result.empty:
+            return []
+        return result.to_dict(orient="records")

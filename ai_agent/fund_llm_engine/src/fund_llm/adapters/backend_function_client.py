@@ -266,6 +266,25 @@ def _select_latest_quarter(records: List[JsonDict], quarter_key: str = "quarter"
     return [row for row in records if str(row.get(quarter_key, "")).strip() == latest]
 
 
+def _holding_weight(row: JsonDict) -> Optional[float]:
+    return _percent_to_fraction(row.get("net_value_pct") or row.get("pct"))
+
+
+def _build_industry_exposure(records: List[JsonDict]) -> Dict[str, float]:
+    exposure: Dict[str, float] = {}
+    for row in records:
+        name = str(
+            row.get("industry_category")
+            or row.get("industry")
+            or row.get("sector")
+            or ""
+        ).strip()
+        pct = _percent_to_fraction(row.get("pct") or row.get("net_value_pct"))
+        if name and pct is not None:
+            exposure[name] = pct
+    return exposure
+
+
 def _build_nav_series(
     records: List[JsonDict],
     max_points: int,
@@ -378,7 +397,12 @@ def build_fund_input_from_backend_functions(
     candidate_years = [portfolio_year] if portfolio_year else [str(current_year), str(current_year - 1)]
     holding_records: List[JsonDict] = []
     for year in [item for item in candidate_years if item]:
-        holding_records = safe_call("get_fund_portfolio_holds", {"code": code, "year": str(year)})
+        stock_holdings_tool = (
+            "get_fund_portfolio_hold_stock"
+            if "get_fund_portfolio_hold_stock" in tool_client.functions
+            else "get_fund_portfolio_holds"
+        )
+        holding_records = safe_call(stock_holdings_tool, {"code": code, "year": str(year)})
         if holding_records:
             portfolio_year = str(year)
             break
@@ -386,16 +410,39 @@ def build_fund_input_from_backend_functions(
     latest_holdings = _select_latest_quarter(holding_records or [])
     ranked_holdings = sorted(
         latest_holdings,
-        key=lambda row: _percent_to_fraction(row.get("net_value_pct")) or 0.0,
+        key=lambda row: _holding_weight(row) or 0.0,
         reverse=True,
     )
     top_holdings = ranked_holdings[:top_holdings_n]
     top_holdings_weight_values = [
-        _percent_to_fraction(row.get("net_value_pct")) for row in top_holdings
+        _holding_weight(row) for row in top_holdings
     ]
     top_holdings_weight = sum(value for value in top_holdings_weight_values if value is not None)
     if top_holdings_weight <= 0:
         top_holdings_weight = None
+
+    industry_records: List[JsonDict] = []
+    industry_exposure: Dict[str, float] = {}
+    if "get_fund_portfolio_industry_allocation" in tool_client.functions:
+        for year in [item for item in candidate_years if item]:
+            industry_records = safe_call(
+                "get_fund_portfolio_industry_allocation",
+                {"code": code, "year": str(year)},
+            )
+            industry_exposure = _build_industry_exposure(industry_records or [])
+            if industry_exposure:
+                break
+
+    bond_holding_records: List[JsonDict] = []
+    if "get_fund_portfolio_hold_bond" in tool_client.functions:
+        for year in [item for item in candidate_years if item]:
+            bond_holding_records = safe_call("get_fund_portfolio_hold_bond", {"code": code, "year": str(year)})
+            if bond_holding_records:
+                break
+
+    asset_allocation_records: List[JsonDict] = []
+    if "get_fund_individual_detail_hold" in tool_client.functions:
+        asset_allocation_records = safe_call("get_fund_individual_detail_hold", {"code": code})
 
     announcement_records = safe_call("get_public_fund_announcement", {"code": code})
     news_items = _build_news_items(announcement_records or [], limit=max_news_items)
@@ -428,7 +475,7 @@ def build_fund_input_from_backend_functions(
         request_id=f"backend-tools-{code}-{window.as_of_date}",
         fund_info=fund_info,
         nav_series=nav_series,
-        industry_exposure={},
+        industry_exposure=industry_exposure,
         top_holdings_weight=top_holdings_weight,
         news_items=news_items,
         analysis_window=window,
@@ -442,12 +489,18 @@ def build_fund_input_from_backend_functions(
             "fund_family": fund_type_profile.family,
             "portfolio_year": str(portfolio_year or ""),
             "holdings_count": str(len(top_holdings)),
+            "industry_exposure_count": str(len(industry_exposure)),
+            "bond_holdings_count": str(len(bond_holding_records)),
+            "asset_allocation_count": str(len(asset_allocation_records)),
             "news_count": str(len(news_items)),
             "available_backend_tools": ",".join(sorted(tool_client.functions)),
             "successful_backend_tools": ",".join(successful_tools),
             "errored_backend_tools": ",".join(errored_tools),
             "tool_trace": _json_preview(tool_trace),
             "top_holdings": _json_preview(top_holdings),
+            "backend_industry_exposure": _json_preview(industry_records),
+            "backend_bond_holdings": _json_preview(bond_holding_records),
+            "backend_asset_allocation": _json_preview(asset_allocation_records),
             "backend_individual_analysis": _json_preview(individual_analysis),
             "backend_profit_probability": _json_preview(profit_probability),
         },
