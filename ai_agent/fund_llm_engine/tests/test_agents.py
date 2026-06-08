@@ -439,6 +439,40 @@ class ChiefAgentTest(unittest.TestCase):
         self.assertEqual(result.metadata["agent_health"], "partial")
         self.assertTrue(any("final view is only partial" in item for item in result.main_risks))
 
+    def test_chief_fallback_summary_does_not_turn_zero_missing_fields_into_limitation(self):
+        features = build_sample_features()
+        chief = ChiefAgent(BrokenLLMClient())
+        agent_outputs = [
+            AgentOutput(
+                agent_name="PerformanceAgent",
+                status="success",
+                score=80.0,
+                stance="positive",
+                key_points=["Performance is strong."],
+                risks=[],
+                recommendations=["Monitor performance."],
+                confidence=0.8,
+                narrative="performance narrative",
+            ),
+            AgentOutput(
+                agent_name="RiskAgent",
+                status="success",
+                score=40.0,
+                stance="negative",
+                key_points=["Risk is elevated."],
+                risks=["Drawdown remains meaningful."],
+                recommendations=["Control position size."],
+                confidence=0.75,
+                narrative="risk narrative",
+            ),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertIn("not a direct prompt-only answer", result.summary)
+        self.assertIn("No required payload fields are missing", result.summary)
+        self.assertNotIn("0 missing field", result.summary)
+
     def test_chief_agent_does_not_treat_not_applicable_as_unhealthy(self):
         payload = build_sample_input()
         payload.fund_info.category = "债券型-债券指数"
