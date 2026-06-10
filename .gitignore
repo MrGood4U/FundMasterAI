@@ -3,6 +3,10 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# OS and editor-local files
+.DS_Store
+.specstory/
+
 # C extensions
 *.so
 

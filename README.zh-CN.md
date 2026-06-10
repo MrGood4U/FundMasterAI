@@ -43,9 +43,15 @@ ai_agent/fund_llm_engine/   LLM / 多智能体基金分析引擎
 ```text
 ai_agent/README.md
 ai_agent/fund_llm_engine/README.md
+ai_agent/fund_llm_engine/docs/README.md
+ai_agent/fund_llm_engine/docs/ai_agent_development_log.md
 ai_agent/fund_llm_engine/docs/dev_backend_integration_handoff.md
-ai_agent/fund_llm_engine/docs/midterm_report_zh.md
 ```
+
+判断当前 AI Agent 哪些功能已经实现、哪些只是计划时，优先看
+`ai_agent/fund_llm_engine/docs/ai_agent_development_log.md`。该文档是当前分支的任务级状态台账；
+`docs/README.md` 是 AI 文档索引；`implementation_plan.md` 主要记录后续计划，
+`version_history.md` 主要记录里程碑/tag 历史。
 
 ## 环境要求
 
@@ -83,7 +89,7 @@ python3 -m unittest discover -s tests
 当前预期：
 
 ```text
-59 tests OK
+71 tests OK
 ```
 
 前端语法检查：
@@ -133,10 +139,12 @@ curl -s http://127.0.0.1:5000/api/news/functions?tag=fund
 
 ```bash
 cd ai_agent/fund_llm_engine
-source .venv/bin/activate
-export NEWS_BACKEND_URL=${NEWS_BACKEND_URL:-http://127.0.0.1:5000}
 bash start.sh
 ```
+
+`start.sh` 会优先使用本目录 `.venv/bin/python`，自动等待 `/health`，
+并在未显式设置 `NEWS_BACKEND_URL` 时探测本机 `5000` / `5010` 新闻后端。
+运行日志写入 `app.log`，进程号写入 `app.pid`；停止服务用 `bash stop.sh`。
 
 AI Agent 服务：
 
@@ -286,12 +294,13 @@ AI Agent：
 - 负责基金类型路由；
 - 负责工具选择和多 Agent 编排；
 - 负责数据覆盖检查和防幻觉逻辑；
-- 输出前端可直接展示的结构化结果。
+- 输出前端可直接展示的结构化结果，包括 `status`、`stance`、`coverage` 和 `analysis_trace`。
 
 前端：
 
 - AI 分析页面优先调用 `/api/ai/fund/analyze`；
 - 根据 `status` 和 `stance` 区分展示 `success`、`insufficient_data`、`not_applicable`、`error`；
+- 负责页面文案、布局、交互和演示友好化呈现；
 - 普通基金详情、持仓、组合页可以直接复用后端 API。
 
 ## 停止服务

@@ -1,5 +1,10 @@
 # AI Agent + Dev Backend Integration Handoff
 
+Historical note: this is a 2026-05-30 integration snapshot. It is kept for
+traceability and restart context, but it is not the current implementation
+source of truth. For current AI Agent status, read
+[`ai_agent_development_log.md`](./ai_agent_development_log.md) first.
+
 Date: 2026-05-30
 
 This document records the current state of the temporary integrated demo, what has been verified, what is still missing, and what should be done next. It is meant as a restart point for future development, so we do not have to rely on chat context.

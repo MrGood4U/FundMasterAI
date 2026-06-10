@@ -67,9 +67,14 @@ curl -s -X POST http://127.0.0.1:5003/api/ai/fund/analyze \
   -d '{"code":"000001","mock":true}'
 ```
 
+`fund_llm_engine/start.sh` prefers the local `.venv/bin/python`, waits for the
+Agent `/health` endpoint, writes `app.pid` and `app.log`, and probes local
+`5000` / `5010` news backends when `NEWS_BACKEND_URL` is not already set.
+Use `bash stop.sh` from `fund_llm_engine/` to stop it.
+
 For real LLM mode, create `fund_llm_engine/.env` from `.env.example`, fill in
 `LLM_API_KEY`, and call the endpoint with `"mock": false`.
 
-See `fund_llm_engine/README.md` and
-`fund_llm_engine/docs/dev_backend_integration_handoff.md` for module scope,
-contracts, provider setup, integration notes, and the latest routing status.
+See `fund_llm_engine/README.md` and `fund_llm_engine/docs/README.md` for the
+module scope, contracts, provider setup, integration notes, and current status
+entry points.

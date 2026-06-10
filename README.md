@@ -47,9 +47,15 @@ Important AI Agent docs:
 ```text
 ai_agent/README.md
 ai_agent/fund_llm_engine/README.md
+ai_agent/fund_llm_engine/docs/README.md
+ai_agent/fund_llm_engine/docs/ai_agent_development_log.md
 ai_agent/fund_llm_engine/docs/dev_backend_integration_handoff.md
-ai_agent/fund_llm_engine/docs/midterm_report_zh.md
 ```
+
+Use `ai_agent/fund_llm_engine/docs/ai_agent_development_log.md` as the first
+source of truth for implemented, partial, and planned AI Agent work. Treat
+`docs/README.md` as the AI docs index, `implementation_plan.md` as future
+planning, and `version_history.md` as milestone/tag history.
 
 ## Prerequisites
 
@@ -87,7 +93,7 @@ python3 -m unittest discover -s tests
 Current expected result:
 
 ```text
-59 tests OK
+71 tests OK
 ```
 
 Frontend syntax check:
@@ -137,10 +143,13 @@ Use `5010` in the second URL if you changed the news backend port.
 
 ```bash
 cd ai_agent/fund_llm_engine
-source .venv/bin/activate
-export NEWS_BACKEND_URL=${NEWS_BACKEND_URL:-http://127.0.0.1:5000}
 bash start.sh
 ```
+
+`start.sh` uses the local `.venv/bin/python` when available, waits for
+`/health`, and probes local `5000` / `5010` news backends when
+`NEWS_BACKEND_URL` is not set. Logs go to `app.log`, the process id goes to
+`app.pid`, and `bash stop.sh` stops the Agent service.
 
 Agent service:
 

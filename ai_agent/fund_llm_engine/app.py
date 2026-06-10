@@ -244,4 +244,11 @@ def create_app() -> Flask:
 
 if __name__ == "__main__":
     port = int(os.getenv("AGENT_HTTP_PORT", "5003"))
-    create_app().run(host=os.getenv("AGENT_HTTP_HOST", "127.0.0.1"), port=port, debug=True)
+    debug = _truthy(os.getenv("AGENT_DEBUG", "true"))
+    use_reloader = _truthy(os.getenv("AGENT_RELOAD", str(debug).lower()))
+    create_app().run(
+        host=os.getenv("AGENT_HTTP_HOST", "127.0.0.1"),
+        port=port,
+        debug=debug,
+        use_reloader=use_reloader,
+    )
