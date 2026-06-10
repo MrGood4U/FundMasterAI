@@ -31,10 +31,16 @@
 
 以下字段是为了适配当前引擎而做的近似整理：
 
-- `top_holdings_weight`
-  - 这是 2025-12-31 前五大债券持仓占基金净值比例的合计
+- `bond_holdings`
+  - 这是 2025-12-31 前五大债券持仓占基金净值比例
   - 计算值为 `21.28% + 19.96% + 15.04% + 13.81% + 13.55% = 83.64%`
-  - 当前字段名没有区分股票和债券，因此这里明确写在 `top_holdings_weight_method` 里
+  - 当前样例只保留 sequence / pct / quarter，避免补入未经同一文件核验的个券名称
+- `top_holdings_weight`
+  - 保留为旧兼容字段，值同样为前五大债券持仓合计 `83.64%`
+  - 新的债券分析应优先读取 `bond_holdings`，不要把它当成股票持仓集中度
+- `asset_allocation`
+  - 当前样例没有硬填无法从同一整理口径确认的精确资产配置比例
+  - 因此保持为空，让 `coverage.data_coverage.asset_allocation` 和 `BondExposureAgent` 明确提示缺失
 - `industry_exposure`
   - 这只基金是固收指数基金，不是权益行业基金
   - 公开 F10 基本概况说明其不直接在二级市场买入股票、权证，也不参与新股申购/增发和可转债投资
@@ -66,15 +72,16 @@
 这个 case 是一个真实 `golden_real`，但它故意暴露了当前 schema 的边界：
 
 - 有真实净值序列
-- 有真实债券持仓集中度
+- 有结构化债券持仓集中度
 - 没有权益行业暴露
+- 没有精确资产配置字段
 - 没有新闻样例
 - 没有同源 benchmark 净值序列
 
 它更适合测试：
 
 - Performance / Risk agent 能不能基于真实净值序列给出低波动分析
-- Exposure agent 能不能提示持仓集中，同时说明行业暴露字段缺失
+- BondExposureAgent 能不能提示债券持仓集中，同时说明资产配置、久期和评级字段缺失
 - Sector agent 能不能停止在行业层面做过度结论
 - Chief agent 能不能把缺 benchmark、缺 news、缺 sector context 说清楚
 

@@ -2,6 +2,10 @@
 
 测试日期：2026-04-27
 
+历史说明：这份 benchmark 记录的是当时的 5-agent pipeline。当前状态请以
+`ai_agent_development_log.md` 为准；新增 `BondExposureAgent` 后，当前 pipeline
+已有 6 个 specialist agents。
+
 ## 目的
 
 这份记录用于说明：在真实 LLM API 路径下，把 specialist agents 从串行执行改成并行执行后，端到端运行时间是否明显缩短，以及并行是否影响 golden suite 的自动质量检查结果。
@@ -82,7 +86,7 @@ time ./.venv/bin/python scripts/run_golden_suite.py \
 - rate-limit error
 - agent failure caused by API throttling
 
-当前并发策略是“case 内 5 个 specialist agents 并行，case 之间串行”，在本次真实 API 测试中可运行。后续如果继续增加 agent，建议保留 `--max-parallel-agents` 作为并发阀门，例如在演示或额度紧张时使用：
+当时并发策略是“case 内 5 个 specialist agents 并行，case 之间串行”，在本次真实 API 测试中可运行。后续如果继续增加 agent，建议保留 `--max-parallel-agents` 作为并发阀门，例如在演示或额度紧张时使用：
 
 ```bash
 ./.venv/bin/python scripts/run_golden_suite.py --mode real --max-parallel-agents 3
@@ -124,4 +128,3 @@ time ./.venv/bin/python scripts/run_golden_suite.py \
   - [golden_suite_real_v1.4_serial_baseline.json](../outputs/golden_suite_real_v1.4_serial_baseline.json)
 - 并行报告：
   - [golden_suite_real_v1.4_parallel_with_results.json](../outputs/golden_suite_real_v1.4_parallel_with_results.json)
-

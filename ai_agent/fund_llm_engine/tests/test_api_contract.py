@@ -156,6 +156,8 @@ class ApiContractTest(unittest.TestCase):
                 "nav_points",
                 "has_top_holdings_weight",
                 "has_industry_exposure",
+                "has_bond_holdings",
+                "has_asset_allocation",
                 "has_news_items",
                 "fund_name",
                 "fund_type",

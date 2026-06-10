@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from fund_llm.contracts import BenchmarkInfo, FundAnalysisInput, FundInfo, NavPoint
 from fund_llm.feature_builder import FeatureBuilder
-from fund_llm.fund_routing import MISSING_BACKEND_CAPABILITY, NOT_APPLICABLE
+from fund_llm.fund_routing import AVAILABLE, MISSING_BACKEND_CAPABILITY, NOT_APPLICABLE
 
 
 def build_long_nav_series(point_count: int, start_nav: float = 1.0) -> list[NavPoint]:
@@ -141,6 +141,42 @@ class FeatureBuilderTest(unittest.TestCase):
         self.assertNotIn("top_holdings_weight", features.missing_fields)
         self.assertIn("bond_holdings", features.missing_fields)
         self.assertIn("asset_allocation", features.missing_fields)
+
+    def test_build_features_extracts_bond_exposure_metrics(self):
+        payload = FundAnalysisInput(
+            request_id="bond-rich-003358",
+            fund_info=FundInfo(
+                code="003358",
+                name="易方达中债7-10年期国开行债券指数A",
+                asset_type="fund_open",
+                category="index_fixed_income",
+            ),
+            nav_series=[
+                NavPoint(date="2026-01-01", nav=1.00),
+                NavPoint(date="2026-01-02", nav=1.01),
+            ],
+            bond_holdings=[
+                {"bond_name": "20国开10", "pct": "21.28%"},
+                {"bond_name": "21国开03", "pct": "19.96"},
+                {"bond_name": "22国开05", "pct": 0.1504},
+            ],
+            asset_allocation={"债券": "86.00%", "现金": 0.07, "其他": 0.07},
+        )
+
+        features = FeatureBuilder().build(payload)
+
+        self.assertEqual(features.normalized_fund_type, "bond_index_fund")
+        self.assertEqual(features.data_coverage["bond_holdings"], AVAILABLE)
+        self.assertEqual(features.data_coverage["asset_allocation"], AVAILABLE)
+        self.assertTrue(features.data_quality_flags["has_bond_holdings"])
+        self.assertTrue(features.data_quality_flags["has_asset_allocation"])
+        self.assertEqual(features.data_quality_metrics["bond_holding_count"], 3)
+        self.assertEqual(features.data_quality_metrics["asset_allocation_count"], 3)
+        self.assertAlmostEqual(features.bond_exposure_metrics["bond_top_holding_weight"], 0.2128)
+        self.assertAlmostEqual(features.bond_exposure_metrics["bond_top_three_weight"], 0.5628)
+        self.assertAlmostEqual(features.bond_exposure_metrics["asset_bond_weight"], 0.86)
+        self.assertNotIn("bond_holdings", features.missing_fields)
+        self.assertNotIn("asset_allocation", features.missing_fields)
 
 
 if __name__ == "__main__":

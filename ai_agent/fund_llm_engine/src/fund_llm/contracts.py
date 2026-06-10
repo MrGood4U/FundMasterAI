@@ -1,3 +1,4 @@
+import re
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -5,7 +6,39 @@ from typing import Any, Dict, List, Optional
 def _coerce_float(value: Any) -> Optional[float]:
     if value is None or value == "":
         return None
-    return float(value)
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip().replace(",", "")
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
+    if not match:
+        return None
+    return float(match.group(0))
+
+
+def _coerce_fraction(value: Any) -> Optional[float]:
+    number = _coerce_float(value)
+    if number is None:
+        return None
+    if (isinstance(value, str) and "%" in value) or abs(number) > 1.0:
+        return number / 100.0
+    return number
+
+
+def _dicts_from_list(value: Any) -> List[Dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [dict(item) for item in value if isinstance(item, dict)]
+
+
+def _fraction_dict_from_payload(value: Any) -> Dict[str, float]:
+    if not isinstance(value, dict):
+        return {}
+    normalized = {}
+    for key, raw_value in value.items():
+        number = _coerce_fraction(raw_value)
+        if number is not None:
+            normalized[str(key)] = number
+    return normalized
 
 
 @dataclass
@@ -136,6 +169,8 @@ class FundAnalysisInput:
     nav_series: List[NavPoint]
     industry_exposure: Dict[str, float] = field(default_factory=dict)
     top_holdings_weight: Optional[float] = None
+    bond_holdings: List[Dict[str, Any]] = field(default_factory=list)
+    asset_allocation: Dict[str, float] = field(default_factory=dict)
     news_summary: List[str] = field(default_factory=list)
     news_items: List[NewsItem] = field(default_factory=list)
     analysis_window: Optional[AnalysisWindow] = None
@@ -157,6 +192,8 @@ class FundAnalysisInput:
                 for key, value in (payload.get("industry_exposure") or {}).items()
             },
             top_holdings_weight=_coerce_float(payload.get("top_holdings_weight")),
+            bond_holdings=_dicts_from_list(payload.get("bond_holdings")),
+            asset_allocation=_fraction_dict_from_payload(payload.get("asset_allocation")),
             news_summary=[str(item) for item in payload.get("news_summary", [])],
             news_items=[NewsItem.from_dict(item) for item in payload.get("news_items", [])],
             analysis_window=AnalysisWindow.from_dict(payload["analysis_window"])
@@ -200,6 +237,9 @@ class FundFeaturePack:
     risk_metrics: Dict[str, float]
     exposure_metrics: Dict[str, float]
     industry_exposure_breakdown: Dict[str, float] = field(default_factory=dict)
+    bond_exposure_metrics: Dict[str, float] = field(default_factory=dict)
+    bond_holdings: List[Dict[str, Any]] = field(default_factory=list)
+    asset_allocation_breakdown: Dict[str, float] = field(default_factory=dict)
     benchmark_metrics: Dict[str, float] = field(default_factory=dict)
     data_quality_metrics: Dict[str, int] = field(default_factory=dict)
     data_quality_flags: Dict[str, bool] = field(default_factory=dict)

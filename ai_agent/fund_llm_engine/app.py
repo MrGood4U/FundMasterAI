@@ -39,6 +39,8 @@ def _coverage(payload) -> dict:
         "nav_points": len(payload.nav_series),
         "has_top_holdings_weight": payload.top_holdings_weight is not None,
         "has_industry_exposure": bool(payload.industry_exposure),
+        "has_bond_holdings": bool(payload.bond_holdings),
+        "has_asset_allocation": bool(payload.asset_allocation),
         "has_news_items": bool(payload.news_items),
         "fund_name": payload.fund_info.name,
         "fund_type": payload.fund_info.category,
@@ -134,6 +136,8 @@ def _build_source_trace(payload) -> list[AnalysisTraceEvent]:
             technical={
                 "portfolio_year": payload.extra_context.get("portfolio_year", ""),
                 "holdings_count": payload.extra_context.get("holdings_count", "0"),
+                "bond_holdings_count": payload.extra_context.get("bond_holdings_count", "0"),
+                "asset_allocation_count": payload.extra_context.get("asset_allocation_count", "0"),
                 "news_count": payload.extra_context.get("news_count", "0"),
             },
         ),
@@ -152,6 +156,8 @@ def _build_source_trace(payload) -> list[AnalysisTraceEvent]:
             technical={
                 "top_holdings_weight": payload.top_holdings_weight,
                 "industry_exposure_count": len(payload.industry_exposure),
+                "bond_holding_count": len(payload.bond_holdings),
+                "asset_allocation_count": len(payload.asset_allocation),
                 "news_item_count": len(payload.news_items),
             },
         ),
@@ -213,14 +219,14 @@ def create_app() -> Flask:
                 result = run_mock_analysis_for_input(
                     payload,
                     mock_response="Mock LLM narrative generated for backend function-registry integration.",
-                    max_parallel_agents=int(body.get("max_parallel_agents") or 5),
+                    max_parallel_agents=int(body.get("max_parallel_agents") or 6),
                 )
                 result.metadata["llm_mode"] = "mock"
             else:
                 result = run_real_analysis_for_input(
                     payload,
                     timeout_seconds=int(body.get("llm_timeout_seconds") or os.getenv("LLM_TIMEOUT_SECONDS", "60")),
-                    max_parallel_agents=int(body.get("max_parallel_agents") or 5),
+                    max_parallel_agents=int(body.get("max_parallel_agents") or 6),
                 )
                 result.metadata["llm_mode"] = "real"
 

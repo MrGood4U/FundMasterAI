@@ -138,6 +138,76 @@ def test_build_fund_input_from_backend_functions_maps_core_fields():
     assert "get_fund_hist" in payload.extra_context["available_backend_tools"]
 
 
+def test_build_fund_input_maps_bond_holdings_and_asset_allocation():
+    def transport(method, url, payload, timeout):
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_hold_bond", "path": "/bonds", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_detail_hold", "path": "/asset", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_analysis", "path": "/analysis", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_profit_probability", "path": "/profit", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {
+                "code": 200,
+                "data": [
+                    {"name": "get_public_fund_announcement", "path": "/ann", "method": "POST", "parameters": {}}
+                ],
+                "message": "success",
+            }
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2026-01-01", "unit_net_value": "1.00"},
+                    {"date": "2026-01-02", "unit_net_value": "1.01"},
+                ],
+            }
+        if url.endswith("/basic"):
+            return {"code": 200, "data": [{"fund_name": "Bond Fund", "fund_type": "index_fixed_income"}]}
+        if url.endswith("/bonds"):
+            return {
+                "code": 200,
+                "data": [
+                    {"bond_name": "Old Bond", "pct": "30.00", "quarter": "2025Q3"},
+                    {"bond_name": "20国开10", "pct": "21.28", "quarter": "2025Q4"},
+                    {"bond_name": "21国开03", "pct": "19.96", "quarter": "2025Q4"},
+                ],
+            }
+        if url.endswith("/asset"):
+            return {
+                "code": 200,
+                "data": [
+                    {"asset_type": "债券", "pct": "86.00%"},
+                    {"asset_type": "现金", "pct": "7.00%"},
+                    {"asset_type": "其他", "pct": "7.00%"},
+                ],
+            }
+        return {"code": 200, "data": []}
+
+    services = {
+        "market": BackendService("market", "http://market", "/api/market/functions"),
+        "news": BackendService("news", "http://news", "/api/news/functions"),
+        "portfolio": BackendService("portfolio", "http://portfolio", "/api/portfolio/functions"),
+    }
+    client = BackendFunctionClient(services=services, transport=transport)
+
+    payload = build_fund_input_from_backend_functions("003358", client=client, portfolio_year="2025")
+
+    assert payload.fund_info.category == "index_fixed_income"
+    assert [item["bond_name"] for item in payload.bond_holdings] == ["20国开10", "21国开03"]
+    assert payload.asset_allocation == {"债券": 0.86, "现金": 0.07, "其他": 0.07}
+    assert payload.extra_context["normalized_fund_type"] == "bond_index_fund"
+    assert payload.extra_context["bond_holdings_count"] == "2"
+    assert payload.extra_context["asset_allocation_count"] == "3"
+
+
 def test_build_fund_input_treats_small_holding_percentages_as_percent_units():
     def transport(method, url, payload, timeout):
         if "/functions" in url:
@@ -364,6 +434,9 @@ def test_build_fund_input_uses_latest_news_announcements():
 class BackendFunctionClientRegressionTest(unittest.TestCase):
     def test_small_holding_percentages_are_run_by_unittest(self):
         test_build_fund_input_treats_small_holding_percentages_as_percent_units()
+
+    def test_bond_holdings_and_asset_allocation_are_run_by_unittest(self):
+        test_build_fund_input_maps_bond_holdings_and_asset_allocation()
 
     def test_start_date_filter_is_run_by_unittest(self):
         test_build_fund_input_applies_start_date_even_without_end_date()

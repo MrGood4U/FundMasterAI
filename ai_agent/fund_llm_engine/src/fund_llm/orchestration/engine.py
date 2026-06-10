@@ -19,6 +19,10 @@ AGENT_TRACE_COPY = {
         "Checked portfolio exposure",
         "Reviewed concentration signals such as top holdings weight and industry exposure when available.",
     ),
+    "BondExposureAgent": (
+        "Checked bond exposure",
+        "Reviewed bond holdings and asset allocation when available for fixed-income fund types.",
+    ),
     "SentimentAgent": (
         "Reviewed news and announcements",
         "Used recent news or announcement signals as a secondary cross-check rather than a primary return driver.",

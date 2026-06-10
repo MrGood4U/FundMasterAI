@@ -27,6 +27,7 @@ start with [`ai_agent_development_log.md`](./ai_agent_development_log.md).
 
 - [`llm_evaluation.md`](./llm_evaluation.md): automatic and manual output evaluation rubric.
 - [`golden_cases.md`](./golden_cases.md): golden case design and expected checks.
+- [`manual_acceptance_checklist.md`](./manual_acceptance_checklist.md): click-by-click manual acceptance checklist for the AI Insights page.
 - [`score_guardrails_zh.md`](./score_guardrails_zh.md): AI Agent score guardrails and collaboration scope checks.
 - [`real_api_parallel_benchmark.md`](./real_api_parallel_benchmark.md): real LLM parallel execution benchmark.
 

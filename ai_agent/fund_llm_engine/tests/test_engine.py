@@ -6,7 +6,15 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from fund_llm.agents import ChiefAgent, ExposureAgent, PerformanceAgent, RiskAgent, SectorAgent, SentimentAgent
+from fund_llm.agents import (
+    BondExposureAgent,
+    ChiefAgent,
+    ExposureAgent,
+    PerformanceAgent,
+    RiskAgent,
+    SectorAgent,
+    SentimentAgent,
+)
 from fund_llm.contracts import AgentOutput, FinalAnalysisResult, FundAnalysisInput, FundInfo, NavPoint, NewsItem
 from fund_llm.feature_builder import FeatureBuilder
 from fund_llm.llm_client import MockLLMClient
@@ -54,6 +62,7 @@ class EngineTest(unittest.TestCase):
             agents=[
                 PerformanceAgent(llm),
                 ExposureAgent(llm),
+                BondExposureAgent(llm),
                 RiskAgent(llm),
                 SentimentAgent(llm),
                 SectorAgent(llm),
@@ -64,16 +73,24 @@ class EngineTest(unittest.TestCase):
         result = engine.run(build_sample_input())
 
         self.assertEqual(result.request_id, "demo-002")
-        self.assertEqual(len(result.agent_outputs), 5)
+        self.assertEqual(len(result.agent_outputs), 6)
         self.assertIn(result.overall_rating, {"buy", "hold", "watch", "avoid"})
         self.assertTrue(result.summary)
         self.assertGreater(result.overall_score, 0)
-        self.assertTrue(all(output.status == "success" for output in result.agent_outputs))
+        self.assertEqual(
+            [
+                (output.agent_name, output.status, output.stance)
+                for output in result.agent_outputs
+                if output.agent_name == "BondExposureAgent"
+            ],
+            [("BondExposureAgent", "skipped", "not_applicable")],
+        )
         self.assertEqual(result.metadata["agent_execution_mode"], "parallel")
-        self.assertEqual(result.metadata["agent_worker_count"], "5")
-        self.assertGreaterEqual(len(result.analysis_trace), 7)
+        self.assertEqual(result.metadata["agent_worker_count"], "6")
+        self.assertGreaterEqual(len(result.analysis_trace), 8)
         self.assertEqual(result.analysis_trace[0].title, "Calculated fund metrics")
         self.assertIn("Evaluated performance", [event.title for event in result.analysis_trace])
+        self.assertIn("Checked bond exposure", [event.title for event in result.analysis_trace])
         self.assertIn("Combined specialist views", [event.title for event in result.analysis_trace])
 
     def test_engine_runs_specialist_agents_in_parallel(self):

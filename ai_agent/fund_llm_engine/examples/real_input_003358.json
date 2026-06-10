@@ -131,6 +131,34 @@
   ],
   "industry_exposure": {},
   "top_holdings_weight": 0.8364,
+  "bond_holdings": [
+    {
+      "sequence": 1,
+      "pct": "21.28%",
+      "quarter": "2025Q4"
+    },
+    {
+      "sequence": 2,
+      "pct": "19.96%",
+      "quarter": "2025Q4"
+    },
+    {
+      "sequence": 3,
+      "pct": "15.04%",
+      "quarter": "2025Q4"
+    },
+    {
+      "sequence": 4,
+      "pct": "13.81%",
+      "quarter": "2025Q4"
+    },
+    {
+      "sequence": 5,
+      "pct": "13.55%",
+      "quarter": "2025Q4"
+    }
+  ],
+  "asset_allocation": {},
   "news_summary": [],
   "analysis_window": {
     "start_date": "2026-03-13",

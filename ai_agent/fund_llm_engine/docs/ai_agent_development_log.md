@@ -10,7 +10,7 @@ It records verified implementation state only. Future plans stay in
 
 ## Current Snapshot
 
-Date: 2026-06-09
+Date: 2026-06-10
 
 Branch:
 
@@ -33,6 +33,7 @@ Implemented agents:
 ```text
 PerformanceAgent
 ExposureAgent
+BondExposureAgent
 RiskAgent
 SentimentAgent
 SectorAgent
@@ -48,7 +49,7 @@ Frontend-facing AI output status:
 
 Known gaps:
 
-- `BondExposureAgent` is the main current agent gap for bond fund analysis. It should either be added as a dedicated agent or implemented by splitting bond-specific logic inside `ExposureAgent`.
+- `BondExposureAgent` now has a baseline path for bond holdings and asset allocation. Remaining fixed-income depth depends on richer duration, maturity, issuer, and credit-rating data.
 - `MarketAgent` and `CapitalFlowAgent` are proposal-alignment enhancement agents, not the immediate reason bond funds skip equity-style analysis.
 - `get_fund_profit_probability` is currently a backend tool result, stored in analysis context. There is no standalone `ProfitabilityAgent`.
 - Frontend should own non-developer wording so skipped or not-applicable agents do not look broken in demos; the AI module owns the structured status and evidence fields that make this possible.
@@ -63,6 +64,8 @@ Known gaps:
   - Evidence: `ai_agent/fund_llm_engine/src/fund_llm/feature_builder.py`.
 - Bond-like funds can mark equity exposure and sector analysis as not applicable instead of letting the LLM invent data.
   - Evidence: `ai_agent/fund_llm_engine/src/fund_llm/agents/exposure_agent.py`, `ai_agent/fund_llm_engine/src/fund_llm/agents/sector_agent.py`.
+- Bond-like funds can run a dedicated fixed-income exposure check when bond holdings or asset-allocation data is available.
+  - Evidence: `ai_agent/fund_llm_engine/src/fund_llm/agents/bond_exposure_agent.py`, `ai_agent/fund_llm_engine/src/fund_llm/feature_builder.py`, `ai_agent/fund_llm_engine/examples/real_input_003358.json`.
 - `Analysis Evidence` trace data is available for frontend explanation.
   - Evidence: `ai_agent/fund_llm_engine/app.py`, `ai_agent/fund_llm_engine/src/fund_llm/orchestration/engine.py`, `frontend_new/ai-insights.html`, `frontend_new/js/ai-insights.js`.
 
@@ -77,13 +80,13 @@ Known gaps:
 
 ## Todo
 
-- Add `BondExposureAgent`, or split `ExposureAgent` internally by normalized fund type.
+- Add deeper bond analytics after backend data includes duration, maturity structure, issuer classification, and credit-rating fields.
 - Consider a future `ProfitabilityAgent` only if the team decides to make `get_fund_profit_probability` a first-class specialist view.
 - Add or expand regression cases after new bond, asset allocation, market, or capital-flow data becomes available.
 
 ## Blocked Or Backend-Dependent
 
-- Complete bond fund exposure analysis depends on reliable bond holdings and asset allocation data.
+- Complete bond fund exposure analysis depends on reliable duration, maturity, issuer, credit-rating, and asset-allocation data.
 - `MarketAgent` and `CapitalFlowAgent` depend on upstream market context and capital-flow data.
 - Richer sentiment analysis depends on higher-quality news/event inputs.
 
@@ -239,6 +242,41 @@ Next suggested work:
 
 - Keep backend service startup documented as a separate prerequisite for
   full real-data Agent analysis.
+
+### 2026-06-10 - Add bond-aware exposure agent baseline
+
+Goal:
+
+- Implement the planned Phase 1 bond-aware exposure path so fixed-income funds are not reduced to skipped equity exposure checks.
+
+Actual changes:
+
+- Added structured `bond_holdings` and `asset_allocation` fields to `FundAnalysisInput`.
+- Added bond exposure metrics to `FeatureBuilder`, including top bond weight, top-three bond weight, disclosed bond weight, and asset-class buckets.
+- Added `BondExposureAgent` and wired it into mock and real pipelines, trace copy, chief aggregation metadata, evaluation, score guardrails, API coverage, and golden cases.
+- Updated fund-type routing so `index_fixed_income` is classified as a bond-like fund.
+- Updated `real_input_003358.json` so its disclosed bond positions are represented as `bond_holdings`.
+
+Impact:
+
+- Public API response shape remains backward compatible, but `agent_outputs` now includes an additional `BondExposureAgent` item.
+- `coverage` can now expose `has_bond_holdings` and `has_asset_allocation`.
+- Equity-like funds receive `BondExposureAgent` as `skipped + not_applicable`; bond-like funds receive success when bond holdings or asset allocation are available, and `skipped + insufficient_data` when both are missing.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine && PYTHONPATH=src python3.11 -m unittest discover -s tests
+cd ai_agent/fund_llm_engine && PYTHONPATH=src python3.11 scripts/run_golden_suite.py --mode mock
+```
+
+Known unfinished work:
+
+- The baseline does not infer duration, maturity ladder, issuer sector, yield curve positioning, or credit-rating exposure when those fields are absent.
+
+Next suggested work:
+
+- Move to Phase 2 evidence and evaluation hardening, especially prompt/run metadata and saved real-model review samples.
 
 ## Handoff Notes For Future AI
 

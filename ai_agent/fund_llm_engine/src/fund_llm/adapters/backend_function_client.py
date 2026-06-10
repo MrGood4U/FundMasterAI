@@ -290,6 +290,16 @@ def _build_industry_exposure(records: List[JsonDict]) -> Dict[str, float]:
     return exposure
 
 
+def _build_asset_allocation(records: List[JsonDict]) -> Dict[str, float]:
+    allocation: Dict[str, float] = {}
+    for row in records:
+        name = str(row.get("asset_type") or row.get("asset_class") or row.get("资产类型") or "").strip()
+        pct = _percent_to_fraction(row.get("pct") or row.get("net_value_pct") or row.get("仓位占比"))
+        if name and pct is not None:
+            allocation[name] = pct
+    return allocation
+
+
 def _build_nav_series(
     records: List[JsonDict],
     max_points: int,
@@ -453,10 +463,16 @@ def build_fund_input_from_backend_functions(
             bond_holding_records = safe_call("get_fund_portfolio_hold_bond", {"code": code, "year": str(year)})
             if bond_holding_records:
                 break
+    latest_bond_holdings = sorted(
+        _select_latest_quarter(bond_holding_records or []),
+        key=lambda row: _holding_weight(row) or 0.0,
+        reverse=True,
+    )
 
     asset_allocation_records: List[JsonDict] = []
     if "get_fund_individual_detail_hold" in tool_client.functions:
         asset_allocation_records = safe_call("get_fund_individual_detail_hold", {"code": code})
+    asset_allocation = _build_asset_allocation(asset_allocation_records or [])
 
     announcement_records = safe_call("get_public_fund_announcement", {"code": code})
     news_items = _build_news_items(announcement_records or [], limit=max_news_items)
@@ -491,6 +507,8 @@ def build_fund_input_from_backend_functions(
         nav_series=nav_series,
         industry_exposure=industry_exposure,
         top_holdings_weight=top_holdings_weight,
+        bond_holdings=latest_bond_holdings,
+        asset_allocation=asset_allocation,
         news_items=news_items,
         analysis_window=window,
         fund_tags=fund_tags,
@@ -504,8 +522,8 @@ def build_fund_input_from_backend_functions(
             "portfolio_year": str(portfolio_year or ""),
             "holdings_count": str(len(top_holdings)),
             "industry_exposure_count": str(len(industry_exposure)),
-            "bond_holdings_count": str(len(bond_holding_records)),
-            "asset_allocation_count": str(len(asset_allocation_records)),
+            "bond_holdings_count": str(len(latest_bond_holdings)),
+            "asset_allocation_count": str(len(asset_allocation)),
             "news_count": str(len(news_items)),
             "available_backend_tools": ",".join(sorted(tool_client.functions)),
             "successful_backend_tools": ",".join(successful_tools),
@@ -513,7 +531,7 @@ def build_fund_input_from_backend_functions(
             "tool_trace": _json_preview(tool_trace),
             "top_holdings": _json_preview(top_holdings),
             "backend_industry_exposure": _json_preview(industry_records),
-            "backend_bond_holdings": _json_preview(bond_holding_records),
+            "backend_bond_holdings": _json_preview(latest_bond_holdings),
             "backend_asset_allocation": _json_preview(asset_allocation_records),
             "backend_individual_analysis": _json_preview(individual_analysis),
             "backend_profit_probability": _json_preview(profit_probability),

@@ -14,7 +14,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 DEFAULT_AGENT_URL = "http://127.0.0.1:5003/api/ai/fund/analyze"
 DEFAULT_FUNDS = ["000001", "512100", "003358"]
 STABLE_AGENTS = {"PerformanceAgent", "RiskAgent", "SentimentAgent"}
-DATA_SENSITIVE_AGENTS = {"ExposureAgent", "SectorAgent"}
+DATA_SENSITIVE_AGENTS = {"ExposureAgent", "BondExposureAgent", "SectorAgent"}
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -147,7 +147,7 @@ def run_snapshot(args: argparse.Namespace) -> int:
             "client_risk_profile": args.risk_profile,
             "mock": not args.real_llm,
             "max_nav_points": 260,
-            "max_parallel_agents": 3 if args.real_llm else 5,
+            "max_parallel_agents": 3 if args.real_llm else 6,
             "llm_timeout_seconds": args.timeout,
         }
         api_payload = post_json(args.agent_url, body, args.timeout)

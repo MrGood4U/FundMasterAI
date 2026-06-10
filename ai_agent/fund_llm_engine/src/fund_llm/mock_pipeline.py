@@ -1,4 +1,12 @@
-from fund_llm.agents import ChiefAgent, ExposureAgent, PerformanceAgent, RiskAgent, SectorAgent, SentimentAgent
+from fund_llm.agents import (
+    BondExposureAgent,
+    ChiefAgent,
+    ExposureAgent,
+    PerformanceAgent,
+    RiskAgent,
+    SectorAgent,
+    SentimentAgent,
+)
 from fund_llm.contracts import (
     AnalysisWindow,
     BenchmarkInfo,
@@ -100,6 +108,7 @@ def build_mock_engine(
         agents=[
             PerformanceAgent(llm_client),
             ExposureAgent(llm_client),
+            BondExposureAgent(llm_client),
             RiskAgent(llm_client),
             SentimentAgent(llm_client),
             SectorAgent(llm_client),
