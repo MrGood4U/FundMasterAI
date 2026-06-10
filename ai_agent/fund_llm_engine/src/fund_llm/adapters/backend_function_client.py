@@ -13,6 +13,7 @@ import os
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional
 from urllib import error, parse, request
 
@@ -100,6 +101,10 @@ def _normalize_date(value: Any) -> str:
     if match:
         year, month, day = match.groups()
         return f"{year}-{month}-{day}"
+    try:
+        return parsedate_to_datetime(text).date().isoformat()
+    except (TypeError, ValueError, IndexError, OverflowError):
+        pass
     return text[:10]
 
 
@@ -312,8 +317,15 @@ def _build_nav_series(
 
 
 def _build_news_items(records: List[JsonDict], limit: int) -> List[NewsItem]:
+    if limit <= 0:
+        return []
+
+    def news_date_key(row: JsonDict) -> str:
+        normalized_date = _normalize_date(row.get("announcement_date") or row.get("publish_time"))
+        return normalized_date if re.fullmatch(r"\d{4}-\d{2}-\d{2}", normalized_date) else ""
+
     items = []
-    for row in records[:limit]:
+    for row in sorted(records, key=news_date_key, reverse=True):
         title = str(row.get("announcement_title") or row.get("news_title") or "").strip()
         summary = str(row.get("news_content") or title).strip()
         if not title and not summary:
@@ -328,6 +340,8 @@ def _build_news_items(records: List[JsonDict], limit: int) -> List[NewsItem]:
                 sentiment_label=None,
             )
         )
+        if len(items) >= limit:
+            break
     return items
 
 

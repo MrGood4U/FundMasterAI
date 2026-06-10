@@ -138,6 +138,10 @@ pip install -e ".[agent]"
 bash start.sh
 ```
 
+`start.sh` 会优先使用本目录 `.venv/bin/python`，自动等待 `/health`，
+并在未显式设置 `NEWS_BACKEND_URL` 时探测本机 `5000` / `5010` 新闻后端。
+运行日志写入 `app.log`，进程号写入 `app.pid`；停止服务用 `bash stop.sh`。
+
 默认 Agent 接口：
 
 ```text
@@ -226,7 +230,9 @@ python3 scripts/run_real_demo.py examples/mock_input.json --output outputs/real_
 
 建议先把当前版本作为第 0 版基线提交，然后按模块逐步增强。
 
+- AI Agent 文档索引：`docs/README.md`
 - 模块开发顺序与输入要求：`docs/implementation_plan.md`
+- 当前已实现/部分完成/待做状态台账：`docs/ai_agent_development_log.md`
 - 当前架构边界：`docs/architecture.md`
 - 智能体模块架构设计：`docs/agent_architecture_design.md`
 - 迁移范围说明：`docs/migration_notes.md`
@@ -236,6 +242,11 @@ python3 scripts/run_real_demo.py examples/mock_input.json --output outputs/real_
 - 本地环境与安装：`docs/environment_setup.md`
 - Gemini / DeepSeek 等模型 provider 配置：`docs/provider_setup.md`
 - 版本里程碑与切换方式：`docs/version_history.md`
+
+后续判断某个 AI Agent 能力是否已经完成时，先看
+`docs/ai_agent_development_log.md`，再对照代码、测试和运行验证。
+`docs/README.md` 只作为文档导航，`docs/implementation_plan.md` 只作为后续规划来源，
+`docs/version_history.md` 只作为里程碑/tag 历史来源。
 
 ## 当前设计原则
 
