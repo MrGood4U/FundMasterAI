@@ -9,6 +9,7 @@ from fund_llm.feature_builder import FeatureBuilder
 CORE_AGENT_NAMES = [
     "PerformanceAgent",
     "ExposureAgent",
+    "BondExposureAgent",
     "RiskAgent",
     "SentimentAgent",
     "SectorAgent",
@@ -156,7 +157,7 @@ def evaluate_analysis_result(payload: FundAnalysisInput, result: FinalAnalysisRe
         )
 
     success_count = len([output for output in result.agent_outputs if output.status == "success"])
-    error_count = len(result.agent_outputs) - success_count
+    error_count = len([output for output in result.agent_outputs if output.status == "error"])
     metadata_success = result.metadata.get("success_agent_count")
     metadata_error = result.metadata.get("error_agent_count")
     if metadata_success == str(success_count) and metadata_error == str(error_count):
@@ -224,6 +225,8 @@ def evaluate_analysis_result(payload: FundAnalysisInput, result: FinalAnalysisRe
         evidence_items.append("SentimentAgent" in outputs_by_name and result.metadata.get("has_news_signal") == "true")
     if features.data_quality_flags.get("has_industry_exposure"):
         evidence_items.append("SectorAgent" in outputs_by_name and result.metadata.get("has_sector_context") == "true")
+    if features.data_quality_flags.get("has_bond_holdings") or features.data_quality_flags.get("has_asset_allocation"):
+        evidence_items.append("BondExposureAgent" in outputs_by_name and result.metadata.get("has_bond_exposure") == "true")
 
     evidence_passed = sum(1 for item in evidence_items if item)
     evidence_details = []
@@ -239,6 +242,11 @@ def evaluate_analysis_result(payload: FundAnalysisInput, result: FinalAnalysisRe
         evidence_details.append("News-aware input did not propagate sentiment coverage metadata.")
     if features.data_quality_flags.get("has_industry_exposure") and result.metadata.get("has_sector_context") != "true":
         evidence_details.append("Industry-aware input did not propagate sector coverage metadata.")
+    if (
+        (features.data_quality_flags.get("has_bond_holdings") or features.data_quality_flags.get("has_asset_allocation"))
+        and result.metadata.get("has_bond_exposure") != "true"
+    ):
+        evidence_details.append("Bond-aware input did not propagate fixed-income exposure metadata.")
     checks.append(
         _make_check(
             name="evidence_coverage",
@@ -271,6 +279,16 @@ def evaluate_analysis_result(payload: FundAnalysisInput, result: FinalAnalysisRe
             missing_data_passed += 1
         else:
             missing_data_details.append("Missing sector context was not clearly surfaced in final risks/metadata.")
+    if (
+        features.data_quality_flags.get("bond_exposure_applicable", False)
+        and not features.data_quality_flags.get("has_bond_holdings")
+        and not features.data_quality_flags.get("has_asset_allocation")
+    ):
+        missing_data_total += 1
+        if result.metadata.get("has_bond_exposure") == "false" and "bond" in _joined_text(result.main_risks):
+            missing_data_passed += 1
+        else:
+            missing_data_details.append("Missing bond exposure context was not clearly surfaced in final risks/metadata.")
     if missing_data_total == 0:
         missing_data_total = 1
         missing_data_passed = 1

@@ -30,7 +30,7 @@ class MockPipelineTest(unittest.TestCase):
         result = run_mock_analysis(mock_response="demo narrative")
 
         self.assertEqual(result.request_id, "mock-demo-001")
-        self.assertEqual(len(result.agent_outputs), 5)
+        self.assertEqual(len(result.agent_outputs), 6)
         self.assertEqual(result.summary, "demo narrative")
         self.assertIn(result.overall_rating, {"buy", "hold", "watch", "avoid"})
 
@@ -39,18 +39,19 @@ class MockPipelineTest(unittest.TestCase):
 
         self.assertEqual(result["request_id"], "mock-demo-001")
         self.assertEqual(result["summary"], "json narrative")
-        self.assertEqual(len(result["agent_outputs"]), 5)
+        self.assertEqual(len(result["agent_outputs"]), 6)
         self.assertEqual(result["missing_fields"], [])
 
-    def test_build_mock_engine_uses_five_domain_agents(self):
+    def test_build_mock_engine_uses_six_domain_agents(self):
         engine = build_mock_engine()
 
-        self.assertEqual(len(engine.agents), 5)
+        self.assertEqual(len(engine.agents), 6)
         self.assertEqual(engine.agents[0].name, "PerformanceAgent")
         self.assertEqual(engine.agents[1].name, "ExposureAgent")
-        self.assertEqual(engine.agents[2].name, "RiskAgent")
-        self.assertEqual(engine.agents[3].name, "SentimentAgent")
-        self.assertEqual(engine.agents[4].name, "SectorAgent")
+        self.assertEqual(engine.agents[2].name, "BondExposureAgent")
+        self.assertEqual(engine.agents[3].name, "RiskAgent")
+        self.assertEqual(engine.agents[4].name, "SentimentAgent")
+        self.assertEqual(engine.agents[5].name, "SectorAgent")
 
     def test_run_mock_analysis_for_input_accepts_external_payload(self):
         payload = build_mock_input()

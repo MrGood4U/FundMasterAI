@@ -45,7 +45,7 @@ Content-Type: application/json
 | `portfolio_year` | string/integer | 否 | 当前年/上一年兜底 | 用于请求持仓数据。 |
 | `top_holdings_n` | integer | 否 | `10` | 最多请求多少条前十大持仓。 |
 | `max_news_items` | integer | 否 | `8` | 最多使用多少条新闻或公告。 |
-| `max_parallel_agents` | integer | 否 | `5` | specialist agents 并发数量。 |
+| `max_parallel_agents` | integer | 否 | `6` | specialist agents 并发数量。 |
 | `llm_timeout_seconds` | integer | 否 | `LLM_TIMEOUT_SECONDS` 或 `60` | 真实 LLM 模式的超时时间。 |
 
 最小请求示例：
@@ -124,6 +124,7 @@ Content-Type: application/json
 |---|---|
 | `PerformanceAgent` | Performance Check / 收益表现检查 |
 | `ExposureAgent` | Exposure Check / 持仓暴露检查 |
+| `BondExposureAgent` | Bond Exposure Check / 债券暴露检查 |
 | `RiskAgent` | Risk Check / 风险检查 |
 | `SentimentAgent` | News / Sentiment Check / 新闻情绪检查 |
 | `SectorAgent` | Sector Check / 行业配置检查 |
@@ -131,7 +132,7 @@ Content-Type: application/json
 `ChiefAgent` 当前负责把各 Agent 结果汇总到 `data` 的最终字段里，不要求作为
 普通 `agent_outputs` 项出现。
 
-未来如果新增 `BondExposureAgent`、`MarketAgent`、`CapitalFlowAgent`，
+未来如果新增 `MarketAgent`、`CapitalFlowAgent` 或其他 specialist agent，
 也必须使用同样的 `AgentOutput` 结构。前端遇到不认识的 `agent_name` 时，
 可以直接显示原始名称，或在本地 label map 里补一个展示名。
 
@@ -186,6 +187,8 @@ key，但现有稳定字段类型不要变。
 | `nav_points` | integer | 本次使用的净值点数量。 |
 | `has_top_holdings_weight` | boolean | 是否拿到前十大持仓集中度。 |
 | `has_industry_exposure` | boolean | 是否拿到行业暴露数据。 |
+| `has_bond_holdings` | boolean | 是否拿到债券持仓明细。 |
+| `has_asset_allocation` | boolean | 是否拿到资产配置结构。 |
 | `has_news_items` | boolean | 是否拿到结构化新闻或公告。 |
 | `fund_name` | string | 后端返回或兜底的基金名称。 |
 | `fund_type` | string | 后端返回的原始基金类型。 |
@@ -273,6 +276,8 @@ HTTP 接口会先构造 `FundAnalysisInput`，再交给 engine。脚本和测试
 
 - `industry_exposure`
 - `top_holdings_weight`
+- `bond_holdings`
+- `asset_allocation`
 - `news_summary`
 - `news_items`
 - `analysis_window`
@@ -285,6 +290,11 @@ HTTP 接口会先构造 `FundAnalysisInput`，再交给 engine。脚本和测试
 如果有结构化新闻，`news_items` 建议包含 `title`、`summary`、`published_at`、
 `source`、`topic`、`sentiment_label`。
 
+如果有债券持仓，`bond_holdings` 建议包含 `bond_code`、`bond_name`、`pct`、
+`hold_market_value`、`quarter` 等后端可稳定提供的字段。`asset_allocation`
+建议使用资产类型到占比的对象，例如 `{"债券": 0.86, "现金": 0.07}`；百分比
+字符串也会被归一化为 0-1 的比例。
+
 ## 前端交接样例
 
 下面这些 case 用于测试页面状态。它们依赖实时后端数据，后端能力变化后需要重新验证。
@@ -292,7 +302,7 @@ HTTP 接口会先构造 `FundAnalysisInput`，再交给 engine。脚本和测试
 | Case | 用途 |
 |---|---|
 | `000001` | 正常混合基金 demo，适合测试真实后端数据和新闻公告流。 |
-| `003358` | 债券指数基金，适合测试权益类检查的 `skipped + not_applicable`。 |
+| `003358` | 债券指数基金，适合测试 `BondExposureAgent` success、权益类检查 `skipped + not_applicable`、以及资产配置缺失降级。 |
 | `000002` | 预期无 NAV 或数据不足，通常用于测试 HTTP `422`。 |
 | `161725` | 行业高度集中的权益/指数基金，适合测试 `SectorAgent` success。 |
 | Sparse/no-news sample | 无新闻或低信息样例，适合测试 `SentimentAgent` 的 `skipped + insufficient_data`。 |

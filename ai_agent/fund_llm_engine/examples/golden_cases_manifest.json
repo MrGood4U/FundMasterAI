@@ -12,6 +12,7 @@
         "required_agents": [
           "PerformanceAgent",
           "ExposureAgent",
+          "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
           "SectorAgent"
@@ -35,6 +36,7 @@
         "required_agents": [
           "PerformanceAgent",
           "ExposureAgent",
+          "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
           "SectorAgent"
@@ -58,6 +60,7 @@
         "required_agents": [
           "PerformanceAgent",
           "ExposureAgent",
+          "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
           "SectorAgent"
@@ -81,6 +84,7 @@
         "required_agents": [
           "PerformanceAgent",
           "ExposureAgent",
+          "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
           "SectorAgent"
@@ -97,7 +101,7 @@
           "Top holdings weight is 84.79%.",
           "Top sector is 白酒 at 94.34%.",
           "Single-sector exposure is relatively concentrated.",
-          "No recent news items were provided, so sentiment coverage is limited.",
+          "No recent news signal was provided.",
           "No benchmark series was provided, so relative performance checks remain limited."
         ]
       }
@@ -113,6 +117,7 @@
         "required_agents": [
           "PerformanceAgent",
           "ExposureAgent",
+          "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
           "SectorAgent"
@@ -120,17 +125,20 @@
         "expected_metadata": {
           "has_benchmark": "false",
           "has_news_signal": "false",
-          "has_sector_context": "false"
+          "has_sector_context": "false",
+          "has_bond_exposure": "true"
         },
         "expected_missing_fields": [
-          "industry_exposure",
+          "asset_allocation",
           "benchmark_nav_series"
         ],
         "expected_text_fragments": [
-          "Top holdings weight is 83.64%.",
-          "No industry exposure breakdown was provided.",
-          "Exposure read is incomplete because portfolio breakdown fields are still missing.",
-          "No recent news items were provided, so sentiment coverage is limited.",
+          "Top bond holding weight is 21.28%.",
+          "Top three bond holdings are 56.28% of NAV.",
+          "Disclosed bond holdings sum to 83.64% of NAV.",
+          "Asset allocation is missing, so bond/cash/other exposure cannot be fully verified.",
+          "Duration and credit-rating fields were not provided",
+          "No recent news signal was provided.",
           "No benchmark series was provided, so relative performance checks remain limited."
         ]
       }
@@ -146,6 +154,7 @@
         "required_agents": [
           "PerformanceAgent",
           "ExposureAgent",
+          "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
           "SectorAgent"
@@ -172,6 +181,7 @@
         "required_agents": [
           "PerformanceAgent",
           "ExposureAgent",
+          "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
           "SectorAgent"
@@ -198,6 +208,7 @@
         "required_agents": [
           "PerformanceAgent",
           "ExposureAgent",
+          "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
           "SectorAgent"

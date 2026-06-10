@@ -1,5 +1,6 @@
 from math import sqrt
-from typing import Callable, Dict, List, Optional
+import re
+from typing import Any, Callable, Dict, List, Optional
 
 from fund_llm.contracts import FundAnalysisInput, FundFeaturePack, NavPoint
 from fund_llm.fund_routing import (
@@ -75,6 +76,81 @@ def calculate_industry_concentration(industry_exposure: Dict[str, float]) -> flo
     if not industry_exposure:
         return 0.0
     return max(industry_exposure.values())
+
+
+def _to_float(value: Any) -> Optional[float]:
+    if value is None or value == "":
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip().replace(",", "")
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
+    if not match:
+        return None
+    return float(match.group(0))
+
+
+def _to_fraction(value: Any) -> Optional[float]:
+    number = _to_float(value)
+    if number is None:
+        return None
+    if (isinstance(value, str) and "%" in value) or abs(number) > 1.0:
+        return number / 100.0
+    return number
+
+
+def _holding_weight(row: Dict[str, Any]) -> Optional[float]:
+    return _to_fraction(row.get("pct") or row.get("net_value_pct") or row.get("占净值比例"))
+
+
+def _normalize_asset_allocation(asset_allocation: Dict[str, float]) -> Dict[str, float]:
+    normalized = {}
+    for key, value in asset_allocation.items():
+        weight = _to_fraction(value)
+        if key and weight is not None:
+            normalized[str(key)] = weight
+    return normalized
+
+
+def _asset_name_key(name: str) -> str:
+    return str(name or "").strip().lower().replace(" ", "").replace("_", "").replace("-", "")
+
+
+def _asset_bucket_weight(asset_allocation: Dict[str, float], keywords: List[str]) -> float:
+    keyword_set = [_asset_name_key(keyword) for keyword in keywords]
+    total = 0.0
+    for name, weight in asset_allocation.items():
+        normalized_name = _asset_name_key(name)
+        if any(keyword and keyword in normalized_name for keyword in keyword_set):
+            total += weight
+    return total
+
+
+def calculate_bond_exposure_metrics(
+    bond_holdings: List[Dict[str, Any]],
+    asset_allocation: Dict[str, float],
+) -> Dict[str, float]:
+    weights = sorted(
+        [weight for weight in (_holding_weight(row) for row in bond_holdings) if weight is not None],
+        reverse=True,
+    )
+    metrics = {
+        "bond_holding_count": float(len(bond_holdings)),
+        "asset_allocation_count": float(len(asset_allocation)),
+        "bond_top_holding_weight": weights[0] if weights else 0.0,
+        "bond_top_three_weight": sum(weights[:3]),
+        "bond_total_disclosed_weight": sum(weights),
+        "asset_bond_weight": _asset_bucket_weight(asset_allocation, ["债券", "bond", "固定收益", "fixedincome"]),
+        "asset_cash_weight": _asset_bucket_weight(asset_allocation, ["现金", "cash", "货币", "money"]),
+        "asset_stock_weight": _asset_bucket_weight(asset_allocation, ["股票", "stock", "equity", "权益"]),
+    }
+    allocated_known = (
+        metrics["asset_bond_weight"]
+        + metrics["asset_cash_weight"]
+        + metrics["asset_stock_weight"]
+    )
+    metrics["asset_other_weight"] = max(0.0, sum(asset_allocation.values()) - allocated_known)
+    return metrics
 
 
 def calculate_excess_return(nav_series: List[NavPoint], benchmark_nav_series: List[NavPoint]) -> float:
@@ -184,6 +260,15 @@ class FeatureBuilder:
             "industry_concentration": calculate_industry_concentration(payload.industry_exposure),
             "top_holdings_weight": float(payload.top_holdings_weight or 0.0),
         }
+        asset_allocation = _normalize_asset_allocation(payload.asset_allocation)
+        bond_exposure_metrics = calculate_bond_exposure_metrics(payload.bond_holdings, asset_allocation)
+        exposure_metrics.update(
+            {
+                "bond_top_holding_weight": bond_exposure_metrics.get("bond_top_holding_weight", 0.0),
+                "bond_top_three_weight": bond_exposure_metrics.get("bond_top_three_weight", 0.0),
+                "bond_total_disclosed_weight": bond_exposure_metrics.get("bond_total_disclosed_weight", 0.0),
+            }
+        )
 
         benchmark_metrics = {}
         if payload.benchmark_nav_series:
@@ -211,6 +296,8 @@ class FeatureBuilder:
             "benchmark_nav_point_count": len(payload.benchmark_nav_series),
             "news_item_count": len(payload.news_items),
             "news_signal_count": max(len(payload.news_items), len(normalized_news_summary)),
+            "bond_holding_count": len(payload.bond_holdings),
+            "asset_allocation_count": len(asset_allocation),
             "available_return_window_count": len(
                 [key for key in return_metrics if key.startswith("return_") and key != "return_since_inception"]
             ),
@@ -225,6 +312,8 @@ class FeatureBuilder:
             "has_top_holdings_weight": payload.top_holdings_weight is not None,
             "has_news_signal": bool(normalized_news_summary or payload.news_items),
             "has_structured_news": bool(payload.news_items),
+            "has_bond_holdings": bool(payload.bond_holdings),
+            "has_asset_allocation": bool(asset_allocation),
             "fund_type_known": data_coverage.get("fund_type") == AVAILABLE,
             "equity_exposure_applicable": fund_type_profile.equity_exposure_applicable,
             "sector_analysis_applicable": fund_type_profile.sector_analysis_applicable,
@@ -246,6 +335,9 @@ class FeatureBuilder:
             risk_metrics=risk_metrics,
             exposure_metrics=exposure_metrics,
             industry_exposure_breakdown=payload.industry_exposure,
+            bond_exposure_metrics=bond_exposure_metrics,
+            bond_holdings=payload.bond_holdings,
+            asset_allocation_breakdown=asset_allocation,
             benchmark_metrics=benchmark_metrics,
             data_quality_metrics=data_quality_metrics,
             data_quality_flags=data_quality_flags,

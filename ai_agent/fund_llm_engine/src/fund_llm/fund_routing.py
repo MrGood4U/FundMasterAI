@@ -85,7 +85,8 @@ def classify_fund_type(raw_type: str) -> FundTypeProfile:
             asset_allocation_required=True,
         )
 
-    if "债券" in text or "bond" in text:
+    compact_text = text.replace("_", "").replace("-", "")
+    if "债券" in text or "bond" in text or "固收" in text or "fixedincome" in compact_text:
         normalized_type = "bond_index_fund" if "指数" in text or "index" in text else "bond_fund"
         return FundTypeProfile(
             raw_type=raw_type,
@@ -180,6 +181,14 @@ def _has_positive_count(payload: "FundAnalysisInput", key: str) -> bool:
         return False
 
 
+def _has_bond_holdings(payload: "FundAnalysisInput") -> bool:
+    return bool(getattr(payload, "bond_holdings", [])) or _has_positive_count(payload, "bond_holdings_count")
+
+
+def _has_asset_allocation(payload: "FundAnalysisInput") -> bool:
+    return bool(getattr(payload, "asset_allocation", {})) or _has_positive_count(payload, "asset_allocation_count")
+
+
 def build_data_coverage(payload: "FundAnalysisInput") -> Dict[str, str]:
     profile = classify_fund_type(payload.fund_info.category)
     available_tools = parse_tool_names(payload.extra_context.get("available_backend_tools"))
@@ -217,7 +226,7 @@ def build_data_coverage(payload: "FundAnalysisInput") -> Dict[str, str]:
     if profile.bond_exposure_applicable:
         coverage["bond_holdings"] = (
             AVAILABLE
-            if _has_positive_count(payload, "bond_holdings_count")
+            if _has_bond_holdings(payload)
             else _missing_status(
                 payload,
                 available_tools,
@@ -234,7 +243,7 @@ def build_data_coverage(payload: "FundAnalysisInput") -> Dict[str, str]:
     if profile.asset_allocation_required:
         coverage["asset_allocation"] = (
             AVAILABLE
-            if _has_positive_count(payload, "asset_allocation_count")
+            if _has_asset_allocation(payload)
             else _missing_status(
                 payload,
                 available_tools,

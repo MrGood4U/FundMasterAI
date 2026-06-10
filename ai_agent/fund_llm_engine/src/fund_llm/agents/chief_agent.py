@@ -18,6 +18,7 @@ def _agent_display_name(agent_name: str) -> str:
     labels = {
         "PerformanceAgent": "Performance",
         "ExposureAgent": "Portfolio exposure",
+        "BondExposureAgent": "Bond exposure",
         "RiskAgent": "Risk control",
         "SentimentAgent": "News signal",
         "SectorAgent": "Sector context",
@@ -206,6 +207,8 @@ class ChiefAgent:
             chief_key_points.append("Recent news flow is available as an additional sentiment cross-check.")
         if features.data_quality_flags.get("has_industry_exposure"):
             chief_key_points.append("Sector exposure breakdown is available for industry-level cross-checking.")
+        if features.data_quality_flags.get("has_bond_holdings") or features.data_quality_flags.get("has_asset_allocation"):
+            chief_key_points.append("Bond or asset-allocation exposure data is available for fixed-income cross-checking.")
         if not_applicable_outputs:
             chief_key_points.append(
                 f"{len(not_applicable_outputs)} agent module(s) were not applicable to {features.normalized_fund_type}."
@@ -235,6 +238,12 @@ class ChiefAgent:
             and not features.data_quality_flags.get("has_industry_exposure")
         ):
             chief_risks.append("No industry exposure breakdown was provided, so sector-level context remains limited.")
+        if (
+            features.data_quality_flags.get("bond_exposure_applicable", False)
+            and not features.data_quality_flags.get("has_bond_holdings")
+            and not features.data_quality_flags.get("has_asset_allocation")
+        ):
+            chief_risks.append("No bond holdings or asset-allocation data was provided, so fixed-income exposure remains limited.")
 
         chief_actions = []
         if client_risk_profile:
@@ -314,6 +323,10 @@ class ChiefAgent:
             "has_benchmark": str(features.data_quality_flags.get("has_benchmark", False)).lower(),
             "has_news_signal": str(features.data_quality_flags.get("has_news_signal", False)).lower(),
             "has_sector_context": str(features.data_quality_flags.get("has_industry_exposure", False)).lower(),
+            "has_bond_exposure": str(
+                features.data_quality_flags.get("has_bond_holdings", False)
+                or features.data_quality_flags.get("has_asset_allocation", False)
+            ).lower(),
             "news_item_count": str(features.data_quality_metrics.get("news_item_count", 0)),
             "client_risk_profile": client_risk_profile,
             "agent_health": "healthy" if not error_outputs and not skipped_outputs else "partial",

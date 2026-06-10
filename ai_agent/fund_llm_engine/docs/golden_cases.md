@@ -158,6 +158,7 @@
 
 - 负面新闻 case 应该出现 `Recent news flow leans negative.`
 - 缺 benchmark case 不应该被当成 benchmark-aware case
+- 债券 case 应该出现 `Top bond holding weight` 等 bond-specific 证据，而不是 equity exposure 结论
 - 保守型客户遇到高集中度时，建议里应该反映 `conservative risk profile`
 
 不要用它锁死 LLM 逐字 narrative；它更适合锁住 agent 规则产出的关键事实和风险提示。

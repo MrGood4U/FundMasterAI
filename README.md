@@ -93,7 +93,7 @@ python3 -m unittest discover -s tests
 Current expected result:
 
 ```text
-71 tests OK
+78 tests OK
 ```
 
 Frontend syntax check:

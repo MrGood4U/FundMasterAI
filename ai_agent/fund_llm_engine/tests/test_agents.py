@@ -4,7 +4,15 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from fund_llm.agents import ChiefAgent, ExposureAgent, PerformanceAgent, RiskAgent, SectorAgent, SentimentAgent
+from fund_llm.agents import (
+    BondExposureAgent,
+    ChiefAgent,
+    ExposureAgent,
+    PerformanceAgent,
+    RiskAgent,
+    SectorAgent,
+    SentimentAgent,
+)
 from fund_llm.contracts import (
     AgentOutput,
     BenchmarkInfo,
@@ -94,6 +102,37 @@ def build_rich_features():
     return FeatureBuilder().build(payload)
 
 
+def build_bond_input_with_exposure() -> FundAnalysisInput:
+    return FundAnalysisInput(
+        request_id="bond-003358",
+        fund_info=FundInfo(
+            code="003358",
+            name="易方达中债7-10年期国开行债券指数A",
+            asset_type="fund_open",
+            category="债券型-债券指数",
+            manager="示例经理",
+        ),
+        nav_series=[
+            NavPoint(date="2026-01-01", nav=1.00),
+            NavPoint(date="2026-01-02", nav=1.01),
+            NavPoint(date="2026-01-03", nav=1.011),
+        ],
+        bond_holdings=[
+            {"bond_code": "200210", "bond_name": "20国开10", "pct": "21.28%", "quarter": "2025Q4"},
+            {"bond_code": "210203", "bond_name": "21国开03", "pct": "19.96%", "quarter": "2025Q4"},
+            {"bond_code": "220205", "bond_name": "22国开05", "pct": "15.04%", "quarter": "2025Q4"},
+            {"bond_code": "230210", "bond_name": "23国开10", "pct": "13.81%", "quarter": "2025Q4"},
+            {"bond_code": "240205", "bond_name": "24国开05", "pct": "13.55%", "quarter": "2025Q4"},
+        ],
+        asset_allocation={"债券": 0.86, "现金": 0.07, "其他": 0.07},
+        extra_context={"client_risk_profile": "income_oriented"},
+    )
+
+
+def build_bond_features_with_exposure():
+    return FeatureBuilder().build(build_bond_input_with_exposure())
+
+
 class BrokenLLMClient:
     def chat(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
         raise RuntimeError("mock llm failure")
@@ -139,6 +178,38 @@ class AgentsTest(unittest.TestCase):
         self.assertTrue(any("Manager tenure" in item for item in result.key_points))
         self.assertIn("Exposure profile looks consistent with a core allocation role.", result.recommendations)
         self.assertGreaterEqual(result.confidence, 0.78)
+
+    def test_bond_exposure_agent_returns_structured_output(self):
+        result = BondExposureAgent(MockLLMClient("bond exposure narrative")).analyze(
+            build_bond_features_with_exposure()
+        )
+
+        self.assertEqual(result.agent_name, "BondExposureAgent")
+        self.assertEqual(result.status, "success")
+        self.assertIsNotNone(result.score)
+        self.assertIn(result.stance, {"positive", "neutral", "negative"})
+        self.assertTrue(any("Top bond holding weight is 21.28%." in item for item in result.key_points))
+        self.assertTrue(any("Asset allocation shows bond 86.00%" in item for item in result.key_points))
+        self.assertEqual(result.narrative, "bond exposure narrative")
+
+    def test_bond_exposure_agent_marks_equity_like_funds_not_applicable(self):
+        result = BondExposureAgent(MockLLMClient("unused")).analyze(build_sample_features())
+
+        self.assertEqual(result.status, "skipped")
+        self.assertIsNone(result.score)
+        self.assertEqual(result.stance, "not_applicable")
+        self.assertIn("mixed_fund", result.key_points[0])
+
+    def test_bond_exposure_agent_skips_when_bond_data_is_missing(self):
+        payload = build_bond_input_with_exposure()
+        payload.bond_holdings = []
+        payload.asset_allocation = {}
+        result = BondExposureAgent(MockLLMClient("unused")).analyze(FeatureBuilder().build(payload))
+
+        self.assertEqual(result.status, "skipped")
+        self.assertIsNone(result.score)
+        self.assertEqual(result.stance, "insufficient_data")
+        self.assertIn("No bond holdings or asset-allocation data was provided.", result.key_points)
 
     def test_risk_agent_returns_structured_output(self):
         result = RiskAgent(MockLLMClient("risk narrative")).analyze(build_sample_features())

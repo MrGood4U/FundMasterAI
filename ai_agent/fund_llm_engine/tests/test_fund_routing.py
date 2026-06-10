@@ -23,6 +23,14 @@ class FundRoutingTest(unittest.TestCase):
         self.assertFalse(profile.equity_exposure_applicable)
         self.assertTrue(profile.bond_exposure_applicable)
 
+    def test_classifies_fixed_income_index_as_bond_like(self):
+        profile = classify_fund_type("index_fixed_income")
+
+        self.assertEqual(profile.normalized_type, "bond_index_fund")
+        self.assertEqual(profile.family, "bond")
+        self.assertFalse(profile.equity_exposure_applicable)
+        self.assertTrue(profile.bond_exposure_applicable)
+
     def test_classifies_mixed_fund_as_equity_like(self):
         profile = classify_fund_type("混合型-偏股")
 
@@ -74,6 +82,25 @@ class FundRoutingTest(unittest.TestCase):
                 "bond_holdings_count": "3",
                 "asset_allocation_count": "4",
             },
+        )
+
+        coverage = build_data_coverage(payload)
+
+        self.assertEqual(coverage["bond_holdings"], AVAILABLE)
+        self.assertEqual(coverage["asset_allocation"], AVAILABLE)
+
+    def test_coverage_accepts_structured_bond_payload_fields(self):
+        payload = FundAnalysisInput(
+            request_id="demo-bond-structured",
+            fund_info=FundInfo(
+                code="003358",
+                name="易方达中债7-10年期国开行债券指数A",
+                asset_type="fund_open",
+                category="index_fixed_income",
+            ),
+            nav_series=[NavPoint(date="2026-01-01", nav=1.0)],
+            bond_holdings=[{"bond_name": "20国开10", "pct": "21.28%"}],
+            asset_allocation={"债券": 0.86, "现金": 0.07},
         )
 
         coverage = build_data_coverage(payload)

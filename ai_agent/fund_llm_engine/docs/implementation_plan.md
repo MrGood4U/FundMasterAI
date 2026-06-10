@@ -22,7 +22,7 @@ the current implemented state, read
 当前分支已经具备 fund-level multi-agent analysis engine 的可演示基线：
 
 - 输入输出契约、feature builder、mock / real LLM 路径已建立；
-- `PerformanceAgent`、`ExposureAgent`、`RiskAgent`、`SentimentAgent`、`SectorAgent`、`ChiefAgent` 已接入编排；
+- `PerformanceAgent`、`ExposureAgent`、`BondExposureAgent`、`RiskAgent`、`SentimentAgent`、`SectorAgent`、`ChiefAgent` 已接入编排；
 - `AnalysisEngine` 支持 specialist agents 并行执行，`ChiefAgent` 串行汇总；
 - `FundTypeRouter` 和 data coverage 逻辑用于判断 agent 是否适用、数据是否缺失；
 - `BackendFunctionClient` 通过后端 function registry 调用真实 market/news backend 工具；
@@ -39,6 +39,7 @@ the current implemented state, read
 - mock / real LLM 两条验证路径；
 - 新闻 / sentiment 视角已有独立 agent；
 - 行业 / sector 视角已有独立 agent；
+- 债券基金已有 bond-specific exposure baseline；
 - 数据缺失时返回结构化状态，避免让 LLM 猜测；
 - 输出质量评估、golden cases 和版本里程碑文档已建立。
 
@@ -46,27 +47,33 @@ the current implemented state, read
 
 - `SentimentAgent` 已实现；后续重点是提升新闻输入质量、真实样例覆盖和事件结构化；
 - `SectorAgent` 已实现；后续重点是在后端提供稳定行业配置后进一步提升解释质量；
-- 债券基金的 bond-specific exposure 分析；
+- `BondExposureAgent` 已实现 baseline；后续重点是久期、期限结构、发行主体和信用评级等更细债券字段；
 - proposal 中更宽的 `MarketAgent` / `CapitalFlowAgent` 视角；
 - portfolio-level 与 sector-level 输入契约和分析入口；
 - prompt version、更多真实 golden cases、人工验收记录和回归对比。
 
 ## 推荐实施顺序
 
-### Phase 1: Bond-Aware Exposure
+### Phase 1: Bond-Aware Exposure Baseline
 
 目标：
 
-- 补齐当前债券基金分析的主要 AI 侧缺口；
+- 补齐当前债券基金分析的主要 AI 侧缺口；（baseline 已完成）
 - 不把债券基金强行塞进 equity-style `ExposureAgent` / `SectorAgent`；
 - 在后端缺少债券持仓或资产配置时继续返回结构化缺失状态。
 
-建议实现：
+已实现：
 
-- 新增 `BondExposureAgent`，或在 `ExposureAgent` 内按 `normalized_fund_type` 分拆债券逻辑；
+- 新增 `BondExposureAgent`；
+- 新增 `bond_holdings` 和 `asset_allocation` 输入字段；
+- 接入 backend function registry 返回的 `get_fund_portfolio_hold_bond` 和 `get_fund_individual_detail_hold`；
+- 补充债券基金 regression / golden case，覆盖数据可用、数据缺失、not applicable 三类结果。
+
+后续增强：
+
 - 明确债券持仓、债券/现金/其他资产配置、久期或期限结构、信用债/利率债信息的输入字段；
 - 与后端协作确认 `get_fund_bond_holdings`、`get_fund_asset_allocation` 等工具的 registry 形态；
-- 补充债券基金 regression / golden case，至少覆盖数据可用、数据缺失、not applicable 三类结果。
+- 在后端补齐久期、期限结构、发行主体和信用评级字段后，继续增强 `BondExposureAgent` 的风险解释。
 
 完成标志：
 

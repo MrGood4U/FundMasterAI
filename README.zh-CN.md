@@ -89,7 +89,7 @@ python3 -m unittest discover -s tests
 当前预期：
 
 ```text
-71 tests OK
+78 tests OK
 ```
 
 前端语法检查：
