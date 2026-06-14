@@ -59,6 +59,24 @@ class ApiContractTest(unittest.TestCase):
             f"Missing keys: {sorted(set(expected_keys) - set(payload))}",
         )
 
+    def test_health_exposes_runtime_diagnostics(self):
+        response = self.client.get("/health")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertEqual(body["code"], 200)
+        self.assertEqual(body["message"], "agent backend ok")
+        self.assert_keys(
+            body["data"],
+            [
+                "agent_root",
+                "cwd",
+                "market_backend_url",
+                "news_backend_url",
+                "backend_function_timeout_seconds",
+            ],
+        )
+
     def test_analyze_success_response_matches_public_contract(self):
         with patch.object(
             agent_app,

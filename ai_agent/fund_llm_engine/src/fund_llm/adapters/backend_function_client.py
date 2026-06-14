@@ -274,13 +274,52 @@ class BackendFunctionClient:
         else:
             request_payload = args
 
-        response_payload = self._request_json(method, url, request_payload)
+        started_at = time.perf_counter()
+        logger.info(
+            "Calling backend function %s via %s %s timeout=%ss",
+            name,
+            method,
+            url,
+            self.timeout_seconds,
+        )
+        try:
+            response_payload = self._request_json(method, url, request_payload)
+        except Exception:
+            elapsed = time.perf_counter() - started_at
+            logger.exception(
+                "Backend function %s failed after %.2fs via %s %s",
+                name,
+                elapsed,
+                method,
+                url,
+            )
+            raise
+
+        elapsed = time.perf_counter() - started_at
         code = response_payload.get("code", 200)
         if code != 200:
+            logger.warning(
+                "Backend function %s returned code=%s after %.2fs via %s %s",
+                name,
+                code,
+                elapsed,
+                method,
+                url,
+            )
             raise BackendFunctionError(
                 f"Backend function {name} returned code={code}: {response_payload.get('message', '')}"
             )
-        return response_payload.get("data")
+        data = response_payload.get("data")
+        records = len(data) if isinstance(data, list) else (1 if data else 0)
+        logger.info(
+            "Backend function %s succeeded after %.2fs via %s %s records=%s",
+            name,
+            elapsed,
+            method,
+            url,
+            records,
+        )
+        return data
 
 
 def _select_latest_quarter(records: List[JsonDict], quarter_key: str = "quarter") -> List[JsonDict]:
