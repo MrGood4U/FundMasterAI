@@ -182,6 +182,10 @@ def _setup_backend_call_logging() -> None:
 
 
 def create_app() -> Flask:
+    logging.basicConfig(
+        level=os.getenv("AGENT_LOG_LEVEL", "INFO").upper(),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
     _setup_backend_call_logging()
     app = Flask(__name__)
 
@@ -194,7 +198,19 @@ def create_app() -> Flask:
 
     @app.get("/health")
     def health():
-        return jsonify({"code": 200, "message": "agent backend ok"}), 200
+        return jsonify(
+            {
+                "code": 200,
+                "data": {
+                    "agent_root": str(ROOT),
+                    "cwd": os.getcwd(),
+                    "market_backend_url": os.getenv("MARKET_BACKEND_URL", "http://127.0.0.1:5001"),
+                    "news_backend_url": os.getenv("NEWS_BACKEND_URL", "http://127.0.0.1:5000"),
+                    "backend_function_timeout_seconds": os.getenv("BACKEND_FUNCTION_TIMEOUT_SECONDS", "75"),
+                },
+                "message": "agent backend ok",
+            }
+        ), 200
 
     @app.get("/api/ai/functions")
     def ai_functions():
@@ -259,8 +275,10 @@ def create_app() -> Flask:
                 }
             ), 200
         except ValueError as exc:
+            app.logger.warning("Fund analysis rejected for code=%s: %s", code, exc)
             return jsonify({"code": 422, "data": None, "message": str(exc)}), 422
         except Exception as exc:
+            app.logger.exception("Fund analysis failed for code=%s", code)
             return jsonify({"code": 500, "data": None, "message": str(exc)}), 500
 
     return app

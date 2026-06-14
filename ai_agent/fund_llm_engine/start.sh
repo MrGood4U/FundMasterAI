@@ -28,6 +28,33 @@ health_ok() {
   curl -fsS --max-time 2 "$HEALTH_URL" >/dev/null 2>&1
 }
 
+health_body() {
+  curl -fsS --max-time 2 "$HEALTH_URL"
+}
+
+health_matches_current_dir() {
+  local body
+  local runtime_root
+  body="$(health_body 2>/dev/null || true)"
+  runtime_root="$(printf "%s" "$body" | "$PYTHON_BIN" -c 'import json, sys
+try:
+    payload = json.load(sys.stdin)
+except Exception:
+    payload = {}
+print(payload.get("data", {}).get("agent_root", ""))
+' 2>/dev/null || true)"
+
+  if [ "$runtime_root" = "$DIR" ]; then
+    return 0
+  fi
+
+  echo "agent backend responds at $HEALTH_URL, but it is not this checkout"
+  echo "expected agent_root: $DIR"
+  echo "actual agent_root: ${runtime_root:-unknown or older /health response}"
+  echo "Stop the existing listener first, then rerun: bash start.sh"
+  return 1
+}
+
 url_ok() {
   curl -fsS --max-time 2 "$1" >/dev/null 2>&1
 }
@@ -65,6 +92,7 @@ if [ -f "$PID_FILE" ]; then
   PID="$(cat "$PID_FILE" 2>/dev/null || true)"
   if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
     if wait_for_health 6; then
+      health_matches_current_dir
       echo "agent backend already running at $HEALTH_URL, pid $PID"
       exit 0
     fi
@@ -77,6 +105,7 @@ if [ -f "$PID_FILE" ]; then
 fi
 
 if wait_for_health 6; then
+  health_matches_current_dir
   echo "agent backend already responds at $HEALTH_URL"
   echo "no app.pid found; it may have been started outside start.sh"
   exit 0
