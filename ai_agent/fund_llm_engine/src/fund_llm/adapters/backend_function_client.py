@@ -9,8 +9,10 @@ typed place to execute those tools.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
+import time
 from dataclasses import dataclass
 from datetime import date, datetime
 from email.utils import parsedate_to_datetime
@@ -30,6 +32,10 @@ from fund_llm.fund_routing import classify_fund_type
 
 JsonDict = Dict[str, Any]
 Transport = Callable[[str, str, Optional[JsonDict], int], JsonDict]
+
+# 排障日志：记录 Agent 对后端的每一次 HTTP 调用（目标、耗时、结果）。
+# 只做记录，不改变任何请求行为；级别默认 INFO，可通过 logging 配置关闭。
+logger = logging.getLogger("fund_llm.backend_calls")
 
 
 class BackendFunctionError(RuntimeError):
@@ -167,6 +173,20 @@ class BackendFunctionClient:
         self.functions: Dict[str, RegisteredFunction] = {}
 
     def _request_json(self, method: str, url: str, payload: Optional[JsonDict] = None) -> JsonDict:
+        # 调用前先记一笔：就算后端卡死无响应，日志里也能看到"发出去了、在等谁"。
+        logger.info("backend call start: %s %s (timeout=%ss)", method.upper(), url, self.timeout_seconds)
+        started = time.monotonic()
+        try:
+            result = self._request_json_inner(method, url, payload)
+        except Exception as exc:
+            elapsed = time.monotonic() - started
+            logger.warning("backend call FAILED after %.1fs: %s %s -> %s", elapsed, method.upper(), url, exc)
+            raise
+        elapsed = time.monotonic() - started
+        logger.info("backend call ok in %.1fs: %s %s", elapsed, method.upper(), url)
+        return result
+
+    def _request_json_inner(self, method: str, url: str, payload: Optional[JsonDict] = None) -> JsonDict:
         if self.transport:
             return self.transport(method.upper(), url, payload, self.timeout_seconds)
 

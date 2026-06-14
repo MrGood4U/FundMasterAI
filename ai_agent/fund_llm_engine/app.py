@@ -7,6 +7,7 @@ engine, and returns frontend-friendly JSON.
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import json
@@ -164,7 +165,24 @@ def _build_source_trace(payload) -> list[AnalysisTraceEvent]:
     ]
 
 
+def _setup_backend_call_logging() -> None:
+    """让 fund_llm.backend_calls 的排障日志输出到 stdout（终端或 app.log）。
+
+    只配置这一个日志器，不动全局 logging 配置，避免影响其他模块的行为。
+    重复调用不会叠加 handler。
+    """
+    call_logger = logging.getLogger("fund_llm.backend_calls")
+    if call_logger.handlers:
+        return
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s %(message)s"))
+    call_logger.addHandler(handler)
+    call_logger.setLevel(logging.INFO)
+    call_logger.propagate = False
+
+
 def create_app() -> Flask:
+    _setup_backend_call_logging()
     app = Flask(__name__)
 
     @app.after_request
