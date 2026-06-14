@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from fund_llm.adapters.backend_function_client import (
     BackendFunctionClient,
@@ -431,6 +432,60 @@ def test_build_fund_input_uses_latest_news_announcements():
     assert [item.published_at for item in payload.news_items] == ["2025-09-18", "2023-01-10"]
 
 
+def test_optional_bond_timeout_is_not_retried_across_years():
+    calls = []
+
+    def transport(method, url, payload, timeout):
+        calls.append((method, url, payload, timeout))
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_hold_bond", "path": "/bonds", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {
+                "code": 200,
+                "data": [
+                    {"name": "get_public_fund_announcement", "path": "/ann", "method": "POST", "parameters": {}}
+                ],
+                "message": "success",
+            }
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2026-01-01", "unit_net_value": "1.00"},
+                    {"date": "2026-01-02", "unit_net_value": "1.01"},
+                ],
+            }
+        if url.endswith("/basic"):
+            return {"code": 200, "data": [{"fund_name": "Mixed Fund", "fund_type": "混合型-偏股"}]}
+        if url.endswith("/bonds"):
+            raise TimeoutError("timed out")
+        return {"code": 200, "data": []}
+
+    services = {
+        "market": BackendService("market", "http://market", "/api/market/functions"),
+        "news": BackendService("news", "http://news", "/api/news/functions"),
+        "portfolio": BackendService("portfolio", "http://portfolio", "/api/portfolio/functions"),
+    }
+    client = BackendFunctionClient(services=services, transport=transport, timeout_seconds=120)
+
+    with patch.dict("os.environ", {"BACKEND_OPTIONAL_FUNCTION_TIMEOUT_SECONDS": "7"}):
+        payload = build_fund_input_from_backend_functions("000001", client=client)
+
+    bond_calls = [call for call in calls if call[1].endswith("/bonds")]
+    assert len(bond_calls) == 1
+    assert bond_calls[0][3] == 7
+    assert payload.bond_holdings == []
+    assert "get_fund_portfolio_hold_bond" in payload.extra_context["errored_backend_tools"]
+
+
 class BackendFunctionClientRegressionTest(unittest.TestCase):
     def test_small_holding_percentages_are_run_by_unittest(self):
         test_build_fund_input_treats_small_holding_percentages_as_percent_units()
@@ -446,6 +501,9 @@ class BackendFunctionClientRegressionTest(unittest.TestCase):
 
     def test_latest_news_announcements_are_used(self):
         test_build_fund_input_uses_latest_news_announcements()
+
+    def test_optional_bond_timeout_is_not_retried_across_years(self):
+        test_optional_bond_timeout_is_not_retried_across_years()
 
 
 if __name__ == "__main__":

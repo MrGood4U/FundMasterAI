@@ -112,6 +112,7 @@ jobs:
           MARKET_BACKEND_URL: "http://127.0.0.1:5511"
           NEWS_BACKEND_URL: "http://127.0.0.1:5512"
           BACKEND_FUNCTION_TIMEOUT_SECONDS: "120"
+          BACKEND_OPTIONAL_FUNCTION_TIMEOUT_SECONDS: "15"
           AGENT_HTTP_HOST: "127.0.0.1"
           AGENT_HTTP_PORT: "5513"
           AGENT_DEBUG: "false"

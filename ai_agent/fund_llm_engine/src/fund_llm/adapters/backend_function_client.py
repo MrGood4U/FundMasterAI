@@ -172,12 +172,19 @@ class BackendFunctionClient:
         self.transport = transport
         self.functions: Dict[str, RegisteredFunction] = {}
 
-    def _request_json(self, method: str, url: str, payload: Optional[JsonDict] = None) -> JsonDict:
+    def _request_json(
+        self,
+        method: str,
+        url: str,
+        payload: Optional[JsonDict] = None,
+        timeout_seconds: Optional[int] = None,
+    ) -> JsonDict:
+        effective_timeout = timeout_seconds or self.timeout_seconds
         # 调用前先记一笔：就算后端卡死无响应，日志里也能看到"发出去了、在等谁"。
-        logger.info("backend call start: %s %s (timeout=%ss)", method.upper(), url, self.timeout_seconds)
+        logger.info("backend call start: %s %s (timeout=%ss)", method.upper(), url, effective_timeout)
         started = time.monotonic()
         try:
-            result = self._request_json_inner(method, url, payload)
+            result = self._request_json_inner(method, url, payload, effective_timeout)
         except Exception as exc:
             elapsed = time.monotonic() - started
             logger.warning("backend call FAILED after %.1fs: %s %s -> %s", elapsed, method.upper(), url, exc)
@@ -186,9 +193,16 @@ class BackendFunctionClient:
         logger.info("backend call ok in %.1fs: %s %s", elapsed, method.upper(), url)
         return result
 
-    def _request_json_inner(self, method: str, url: str, payload: Optional[JsonDict] = None) -> JsonDict:
+    def _request_json_inner(
+        self,
+        method: str,
+        url: str,
+        payload: Optional[JsonDict] = None,
+        timeout_seconds: Optional[int] = None,
+    ) -> JsonDict:
+        effective_timeout = timeout_seconds or self.timeout_seconds
         if self.transport:
-            return self.transport(method.upper(), url, payload, self.timeout_seconds)
+            return self.transport(method.upper(), url, payload, effective_timeout)
 
         body = None
         headers = {"Accept": "application/json"}
@@ -198,7 +212,7 @@ class BackendFunctionClient:
 
         http_request = request.Request(url, data=body, headers=headers, method=method.upper())
         try:
-            with request.urlopen(http_request, timeout=self.timeout_seconds) as response:
+            with request.urlopen(http_request, timeout=effective_timeout) as response:
                 return json.loads(response.read().decode("utf-8"))
         except error.HTTPError as exc:
             response_body = exc.read().decode("utf-8", errors="replace")
@@ -250,7 +264,12 @@ class BackendFunctionClient:
             )
         return tools
 
-    def call(self, name: str, arguments: Optional[JsonDict] = None) -> Any:
+    def call(
+        self,
+        name: str,
+        arguments: Optional[JsonDict] = None,
+        timeout_seconds: Optional[int] = None,
+    ) -> Any:
         if name not in self.functions:
             self.discover_fund_tools(include_portfolio=True)
         if name not in self.functions:
@@ -274,16 +293,17 @@ class BackendFunctionClient:
         else:
             request_payload = args
 
+        effective_timeout = timeout_seconds or self.timeout_seconds
         started_at = time.perf_counter()
         logger.info(
             "Calling backend function %s via %s %s timeout=%ss",
             name,
             method,
             url,
-            self.timeout_seconds,
+            effective_timeout,
         )
         try:
-            response_payload = self._request_json(method, url, request_payload)
+            response_payload = self._request_json(method, url, request_payload, timeout_seconds=effective_timeout)
         except Exception:
             elapsed = time.perf_counter() - started_at
             logger.exception(
@@ -433,10 +453,18 @@ def build_fund_input_from_backend_functions(
     tool_client.discover_fund_tools()
 
     tool_trace: List[JsonDict] = []
+    optional_timeout_seconds = int(
+        os.getenv("BACKEND_OPTIONAL_FUNCTION_TIMEOUT_SECONDS", str(tool_client.timeout_seconds))
+    )
 
-    def safe_call(function_name: str, args: JsonDict, required: bool = False) -> Any:
+    def safe_call(
+        function_name: str,
+        args: JsonDict,
+        required: bool = False,
+        timeout_seconds: Optional[int] = None,
+    ) -> Any:
         try:
-            data = tool_client.call(function_name, args)
+            data = tool_client.call(function_name, args, timeout_seconds=timeout_seconds)
             size = len(data) if isinstance(data, list) else (1 if data else 0)
             tool_trace.append({"function": function_name, "status": "success", "records": size})
             return data
@@ -445,6 +473,13 @@ def build_fund_input_from_backend_functions(
             if required:
                 raise
             return []
+
+    def latest_call_failed(function_name: str) -> bool:
+        return bool(
+            tool_trace
+            and tool_trace[-1].get("function") == function_name
+            and tool_trace[-1].get("status") == "error"
+        )
 
     hist_args = {"platform": "efinance", "symbol": "open_fund", "code": code}
     if start_date:
@@ -485,9 +520,15 @@ def build_fund_input_from_backend_functions(
             if "get_fund_portfolio_hold_stock" in tool_client.functions
             else "get_fund_portfolio_holds"
         )
-        holding_records = safe_call(stock_holdings_tool, {"code": code, "year": str(year)})
+        holding_records = safe_call(
+            stock_holdings_tool,
+            {"code": code, "year": str(year)},
+            timeout_seconds=optional_timeout_seconds,
+        )
         if holding_records:
             portfolio_year = str(year)
+            break
+        if latest_call_failed(stock_holdings_tool):
             break
 
     latest_holdings = _select_latest_quarter(holding_records or [])
@@ -511,16 +552,25 @@ def build_fund_input_from_backend_functions(
             industry_records = safe_call(
                 "get_fund_portfolio_industry_allocation",
                 {"code": code, "year": str(year)},
+                timeout_seconds=optional_timeout_seconds,
             )
             industry_exposure = _build_industry_exposure(industry_records or [])
             if industry_exposure:
+                break
+            if latest_call_failed("get_fund_portfolio_industry_allocation"):
                 break
 
     bond_holding_records: List[JsonDict] = []
     if "get_fund_portfolio_hold_bond" in tool_client.functions:
         for year in [item for item in candidate_years if item]:
-            bond_holding_records = safe_call("get_fund_portfolio_hold_bond", {"code": code, "year": str(year)})
+            bond_holding_records = safe_call(
+                "get_fund_portfolio_hold_bond",
+                {"code": code, "year": str(year)},
+                timeout_seconds=optional_timeout_seconds,
+            )
             if bond_holding_records:
+                break
+            if latest_call_failed("get_fund_portfolio_hold_bond"):
                 break
     latest_bond_holdings = sorted(
         _select_latest_quarter(bond_holding_records or []),
@@ -530,13 +580,29 @@ def build_fund_input_from_backend_functions(
 
     asset_allocation_records: List[JsonDict] = []
     if "get_fund_individual_detail_hold" in tool_client.functions:
-        asset_allocation_records = safe_call("get_fund_individual_detail_hold", {"code": code})
+        asset_allocation_records = safe_call(
+            "get_fund_individual_detail_hold",
+            {"code": code},
+            timeout_seconds=optional_timeout_seconds,
+        )
     asset_allocation = _build_asset_allocation(asset_allocation_records or [])
 
-    announcement_records = safe_call("get_public_fund_announcement", {"code": code})
+    announcement_records = safe_call(
+        "get_public_fund_announcement",
+        {"code": code},
+        timeout_seconds=optional_timeout_seconds,
+    )
     news_items = _build_news_items(announcement_records or [], limit=max_news_items)
-    individual_analysis = safe_call("get_fund_individual_analysis", {"code": code})
-    profit_probability = safe_call("get_fund_profit_probability", {"code": code})
+    individual_analysis = safe_call(
+        "get_fund_individual_analysis",
+        {"code": code},
+        timeout_seconds=optional_timeout_seconds,
+    )
+    profit_probability = safe_call(
+        "get_fund_profit_probability",
+        {"code": code},
+        timeout_seconds=optional_timeout_seconds,
+    )
 
     window = AnalysisWindow(
         start_date=nav_series[0].date,
