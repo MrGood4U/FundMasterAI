@@ -1,0 +1,81 @@
+name: AI Agent CI
+
+on:
+  push:
+    branches:
+      - master
+      - aiagent-use-dev-backend
+    paths:
+      - ".github/workflows/ai-agent-ci.yml"
+      - "ai_agent/fund_llm_engine/**"
+  pull_request:
+    paths:
+      - ".github/workflows/ai-agent-ci.yml"
+      - "ai_agent/fund_llm_engine/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-agent-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ai-agent:
+    name: Python 3.11 agent checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: ai_agent/fund_llm_engine
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[agent]"
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests
+
+      - name: Run mock demo
+        run: python scripts/run_mock_demo.py examples/mock_input.json --output outputs/ci_mock_result.json
+
+      - name: Evaluate mock output quality
+        run: python scripts/evaluate_analysis_output.py --input examples/mock_input.json --mode mock
+
+      - name: Run golden cases
+        run: python scripts/run_golden_suite.py --mode mock --output outputs/ci_golden_suite_report.json
+
+      - name: Check AI/backend ownership boundary
+        run: python scripts/score_guardrails.py scope-check
+
+      - name: Smoke test HTTP health endpoint
+        env:
+          AGENT_HTTP_PORT: "5013"
+          AGENT_DEBUG: "false"
+          AGENT_RELOAD: "false"
+        run: |
+          python app.py > /tmp/fund-llm-engine.log 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+
+          for _ in $(seq 1 20); do
+            if curl -fsS "http://127.0.0.1:${AGENT_HTTP_PORT}/health"; then
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat /tmp/fund-llm-engine.log
+          exit 1
