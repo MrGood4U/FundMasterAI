@@ -1,6 +1,7 @@
 name: AI Agent CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
@@ -8,10 +9,12 @@ on:
     paths:
       - ".github/workflows/ai-agent-ci.yml"
       - "ai_agent/fund_llm_engine/**"
+      - "backend/**"
   pull_request:
     paths:
       - ".github/workflows/ai-agent-ci.yml"
       - "ai_agent/fund_llm_engine/**"
+      - "backend/**"
 
 permissions:
   contents: read
@@ -79,3 +82,165 @@ jobs:
 
           cat /tmp/fund-llm-engine.log
           exit 1
+
+  integration:
+    name: Market/news/agent integration smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: ai-agent
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install integration dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "ai_agent/fund_llm_engine[backend]" efinance okx numpy
+
+      - name: Start real backends and call agent analyze endpoint
+        env:
+          MARKET_PORT: "5511"
+          NEWS_PORT: "5512"
+          AGENT_PORT: "5513"
+          MARKET_BACKEND_URL: "http://127.0.0.1:5511"
+          NEWS_BACKEND_URL: "http://127.0.0.1:5512"
+          BACKEND_FUNCTION_TIMEOUT_SECONDS: "120"
+          AGENT_HTTP_HOST: "127.0.0.1"
+          AGENT_HTTP_PORT: "5513"
+          AGENT_DEBUG: "false"
+          AGENT_RELOAD: "false"
+        run: |
+          set -euo pipefail
+
+          log_dir="/tmp/fundmasterai-integration"
+          mkdir -p "$log_dir"
+          market_pid=""
+          news_pid=""
+          agent_pid=""
+
+          cleanup() {
+            for pid in "$agent_pid" "$news_pid" "$market_pid"; do
+              if [ -n "$pid" ]; then
+                kill "$pid" 2>/dev/null || true
+              fi
+            done
+            wait "$agent_pid" "$news_pid" "$market_pid" 2>/dev/null || true
+          }
+
+          dump_logs() {
+            echo "::group::market backend log"
+            cat "$log_dir/market.log" 2>/dev/null || true
+            echo "::endgroup::"
+            echo "::group::news backend log"
+            cat "$log_dir/news.log" 2>/dev/null || true
+            echo "::endgroup::"
+            echo "::group::agent backend log"
+            cat "$log_dir/agent.log" 2>/dev/null || true
+            echo "::endgroup::"
+          }
+
+          trap 'status=$?; if [ "$status" -ne 0 ]; then dump_logs; fi; cleanup; exit "$status"' EXIT
+
+          (
+            cd backend/market_backend
+            MARKET_HTTP_PORT="$MARKET_PORT" python -c "from app import create_app; create_app().run(host='127.0.0.1', port=${MARKET_PORT}, debug=False, use_reloader=False)"
+          ) > "$log_dir/market.log" 2>&1 &
+          market_pid=$!
+
+          (
+            cd backend/news_backend
+            python -c "from app import create_app; create_app().run(host='127.0.0.1', port=${NEWS_PORT}, debug=False, use_reloader=False)"
+          ) > "$log_dir/news.log" 2>&1 &
+          news_pid=$!
+
+          python ai_agent/fund_llm_engine/app.py > "$log_dir/agent.log" 2>&1 &
+          agent_pid=$!
+
+          wait_for() {
+            name="$1"
+            url="$2"
+            for attempt in $(seq 1 60); do
+              if curl -fsS "$url" >/dev/null; then
+                echo "$name is ready at $url"
+                return 0
+              fi
+              sleep 2
+            done
+            echo "Timed out waiting for $name at $url"
+            return 1
+          }
+
+          wait_for "market backend" "${MARKET_BACKEND_URL}/api/market/functions?tag=fund"
+          wait_for "news backend" "${NEWS_BACKEND_URL}/api/news/functions?tag=fund"
+          wait_for "agent backend" "http://127.0.0.1:${AGENT_PORT}/health"
+
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from urllib import error, request
+
+          url = f"http://127.0.0.1:{os.environ['AGENT_PORT']}/api/ai/fund/analyze"
+          body = {
+              "code": "000001",
+              "mock": True,
+              "start_date": "2025/01/01",
+              "max_nav_points": 80,
+              "max_news_items": 1,
+              "top_holdings_n": 3,
+              "max_parallel_agents": 2,
+          }
+          req = request.Request(
+              url,
+              data=json.dumps(body).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+
+          try:
+              with request.urlopen(req, timeout=180) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+          except error.HTTPError as exc:
+              detail = exc.read().decode("utf-8", errors="replace")
+              print(f"analyze endpoint returned HTTP {exc.code}: {detail}", file=sys.stderr)
+              raise
+
+          missing = {"code", "data", "coverage", "message"} - set(payload)
+          if missing:
+              raise AssertionError(f"analyze response missing keys: {sorted(missing)}")
+          if payload.get("code") != 200 or payload.get("message") != "success":
+              raise AssertionError(payload)
+
+          data = payload["data"]
+          coverage = payload["coverage"]
+          nav_points = coverage.get("nav_points")
+          agent_outputs = data.get("agent_outputs") or []
+          llm_mode = (data.get("metadata") or {}).get("llm_mode")
+          if llm_mode != "mock":
+              raise AssertionError(f"expected mock mode, got {llm_mode!r}")
+          if not isinstance(nav_points, int) or nav_points <= 0:
+              raise AssertionError(f"expected positive nav_points, got {nav_points!r}")
+          if len(agent_outputs) < 3:
+              raise AssertionError(f"expected multiple agent outputs, got {len(agent_outputs)}")
+
+          print(
+              json.dumps(
+                  {
+                      "status": "pass",
+                      "code": payload["code"],
+                      "nav_points": nav_points,
+                      "llm_mode": llm_mode,
+                      "agent_outputs": len(agent_outputs),
+                      "fund_name": coverage.get("fund_name"),
+                  },
+                  ensure_ascii=False,
+              )
+          )
+          PY
