@@ -37,9 +37,13 @@ class PublicFundService:
         df = self.efapi.hist(code)
         if df is None or df.empty:
             return []
-        if start_date and end_date:
+        if start_date:
             df["date"] = pd.to_datetime(df["date"])
-            mask = (df["date"] >= pd.to_datetime(start_date)) & (df["date"] <= pd.to_datetime(end_date))
+            mask = (df["date"] >= pd.to_datetime(start_date))
+            df = df.loc[mask]
+        if end_date:
+            df["date"] = pd.to_datetime(df["date"])
+            mask = (df["date"] <= pd.to_datetime(end_date))
             df = df.loc[mask]
         if df.empty:
             return []
