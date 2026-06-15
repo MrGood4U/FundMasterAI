@@ -295,23 +295,26 @@ class BackendFunctionClient:
 
         effective_timeout = timeout_seconds or self.timeout_seconds
         started_at = time.perf_counter()
+        payload_preview = _json_preview(request_payload, limit=600) if request_payload is not None else None
         logger.info(
-            "Calling backend function %s via %s %s timeout=%ss",
+            "Calling backend function %s via %s %s timeout=%ss payload=%s",
             name,
             method,
             url,
             effective_timeout,
+            payload_preview,
         )
         try:
             response_payload = self._request_json(method, url, request_payload, timeout_seconds=effective_timeout)
         except Exception:
             elapsed = time.perf_counter() - started_at
             logger.exception(
-                "Backend function %s failed after %.2fs via %s %s",
+                "Backend function %s failed after %.2fs via %s %s payload=%s",
                 name,
                 elapsed,
                 method,
                 url,
+                payload_preview,
             )
             raise
 
