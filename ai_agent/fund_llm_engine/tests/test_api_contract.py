@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
-from fund_llm.mock_pipeline import build_mock_input  # noqa: E402
+from fund_llm.mock_pipeline import build_mock_input, run_mock_analysis_for_input  # noqa: E402
 
 
 def load_agent_app():
@@ -74,8 +74,30 @@ class ApiContractTest(unittest.TestCase):
                 "market_backend_url",
                 "news_backend_url",
                 "backend_function_timeout_seconds",
+                "default_llm_model",
+                "llm_base_url",
             ],
         )
+
+    def test_llm_models_endpoint_returns_catalog(self):
+        catalog = {
+            "default_model": "deepseek-v4-flash",
+            "provider": "opencode-go",
+            "base_url": "https://opencode.ai/zen/go/v1",
+            "models": [
+                {"id": "deepseek-v4-flash", "label": "DeepSeek V4 Flash"},
+                {"id": "deepseek-v4-pro", "label": "DeepSeek V4 Pro"},
+            ],
+            "source": "static",
+        }
+        with patch.object(agent_app, "resolve_available_models", return_value=catalog):
+            response = self.client.get("/api/ai/llm/models")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertEqual(body["code"], 200)
+        self.assertEqual(body["data"]["default_model"], "deepseek-v4-flash")
+        self.assertEqual(len(body["data"]["models"]), 2)
 
     def test_analyze_success_response_matches_public_contract(self):
         with patch.object(
@@ -213,6 +235,50 @@ class ApiContractTest(unittest.TestCase):
         self.assertEqual(body["code"], 422)
         self.assertIsNone(body["data"])
         self.assertEqual(body["message"], "No NAV data returned for fund 000002")
+
+    def test_real_analyze_accepts_llm_model_override(self):
+        captured = {}
+
+        def fake_run_real_analysis_for_input(
+            payload,
+            model=None,
+            timeout_seconds=None,
+            max_parallel_agents=None,
+        ):
+            captured["model"] = model
+            captured["timeout_seconds"] = timeout_seconds
+            captured["max_parallel_agents"] = max_parallel_agents
+            result = run_mock_analysis_for_input(payload, max_parallel_agents=1)
+            result.metadata["llm_mode"] = "real"
+            result.metadata["llm_model"] = model
+            return result
+
+        with patch.object(
+            agent_app,
+            "build_fund_input_from_backend_functions",
+            return_value=self.build_backend_payload(),
+        ), patch.object(
+            agent_app,
+            "run_real_analysis_for_input",
+            side_effect=fake_run_real_analysis_for_input,
+        ):
+            response = self.client.post(
+                "/api/ai/fund/analyze",
+                json={
+                    "code": "000001",
+                    "mock": False,
+                    "llm_model": "deepseek-v4-pro",
+                    "llm_timeout_seconds": 45,
+                    "max_parallel_agents": 1,
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(captured["model"], "deepseek-v4-pro")
+        self.assertEqual(captured["timeout_seconds"], 45)
+        self.assertEqual(captured["max_parallel_agents"], 1)
+        body = response.get_json()
+        self.assertEqual(body["data"]["metadata"]["llm_model"], "deepseek-v4-pro")
 
     def test_unexpected_error_response_matches_public_contract(self):
         with patch.object(

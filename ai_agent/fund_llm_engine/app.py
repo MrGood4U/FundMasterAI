@@ -26,12 +26,19 @@ from fund_llm.adapters.backend_function_client import (  # noqa: E402
 )
 from fund_llm.contracts import AnalysisTraceEvent  # noqa: E402
 from fund_llm.fund_routing import build_data_coverage, classify_fund_type  # noqa: E402
+from fund_llm import config  # noqa: E402
+from fund_llm.llm_models import resolve_available_models  # noqa: E402
 from fund_llm.mock_pipeline import run_mock_analysis_for_input  # noqa: E402
 from fund_llm.real_pipeline import run_real_analysis_for_input  # noqa: E402
 
 
 def _truthy(value) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _optional_text(value) -> str | None:
+    text = str(value or "").strip()
+    return text or None
 
 
 def _coverage(payload) -> dict:
@@ -207,10 +214,17 @@ def create_app() -> Flask:
                     "market_backend_url": os.getenv("MARKET_BACKEND_URL", "http://127.0.0.1:5001"),
                     "news_backend_url": os.getenv("NEWS_BACKEND_URL", "http://127.0.0.1:5000"),
                     "backend_function_timeout_seconds": os.getenv("BACKEND_FUNCTION_TIMEOUT_SECONDS", "75"),
+                    "default_llm_model": config.LLM_MODEL,
+                    "llm_base_url": config.LLM_BASE_URL,
                 },
                 "message": "agent backend ok",
             }
         ), 200
+
+    @app.get("/api/ai/llm/models")
+    def llm_models():
+        catalog = resolve_available_models()
+        return jsonify({"code": 200, "data": catalog, "message": "success"}), 200
 
     @app.get("/api/ai/functions")
     def ai_functions():
@@ -259,6 +273,7 @@ def create_app() -> Flask:
             else:
                 result = run_real_analysis_for_input(
                     payload,
+                    model=_optional_text(body.get("llm_model") or body.get("model")),
                     timeout_seconds=int(body.get("llm_timeout_seconds") or os.getenv("LLM_TIMEOUT_SECONDS", "60")),
                     max_parallel_agents=int(body.get("max_parallel_agents") or 6),
                 )

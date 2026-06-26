@@ -185,8 +185,9 @@ git switch codex/mock-first-stabilization
 
 如果后面继续迭代，我们就按这个模式继续加：
 
-- `v1.5-prompt-tuning`
-- `v1.6-market-agent`
-- `v1.7-capital-flow-agent`
+- `v1.5-real-llm-robustness`
+- `v1.6-evidence-evaluation-hardening`
+- `v1.7-market-agent`
+- `v1.8-capital-flow-agent`
 
 这样版本线会一直保持可读。

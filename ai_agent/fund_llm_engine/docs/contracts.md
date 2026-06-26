@@ -47,6 +47,8 @@ Content-Type: application/json
 | `max_news_items` | integer | 否 | `8` | 最多使用多少条新闻或公告。 |
 | `max_parallel_agents` | integer | 否 | `6` | specialist agents 并发数量。 |
 | `llm_timeout_seconds` | integer | 否 | `LLM_TIMEOUT_SECONDS` 或 `60` | 真实 LLM 模式的超时时间。 |
+| `llm_model` | string | 否 | `.env` 中的 `LLM_MODEL` | 真实 LLM 模式下，单次分析覆盖默认模型。也兼容 `model` 别名。 |
+| `model` | string | 否 | 同 `llm_model` | `llm_model` 的兼容别名。 |
 
 最小请求示例：
 
@@ -57,6 +59,49 @@ Content-Type: application/json
   "mock": true
 }
 ```
+
+真实模型单次切换示例：
+
+```json
+{
+  "code": "000001",
+  "mock": false,
+  "llm_model": "deepseek-v4-pro",
+  "max_parallel_agents": 3
+}
+```
+
+## 模型目录接口
+
+```text
+GET /api/ai/llm/models
+```
+
+用于前端或联调工具获取当前 gateway 下可选模型列表。不会返回 API key。
+
+成功响应示例：
+
+```json
+{
+  "code": 200,
+  "data": {
+    "default_model": "deepseek-v4-flash",
+    "provider": "opencode-go",
+    "base_url": "https://opencode.ai/zen/go/v1",
+    "models": [
+      {"id": "deepseek-v4-flash", "label": "DeepSeek V4 Flash"},
+      {"id": "deepseek-v4-pro", "label": "DeepSeek V4 Pro"}
+    ],
+    "source": "live"
+  },
+  "message": "success"
+}
+```
+
+`source` 取值：
+
+- `live`：从 `{LLM_BASE_URL}/models` 拉取并与 chat/completions 兼容 allowlist 求交集
+- `static`：网关不可达时回退到内置静态列表
 
 ## 成功响应
 

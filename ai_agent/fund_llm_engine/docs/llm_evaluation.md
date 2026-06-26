@@ -55,7 +55,8 @@
 
 7. `narrative_sanity` `10`
    - summary 和各 agent narrative 是否为空
-   - 是否出现 `API returned empty response`
+   - 是否出现旧的 `API returned empty response` 假成功文本
+   - 真实 provider 空内容是否被标成 agent error，而不是 success narrative
    - 是否把失败信息混进 success narrative
 
 ## 自动评估结果解释

@@ -75,7 +75,11 @@ class DemoScriptsTest(unittest.TestCase):
                     "metadata": {"llm_mode": "real"},
                 }
 
-        def fake_run_real_analysis_for_input(payload, max_parallel_agents=None):
+        captured = {}
+
+        def fake_run_real_analysis_for_input(payload, model=None, max_parallel_agents=None):
+            captured["model"] = model
+            captured["max_parallel_agents"] = max_parallel_agents
             return DummyResult(payload.request_id)
 
         module.run_real_analysis_for_input = fake_run_real_analysis_for_input
@@ -86,7 +90,16 @@ class DemoScriptsTest(unittest.TestCase):
             output_path = os.path.join(temp_dir, "real_result.json")
             with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(stderr_buffer):
                 exit_code = module.main(
-                    ["run_real_demo.py", "examples/mock_input.json", "--output", output_path]
+                    [
+                        "run_real_demo.py",
+                        "examples/mock_input.json",
+                        "--model",
+                        "deepseek-v4-pro",
+                        "--max-parallel-agents",
+                        "1",
+                        "--output",
+                        output_path,
+                    ]
                 )
 
             self.assertEqual(exit_code, 0)
@@ -96,6 +109,8 @@ class DemoScriptsTest(unittest.TestCase):
                 payload = json.load(file)
             self.assertEqual(payload["request_id"], "mock-demo-001")
             self.assertEqual(payload["metadata"]["llm_mode"], "real")
+            self.assertEqual(captured["model"], "deepseek-v4-pro")
+            self.assertEqual(captured["max_parallel_agents"], 1)
 
 
 if __name__ == "__main__":
