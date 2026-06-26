@@ -464,6 +464,19 @@ body {
   -webkit-backdrop-filter: blur(16px);
 }
 
+.api-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent-cyan);
+}
+
+.api-status--error {
+  color: var(--accent-amber);
+}
+
 /* 右下角 FAB */
 .fab {
   position: fixed;
