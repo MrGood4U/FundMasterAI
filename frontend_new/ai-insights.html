@@ -102,6 +102,12 @@
                   <input data-real-llm type="checkbox" />
                   <span>Use real LLM</span>
                 </label>
+                <label>
+                  <span>LLM model</span>
+                  <select data-llm-model disabled>
+                    <option value="">Loading models...</option>
+                  </select>
+                </label>
                 <button class="ai-submit" type="submit">Analyze</button>
               </form>
               <div class="ai-dials">
@@ -109,6 +115,7 @@
                 <div><span>Score</span><strong data-overall-score>--</strong></div>
                 <div><span>NAV points</span><strong data-nav-count>--</strong></div>
                 <div><span>LLM mode</span><strong data-llm-mode>--</strong></div>
+                <div><span>Model</span><strong data-llm-model-used>--</strong></div>
               </div>
             </div>
             <div class="ai-confbox">

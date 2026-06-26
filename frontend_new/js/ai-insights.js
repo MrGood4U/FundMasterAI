@@ -13,11 +13,13 @@ const fields = {
   startDate: document.querySelector("[data-start-date]"),
   riskProfile: document.querySelector("[data-risk-profile]"),
   realLlm: document.querySelector("[data-real-llm]"),
+  llmModel: document.querySelector("[data-llm-model]"),
   overallRating: document.querySelector("[data-overall-rating]"),
   overallScore: document.querySelector("[data-overall-score]"),
   navCount: document.querySelector("[data-nav-count]"),
   missingCount: document.querySelector("[data-missing-count]"),
   llmMode: document.querySelector("[data-llm-mode]"),
+  llmModelUsed: document.querySelector("[data-llm-model-used]"),
   fundName: document.querySelector("[data-fund-name]"),
   fundWindow: document.querySelector("[data-fund-window]"),
   summary: document.querySelector("[data-summary]"),
@@ -37,10 +39,79 @@ const AGENT_LABELS = {
   ChiefAgent: "Final Aggregation",
 };
 
-function endpoint() {
+function agentBase() {
   const params = new URLSearchParams(window.location.search);
-  const base = params.get("agentBase") || window.FUNDMASTER_AGENT_BASE || "http://127.0.0.1:5003";
-  return `${base.replace(/\/$/, "")}/api/ai/fund/analyze`;
+  return (params.get("agentBase") || window.FUNDMASTER_AGENT_BASE || "http://127.0.0.1:5003").replace(/\/$/, "");
+}
+
+function endpoint() {
+  return `${agentBase()}/api/ai/fund/analyze`;
+}
+
+function modelsEndpoint() {
+  return `${agentBase()}/api/ai/llm/models`;
+}
+
+function syncRealLlmModelSelect() {
+  if (!fields.llmModel) {
+    return;
+  }
+  fields.llmModel.disabled = !fields.realLlm.checked;
+}
+
+function populateModelSelect(catalog) {
+  if (!fields.llmModel) {
+    return;
+  }
+
+  const models = Array.isArray(catalog?.models) ? catalog.models : [];
+  const defaultModel = catalog?.default_model || "";
+  fields.llmModel.innerHTML = "";
+
+  if (!models.length) {
+    const option = document.createElement("option");
+    option.value = defaultModel;
+    option.textContent = defaultModel || "Default model";
+    fields.llmModel.append(option);
+    syncRealLlmModelSelect();
+    return;
+  }
+
+  models.forEach((model) => {
+    const option = document.createElement("option");
+    option.value = model.id;
+    option.textContent = model.label || model.id;
+    if (model.id === defaultModel) {
+      option.selected = true;
+    }
+    fields.llmModel.append(option);
+  });
+  syncRealLlmModelSelect();
+}
+
+async function loadModelCatalog() {
+  if (!fields.llmModel) {
+    return;
+  }
+
+  try {
+    const response = await fetch(modelsEndpoint());
+    const payload = await response.json();
+    if (!response.ok || payload.code !== 200) {
+      throw new Error(payload.message || `Model catalog request failed with ${response.status}`);
+    }
+    populateModelSelect(payload.data || {});
+  } catch (error) {
+    fields.llmModel.innerHTML = "";
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Model catalog unavailable";
+    fields.llmModel.append(option);
+    syncRealLlmModelSelect();
+    if (fields.llmModelUsed) {
+      fields.llmModelUsed.textContent = error.message;
+    }
+  }
 }
 
 function setStatus(text, state = "live") {
@@ -194,6 +265,9 @@ function renderResult(payload) {
   fields.navCount.textContent = coverage.nav_points ?? "--";
   fields.missingCount.textContent = (analysis.missing_fields || []).length;
   fields.llmMode.textContent = metadata.llm_mode || "unknown";
+  if (fields.llmModelUsed) {
+    fields.llmModelUsed.textContent = metadata.llm_model || "--";
+  }
   fields.fundName.textContent = coverage.fund_name || "Unknown fund";
   fields.fundWindow.textContent = analysis.request_id || "Analysis completed.";
   fields.summary.textContent = analysis.summary || "Analysis completed.";
@@ -229,6 +303,9 @@ async function runAnalysis(event) {
     llm_timeout_seconds: fields.realLlm.checked ? 180 : 60,
     max_parallel_agents: fields.realLlm.checked ? 3 : 5,
   };
+  if (fields.realLlm.checked && fields.llmModel && fields.llmModel.value) {
+    body.llm_model = fields.llmModel.value;
+  }
 
   try {
     const response = await fetch(endpoint(), {
@@ -250,6 +327,9 @@ async function runAnalysis(event) {
     fields.overallScore.textContent = "--";
     fields.navCount.textContent = "--";
     fields.llmMode.textContent = "--";
+    if (fields.llmModelUsed) {
+      fields.llmModelUsed.textContent = "--";
+    }
     fields.summary.textContent = error.message;
     fields.scoreExplanation.textContent = "No rating explanation available because the analysis request failed.";
     fields.agentHealth.textContent = "failed";
@@ -262,3 +342,9 @@ async function runAnalysis(event) {
 if (form) {
   form.addEventListener("submit", runAnalysis);
 }
+
+if (fields.realLlm) {
+  fields.realLlm.addEventListener("change", syncRealLlmModelSelect);
+}
+
+loadModelCatalog();

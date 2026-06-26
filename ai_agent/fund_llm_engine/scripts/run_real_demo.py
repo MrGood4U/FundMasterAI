@@ -23,6 +23,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=None,
         help="Optional cap for concurrent specialist agents.",
     )
+    parser.add_argument("--model", dest="model", help="Optional LLM model override for this run.")
     parser.add_argument("--output", dest="output_path", help="Optional path to write the result JSON file.")
     return parser.parse_args(argv[1:])
 
@@ -57,7 +58,11 @@ def main(argv: list[str]) -> int:
     args = parse_args(argv)
     payload = load_input(args.input_path)
     try:
-        result = run_real_analysis_for_input(payload, max_parallel_agents=args.max_parallel_agents)
+        result = run_real_analysis_for_input(
+            payload,
+            model=args.model,
+            max_parallel_agents=args.max_parallel_agents,
+        )
     except (RuntimeError, ValueError) as exc:
         print(f"run_real_demo failed: {exc}", file=sys.stderr)
         return 1

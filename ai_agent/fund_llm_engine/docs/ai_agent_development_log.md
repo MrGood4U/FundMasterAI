@@ -10,7 +10,7 @@ It records verified implementation state only. Future plans stay in
 
 ## Current Snapshot
 
-Date: 2026-06-10
+Date: 2026-06-24
 
 Branch:
 
@@ -50,6 +50,10 @@ Frontend-facing AI output status:
 Known gaps:
 
 - `BondExposureAgent` now has a baseline path for bond holdings and asset allocation. Remaining fixed-income depth depends on richer duration, maturity, issuer, and credit-rating data.
+- The Phase 1.5 P0 LLM client layer now handles `finish_reason=length`, empty
+  `content`, provider-specific `reasoning_content` presence, retry diagnostics,
+  and sanitized HTTP provider errors. Remaining Phase 1.5 work is broader
+  Agent-only engineering hardening before Phase 2 evidence and evaluation work.
 - `MarketAgent` and `CapitalFlowAgent` are proposal-alignment enhancement agents, not the immediate reason bond funds skip equity-style analysis.
 - `get_fund_profit_probability` is currently a backend tool result, stored in analysis context. There is no standalone `ProfitabilityAgent`.
 - Frontend should own non-developer wording so skipped or not-applicable agents do not look broken in demos; the AI module owns the structured status and evidence fields that make this possible.
@@ -68,6 +72,16 @@ Known gaps:
   - Evidence: `ai_agent/fund_llm_engine/src/fund_llm/agents/bond_exposure_agent.py`, `ai_agent/fund_llm_engine/src/fund_llm/feature_builder.py`, `ai_agent/fund_llm_engine/examples/real_input_003358.json`.
 - `Analysis Evidence` trace data is available for frontend explanation.
   - Evidence: `ai_agent/fund_llm_engine/app.py`, `ai_agent/fund_llm_engine/src/fund_llm/orchestration/engine.py`, `frontend_new/ai-insights.html`, `frontend_new/js/ai-insights.js`.
+- Real LLM client empty-content handling is hardened.
+  - Evidence: `ai_agent/fund_llm_engine/src/fund_llm/llm_client.py`, `ai_agent/fund_llm_engine/tests/test_llm_client.py`.
+- Real-model runs can override the configured model per CLI run or per Agent
+  HTTP analysis request while keeping the same OpenAI-compatible base URL and
+  API key.
+  - Evidence: `ai_agent/fund_llm_engine/app.py`, `ai_agent/fund_llm_engine/scripts/run_real_demo.py`, `ai_agent/fund_llm_engine/src/fund_llm/real_pipeline.py`.
+- OpenCode-style single-gateway multi-model switching is available through
+  `GET /api/ai/llm/models`, per-request `llm_model`, and the AI Insights model
+  picker on the frontend integration page.
+  - Evidence: `ai_agent/fund_llm_engine/src/fund_llm/llm_models.py`, `ai_agent/fund_llm_engine/app.py`, `frontend_new/ai-insights.html`, `frontend_new/js/ai-insights.js`, `ai_agent/fund_llm_engine/tests/test_llm_models.py`.
 
 ## Partial
 
@@ -80,6 +94,11 @@ Known gaps:
 
 ## Todo
 
+- Complete the narrowed Phase 1.5 engineering hardening plan before broader
+  Phase 2 evidence work: clean up Agent-side backend data handling, add
+  structured `top_holdings` / `profit_probability` / `individual_analysis`
+  fields, unify dynamic confidence, add explicit `is_mock`, add timeout /
+  `429` / `5xx` LLM retry, sanitize Agent HTTP `500`, and update tests/docs.
 - Add deeper bond analytics after backend data includes duration, maturity structure, issuer classification, and credit-rating fields.
 - Consider a future `ProfitabilityAgent` only if the team decides to make `get_fund_profit_probability` a first-class specialist view.
 - Add or expand regression cases after new bond, asset allocation, market, or capital-flow data becomes available.
@@ -276,7 +295,321 @@ Known unfinished work:
 
 Next suggested work:
 
-- Move to Phase 2 evidence and evaluation hardening, especially prompt/run metadata and saved real-model review samples.
+- Continue the narrowed Phase 1.5 engineering hardening plan in this order:
+  clean up Agent-side backend data handling, add structured `top_holdings` /
+  `profit_probability` / `individual_analysis` fields, unify dynamic confidence,
+  add explicit `is_mock`, add timeout / `429` / `5xx` LLM retry, sanitize Agent
+  HTTP `500`, tests, and docs. Leave backend optional-tool concurrency for a
+  later performance pass after future agent inputs are more stable. Then move to
+  Phase 2 evidence and evaluation hardening.
+
+### 2026-06-18 - Add Phase 1.5 engineering hardening plan
+
+Goal:
+
+- Make the pre-Phase-2 engineering hardening scope explicit in the active plan
+  so it is not confused with prompt-language tuning or broader evidence work.
+- Capture the newly verified P0 real-LLM client gap: reasoning models may
+  return empty `content` when token budget is exhausted, while the current
+  client lacks finish-reason handling and retry.
+
+Actual changes:
+
+- Added `Phase 1.5: Engineering Hardening Before Evidence Work` to
+  `implementation_plan.md`.
+- Clarified that the P0 item is LLM client robustness for real providers,
+  followed by backend tool-call concurrency, structured context fields,
+  dynamic confidence, explicit mock/real mode, sanitized errors, tests, and
+  docs.
+- Updated this ledger's current known gaps and todo list so future readers know
+  Phase 1.5 is planned but not yet implemented.
+
+Impact:
+
+- Documentation only.
+- No runtime code, API contract, prompt behavior, backend, frontend behavior, or
+  test fixture changes.
+
+Verification:
+
+```bash
+rg -n "Phase 1.5|finish_reason=length|empty-content|Engineering Hardening" ai_agent/fund_llm_engine/docs
+```
+
+Known unfinished work:
+
+- Implement the Phase 1.5 code changes and add the corresponding regression
+  tests.
+
+### 2026-06-18 - Move completed Phase 1 out of active roadmap
+
+Goal:
+
+- Prevent the completed bond-aware baseline from looking like unfinished future
+  work in the forward-looking implementation plan.
+
+Actual changes:
+
+- Moved Phase 1 under a completed-stage archive in
+  `implementation_plan.md`.
+- Kept the Phase 1 goal, implemented items, and completion markers for
+  traceability, but made the active recommended sequence start at Phase 1.5.
+- Clarified that deeper fixed-income analytics are future enhancements after
+  richer backend fields exist, not unfinished Phase 1 baseline work.
+
+Impact:
+
+- Documentation only.
+- No runtime code, API contract, prompt behavior, backend, frontend behavior, or
+  test fixture changes.
+
+Verification:
+
+```bash
+rg -n "已完成阶段归档|Phase 1: Bond-Aware Exposure Baseline \\(Completed\\)|推荐实施顺序|Phase 1.5" ai_agent/fund_llm_engine/docs/implementation_plan.md
+```
+
+### 2026-06-24 - Harden real LLM client empty-response handling
+
+Goal:
+
+- Prevent real provider failures from being displayed as normal agent narrative.
+- Make `finish_reason=length`, empty `content`, and provider-specific
+  `reasoning_content` presence diagnosable without exposing raw reasoning text
+  or provider error bodies.
+
+Actual changes:
+
+- Added `LLMClient.chat_with_metadata()` and `last_response_metadata` while
+  keeping `LLMClient.chat()` string-compatible for existing agents.
+- Added one conservative retry for empty content when the first provider
+  response has `finish_reason=length`; the retry expands `max_tokens` and
+  disables thinking controls when they were configured.
+- Replaced `"API returned empty response"` success-like fallback with
+  `LLMEmptyResponseError`, so existing `safe_analyze()` paths mark the agent as
+  `status="error"` instead of producing a fake success narrative.
+- Sanitized HTTP provider failures so raw provider bodies are omitted from
+  exception text.
+- Added regression tests for empty-content retry, retry failure, non-length
+  empty responses, diagnostics, and HTTP error sanitization.
+
+Impact:
+
+- AI Agent / LLM layer only.
+- No frontend changes.
+- No backend changes.
+- Existing agent calls remain compatible because `chat()` still returns a
+  string on success.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest tests/test_llm_client.py
+.venv/bin/python -m unittest discover tests
+```
+
+Known unfinished work:
+
+- Surface selected LLM diagnostic metadata into final analysis metadata or trace
+  if the team wants frontend/debug tooling to see retry status directly.
+- Continue the remaining Phase 1.5 items: structured `extra_context`, dynamic
+  confidence, explicit analysis mode/status metadata, and broader docs.
+
+### 2026-06-24 - Add per-request real-model override
+
+Goal:
+
+- Let the Agent module use one OpenAI-compatible provider API key/base URL while
+  switching between supported model IDs such as `deepseek-v4-flash`,
+  `deepseek-v4-pro`, `qwen3.7-plus`, or `glm-5.2`.
+- Avoid requiring `.env` edits and service restarts for one-off model smoke
+  tests.
+
+Actual changes:
+
+- `POST /api/ai/fund/analyze` accepts optional `llm_model` or `model` in real
+  mode and passes it into `run_real_analysis_for_input()`.
+- `scripts/run_real_demo.py` accepts `--model` for command-line smoke tests.
+- Provider setup docs and `.env.example` explain the default-vs-override model
+  selection rule.
+
+Impact:
+
+- AI Agent / LLM layer only.
+- No frontend changes.
+- No backend changes.
+- If no model override is provided, behavior stays unchanged and uses
+  `LLM_MODEL` from `.env`.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest tests/test_api_contract.py tests/test_demo_scripts.py
+.venv/bin/python -m unittest discover tests
+.venv/bin/python scripts/run_real_demo.py examples/mock_input.json \
+  --model deepseek-v4-pro \
+  --max-parallel-agents 1 \
+  --output /private/tmp/fundmasterai_real_smoke_deepseek_pro_20260624.json
+```
+
+Known unfinished work:
+
+- Consider adding a dedicated diagnostic endpoint for provider model discovery
+  if the team wants to list supported models from the Agent service itself.
+
+### 2026-06-24 - Replace Phase 1.5 with narrowed Agent hardening scope
+
+Goal:
+
+- Make Phase 1.5 executable instead of broad by pinning it to Agent-only
+  engineering hardening.
+- Preserve the ownership boundary: only `ai_agent/fund_llm_engine`, no backend
+  or frontend changes.
+- Keep English output behavior unchanged for the HKU capstone deliverable.
+
+Actual changes:
+
+- Replaced the active Phase 1.5 section in `implementation_plan.md` with the
+  narrowed scope:
+  Agent-owned backend data handling, structured `top_holdings` /
+  `profit_probability` / `individual_analysis` fields, unified dynamic
+  confidence, explicit `is_mock`, timeout / `429` / `5xx` LLM retry, sanitized
+  Agent HTTP `500`, tests, and docs.
+- Explicitly moved LLM-call consolidation and agent/overall score calibration
+  out of Phase 1.5.
+- Explicitly kept `Write in clear user-facing English` and
+  `_summary_looks_incomplete` unchanged.
+- Updated this ledger's Todo and next suggested work to match the narrowed plan.
+
+Impact:
+
+- Documentation only.
+- No runtime code, API contract, prompt behavior, backend, frontend behavior, or
+  test fixture changes in this task entry.
+
+Verification:
+
+```bash
+rg -n "Phase 1.5|AI Agent Engineering Hardening|LLM 调用合并|dynamic confidence|is_mock|500" ai_agent/fund_llm_engine/docs
+```
+
+Known unfinished work:
+
+- Implement the narrowed Phase 1.5 code changes in the documented order.
+
+### 2026-06-24 - Defer backend tool concurrency out of Phase 1.5
+
+Goal:
+
+- Avoid doing backend optional-tool concurrency before future agent input needs
+  are stable.
+- Keep Phase 1.5 focused on foundations that reduce future rework: clearer
+  Agent-side data handling, structured fields, confidence, and robustness.
+
+Actual changes:
+
+- Updated `implementation_plan.md` so Phase 1.5 starts with clearer Agent-side
+  backend data handling plus structured `top_holdings` / `profit_probability` /
+  `individual_analysis` fields, not immediate `ThreadPoolExecutor` concurrency.
+- Moved backend optional-tool concurrency to a later performance optimization
+  after MarketAgent / CapitalFlowAgent and related input fields are clearer.
+- Kept the future concurrency constraints documented in plain language: only
+  parallelize independent optional calls, keep trace output stable, and preserve
+  the current `portfolio_year` fallback behavior.
+- Updated this ledger's Todo and next suggested work accordingly.
+
+Impact:
+
+- Documentation only.
+- No runtime code, API contract, prompt behavior, backend, frontend behavior, or
+  test fixture changes in this task entry.
+
+Verification:
+
+```bash
+rg -n "后续性能优化|并发化先不作为 Phase 1.5|今年没有持仓就取去年" ai_agent/fund_llm_engine/docs
+```
+
+Known unfinished work:
+
+- Implement Phase 1.5 without adding backend concurrency yet.
+
+### 2026-06-24 - Rewrite Phase 1.5 plan in plain implementation language
+
+Goal:
+
+- Make the Phase 1.5 plan read like an executable task list for the team, not an
+  abstract architecture note.
+
+Actual changes:
+
+- Rewrote the active Phase 1.5 section in `implementation_plan.md` with plainer
+  wording:
+  scope, already-completed items, remaining work, completion markers, risks,
+  and later performance optimization.
+- Kept the intended substance unchanged: Agent-only work, no backend/frontend
+  changes, no LLM-call consolidation, no score recalibration, English output
+  unchanged, and backend optional-tool concurrency deferred.
+- Updated this ledger's Todo and next suggested work to use the same wording.
+
+Impact:
+
+- Documentation only.
+- No runtime code, API contract, prompt behavior, backend, frontend behavior, or
+  test fixture changes in this task entry.
+
+Verification:
+
+```bash
+rg -n "只改|现在不做并发|今年没有持仓就取去年|不要在本期" ai_agent/fund_llm_engine/docs/implementation_plan.md
+```
+
+Known unfinished work:
+
+- Implement the Phase 1.5 code changes described by the plain-language plan.
+
+### 2026-06-24 - Add OpenCode multi-model catalog and AI Insights picker
+
+Goal:
+
+- Let the team use one OpenAI-compatible gateway API key while switching models
+  without applying to each vendor separately.
+- Expose a model catalog for the AI Insights integration page and keep per-run
+  `llm_model` override behavior.
+
+Actual changes:
+
+- Added `fund_llm.llm_models` with static chat/completions allowlist, optional
+  live `{LLM_BASE_URL}/models` discovery, cache, and `LLM_ALLOWED_MODELS`
+  filtering.
+- Added `GET /api/ai/llm/models` and extended `/health` with
+  `default_llm_model` / `llm_base_url`.
+- Updated `frontend_new/ai-insights.html` and `frontend_new/js/ai-insights.js`
+  to load the catalog, enable a model dropdown in real LLM mode, and send
+  `llm_model` with analysis requests.
+- Updated `contracts.md`, `provider_setup.md`, `.env.example`, and tests.
+
+Impact:
+
+- AI Agent service plus the AI Insights integration page.
+- No backend market/news/portfolio code changes.
+- Backward compatible: existing analyze requests still work without `llm_model`.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest discover tests
+.venv/bin/python scripts/run_golden_suite.py --mode mock
+node --check frontend_new/js/ai-insights.js
+```
+
+Known unfinished work:
+
+- Models that require `/v1/messages` instead of chat/completions remain excluded
+  until `LLMClient` grows a second transport path.
 
 ## Handoff Notes For Future AI
 

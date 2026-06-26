@@ -52,9 +52,9 @@ the current implemented state, read
 - portfolio-level 与 sector-level 输入契约和分析入口；
 - prompt version、更多真实 golden cases、人工验收记录和回归对比。
 
-## 推荐实施顺序
+## 已完成阶段归档
 
-### Phase 1: Bond-Aware Exposure Baseline
+### Phase 1: Bond-Aware Exposure Baseline (Completed)
 
 目标：
 
@@ -80,6 +80,137 @@ the current implemented state, read
 - 债券基金不再只表现为 equity exposure 缺失；
 - `coverage.data_coverage` 能解释哪些债券数据可用、缺失或不适用；
 - mock 测试、engine 测试和 golden suite 都覆盖债券路径。
+
+当前状态：
+
+- Phase 1 baseline 已完成，不再作为未来实施阶段占用规划位；
+- 后续固定收益深度分析不属于 Phase 1 收尾，而是依赖后端补齐久期、期限结构、发行主体和信用评级等更细字段后的增强工作；
+- 真实模型可靠性、工程加固和回归证据进入 Phase 1.5。
+
+## 推荐实施顺序
+
+### Phase 1.5: AI Agent Engineering Hardening
+
+范围说明：
+
+- Agent hardening 主体只改 `ai_agent/fund_llm_engine`，不动 backend 代码；
+  如需支持联调页面展示或模型选择，可以同步更新 `frontend_new` 的 AI
+  Insights 集成页。
+- 公开 API 返回结构保持向后兼容。可以增加可选字段，但不能破坏前端现有读取方式。
+- LLM 调用合并不在本期。多个 agent 是否合并成更少 LLM call，留给 Phase 2 或后续性能 / 成本评估。
+- agent score / overall score 标定不在本期。Phase 1.5 只处理工程可靠性，不重新定义评分体系。
+- 输出语言保持英文不变。香港大学毕设交付物要求英文，prompt 里的
+  `Write in clear user-facing English` 是正确设计。
+- `_summary_looks_incomplete` 现在服务于英文输出，Phase 1.5 不改。
+
+当前已完成：
+
+- `LLMClient` 已处理真实 provider 的空 `content`、`finish_reason=length`
+  retry、provider-specific `reasoning_content` presence、诊断 metadata 和 HTTP
+  provider body 脱敏；
+- real-model run 已支持同一个 OpenAI-compatible API key / base URL 下通过
+  `LLM_MODEL`、CLI `--model` 或 HTTP `llm_model` 切换不同模型；
+- 已跑通过 `deepseek-v4-flash` 和 `deepseek-v4-pro` 的真实 smoke test。
+
+剩余建议实现：
+
+1. 整理后端取数逻辑，但现在不做并发。
+
+   当前 `build_fund_input_from_backend_functions` 已经能跑，但里面同时做了取数、
+   年份回退、字段整理和 trace 记录。Phase 1.5 先把这些逻辑整理清楚，方便后面加
+   MarketAgent / CapitalFlowAgent 时继续扩展。
+
+   本期要做：
+
+   - 保持 `get_fund_hist` 作为必需数据；
+   - 保持 `get_fund_individual_basic_info` 用来判断 fund type 和后续需要哪些数据；
+   - 把股票持仓、行业配置、债券持仓、资产配置、公告、
+     `get_fund_individual_analysis`、`get_fund_profit_probability` 标清楚哪些是可选数据；
+   - 每个可选数据要写清楚：失败后是否降级、结果写到哪里、coverage 如何体现；
+   - 先保持串行执行，暂时不引入 `ThreadPoolExecutor`。
+
+2. 把现在塞在 `extra_context` 里的重要数据改成正式字段。
+
+   现在 `top_holdings`、`profit_probability`、`individual_analysis` 主要靠
+   `_json_preview` 字符串放在 `extra_context` 里，这更像展示日志，不适合下游稳定读取。
+
+   本期要做：
+
+   - 在 `contracts.py` 的 `FundAnalysisInput` 增加正式字段：
+     `top_holdings`、`profit_probability`、`individual_analysis`；
+   - 同步更新 `from_dict` / `to_dict`；
+   - 更新 `feature_builder.py` 的 coverage 标志；
+   - 更新 `app.py` 的 `_coverage`；
+   - `extra_context` 中对应的 `_json_preview` 只保留给 trace 展示，不作为下游逻辑来源。
+
+3. 动态置信度。
+
+   现在部分 agent 的 confidence 是写死的，例如 `PerformanceAgent=0.78`、
+   `RiskAgent=0.80`。这不好解释。
+
+   本期要做：
+
+   - 在 `agents/base.py` 增加统一 confidence helper；
+   - 输入包括 NAV 点数、可用回报窗口数、是否有 benchmark、该 agent 所需字段是否齐全；
+   - 输出控制在 `0.4-0.9`；
+   - 替换 `PerformanceAgent`、`RiskAgent` 的固定值；
+   - exposure / sentiment / sector / bond 这些已有动态 confidence 的 agent，也统一到同一口径。
+
+4. 健壮性小修。
+
+   本期要做：
+
+   - 在已有 empty-content / `finish_reason=length` retry 基础上，给 `llm_client.py`
+     补 timeout / `429` / `5xx` 的一次短退避 retry；
+   - 不 retry `400` / `401` / `403`，这些通常是配置或权限问题；
+   - 给 `MockLLMClient` 和 `LLMClient` 增加显式 `is_mock` 属性；
+   - 替换 `chief_agent.py` 里按 class name 判断 mock 的写法；
+   - `app.py` 继续记录完整异常日志，但对外 `500` 只返回通用错误信息，不直接回传
+     `str(exc)`。
+
+5. 测试与文档。
+
+   本期要做：
+
+   - 新增或更新单测：取数整理、结构化字段、动态 confidence、`is_mock` 判定、
+     LLM timeout / `429` / `5xx` retry、HTTP `500` 对外脱敏；
+   - 回归命令：
+
+     ```bash
+     cd ai_agent/fund_llm_engine
+     .venv/bin/python -m unittest discover tests
+     .venv/bin/python scripts/run_golden_suite.py --mode mock
+     ```
+
+   - 动态置信度会改变部分 golden 期望值，需同步更新；
+   - 按文档规则同步 `docs/ai_agent_development_log.md` 和必要的 provider /
+     evaluation docs。
+
+完成标志：
+
+- mock 测试和 golden suite 继续全绿；
+- 后端取数逻辑更清楚：哪些数据必需、哪些可选、失败后怎么降级、结果写到哪里；
+- `top_holdings`、`profit_probability`、`individual_analysis` 有正式结构化字段和测试覆盖；
+- confidence 口径统一，可解释，相关 metadata / golden 期望已更新；
+- mock 判定不再依赖 class name；
+- Agent HTTP `500` 对外不泄露 raw exception；
+- Phase 2 可以专注 evidence / evaluation、prompt/run metadata、真实样例留档和人工评估。
+
+风险提示：
+
+- 动态置信度会改变 `average_confidence` 和相关 metadata 的具体数值，golden cases
+  和断言需同步调整，这是预期内改动；
+- 不要把 LLM 输出语言改成中文；
+- 不要在本期合并多 agent LLM 调用；
+- 不要在本期急着做后端取数并发。
+
+后续性能优化：
+
+- backend optional tool 并发化先不作为 Phase 1.5 必做项；
+- 等 MarketAgent / CapitalFlowAgent 等后续 agent 的输入字段和取数需求更稳定后再做；
+- 到时候再并发，只并发互相独立的可选取数；
+- 并发后也要保证输出日志顺序稳定，并且不能改变“今年没有持仓就取去年”的
+  `portfolio_year` 回退逻辑。
 
 ### Phase 2: Evidence And Evaluation Hardening
 
