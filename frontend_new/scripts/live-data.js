@@ -1,0 +1,232 @@
+(function (window, document) {
+  "use strict";
+
+  const api = window.FundMasterAPI;
+  if (!api) return;
+
+  const DEFAULT_STOCK_SYMBOL = "300059";
+  const DEFAULT_FUND_CODE = "510300";
+
+  function text(value, fallback = "--") {
+    if (value === null || value === undefined || value === "") return fallback;
+    return String(value);
+  }
+
+  function escapeHtml(value) {
+    return text(value, "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function safeUrl(value) {
+    const url = text(value, "#");
+    if (url === "#" || /^https?:\/\//i.test(url)) return url;
+    return "#";
+  }
+
+  function pick(record, keys, fallback = undefined) {
+    if (!record) return fallback;
+    for (const key of keys) {
+      if (record[key] !== null && record[key] !== undefined && record[key] !== "") {
+        return record[key];
+      }
+    }
+    return fallback;
+  }
+
+  function numberValue(value) {
+    if (typeof value === "number") return value;
+    const parsed = Number(String(value || "").replace(/[%+,]/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function formatPercent(value) {
+    const n = numberValue(value);
+    const sign = n > 0 ? "+" : "";
+    return `${sign}${n.toFixed(2)}%`;
+  }
+
+  function setStatus(target, message, isError = false) {
+    const node = typeof target === "string" ? document.querySelector(target) : target;
+    if (!node) return;
+    node.textContent = message;
+    node.classList.toggle("api-status--error", isError);
+  }
+
+  function renderMarketHeatmap(rows) {
+    const heat = document.querySelector("[data-market-heat]");
+    if (!heat || !rows.length) return;
+
+    const topRows = rows
+      .filter((item) => pick(item, ["代码", "名称"]))
+      .slice(0, 12);
+
+    heat.innerHTML = topRows
+      .map((item) => {
+        const code = pick(item, ["代码", "symbol"], "");
+        const name = pick(item, ["名称", "name"], "");
+        const change = pick(item, ["涨跌幅", "涨幅", "change"], 0);
+        const positive = numberValue(change) >= 0;
+        const price = pick(item, ["最新价", "现价", "price"], "");
+        return `<div class="mh-cell ${positive ? "pos" : "neg"}"><span>${escapeHtml(code)}</span><em>${formatPercent(change)}</em><small>${escapeHtml(name)} ${price ? "· " + escapeHtml(price) : ""}</small></div>`;
+      })
+      .join("");
+  }
+
+  function renderMarketMovers(rows) {
+    const movers = document.querySelector("[data-market-movers]");
+    if (!movers || !rows.length) return;
+
+    const sorted = rows
+      .filter((item) => pick(item, ["名称", "代码"]) !== undefined)
+      .slice()
+      .sort((a, b) => numberValue(pick(b, ["涨跌幅"], 0)) - numberValue(pick(a, ["涨跌幅"], 0)));
+
+    const gainers = sorted.slice(0, 5);
+    const decliners = sorted.slice(-5).reverse();
+
+    function renderList(items, cls) {
+      return `<ul>${items
+        .map((item) => {
+          const name = pick(item, ["名称", "代码"], "Unknown");
+          const change = pick(item, ["涨跌幅"], 0);
+          return `<li class="${cls}">${escapeHtml(name)} ${formatPercent(change)}</li>`;
+        })
+        .join("")}</ul>`;
+    }
+
+    movers.innerHTML = `${renderList(gainers, "pos")}${renderList(decliners, "neg")}`;
+  }
+
+  async function loadMarketHub() {
+    const root = document.querySelector(".content--market-hub");
+    if (!root) return;
+
+    setStatus("[data-api-status='market']", "Connecting to market backend...");
+    try {
+      const rows = await api.stock.getAllASpot({ platform: "eastmoney" });
+      renderMarketHeatmap(Array.isArray(rows) ? rows : []);
+      renderMarketMovers(Array.isArray(rows) ? rows : []);
+      setStatus("[data-api-status='market']", `Live A-share feed · ${Array.isArray(rows) ? rows.length : 0} rows`);
+    } catch (error) {
+      setStatus("[data-api-status='market']", `Market backend unavailable: ${error.message}`, true);
+    }
+  }
+
+  function newsCard(item, index) {
+    const title = pick(item, ["新闻标题", "标题", "title"], "Untitled market update");
+    const body = pick(item, ["新闻内容", "内容", "摘要", "summary"], "");
+    const source = pick(item, ["文章来源", "来源", "source"], "MARKET NEWS");
+    const time = pick(item, ["发布时间", "时间", "date"], "");
+    const url = pick(item, ["新闻链接", "链接", "url"], "#");
+    const hot = index === 0;
+
+    return `<article class="news-card ${hot ? "news-card--flash" : ""}">
+      <div class="news-card__meta">
+        <div class="news-card__tags">
+          <span class="tag ${hot ? "tag--breaking" : "tag--tech"}">${hot ? "LATEST" : "NEWS"}</span>
+          <span class="news-card__source">${escapeHtml(text(time, "RECENT"))} · ${escapeHtml(source)}</span>
+        </div>
+        <a class="news-card__ext" href="${safeUrl(url)}" target="_blank" rel="noreferrer" aria-label="打开新闻">↗</a>
+      </div>
+      <h4 class="news-card__headline">${escapeHtml(title)}</h4>
+      <p class="news-card__body">${escapeHtml(body || title)}</p>
+      <div class="news-card__footer">
+        <span class="sentiment-pill sentiment-pill--neutral"><span class="sentiment-pill__dot"></span>LIVE FEED</span>
+        <span class="news-card__related">Symbol: ${DEFAULT_STOCK_SYMBOL}</span>
+      </div>
+    </article>`;
+  }
+
+  async function loadNewsFeed() {
+    const feed = document.querySelector("[data-news-feed]");
+    if (!feed) return;
+
+    setStatus("[data-api-status='news']", "Connecting to news backend...");
+    try {
+      const rows = await api.news.getStockRecentNews({ symbol: DEFAULT_STOCK_SYMBOL });
+      const list = Array.isArray(rows) ? rows.slice(0, 6) : [];
+      if (list.length) {
+        feed.innerHTML = list.map(newsCard).join("");
+      }
+      setStatus("[data-api-status='news']", `Live terminal · ${list.length} news`);
+    } catch (error) {
+      setStatus("[data-api-status='news']", `News backend unavailable: ${error.message}`, true);
+    }
+  }
+
+  function renderFundHeader(record) {
+    const title = document.querySelector("[data-fund-title]");
+    const ticker = document.querySelector("[data-fund-ticker]");
+    const nav = document.querySelector("[data-fund-nav]");
+    const change = document.querySelector("[data-fund-change]");
+
+    const name = pick(record, ["基金名称", "名称"], "ETF Fund");
+    const code = pick(record, ["基金代码", "代码"], DEFAULT_FUND_CODE);
+    const price = pick(record, ["最新价", "现价", "单位净值"], "--");
+    const changeValue = pick(record, ["涨跌幅", "涨幅", "日增长率"], 0);
+
+    if (title) title.textContent = name;
+    if (ticker) ticker.textContent = code;
+    if (nav) nav.textContent = text(price);
+    if (change) {
+      change.textContent = formatPercent(changeValue);
+      change.classList.toggle("pos", numberValue(changeValue) >= 0);
+      change.classList.toggle("neg", numberValue(changeValue) < 0);
+    }
+  }
+
+  function renderFundHist(rows) {
+    const stats = document.querySelector("[data-fund-stats]");
+    if (!stats || !rows.length) return;
+
+    const first = rows[0];
+    const last = rows[rows.length - 1];
+    const firstClose = numberValue(pick(first, ["收盘", "close", "单位净值"], 0));
+    const lastClose = numberValue(pick(last, ["收盘", "close", "单位净值"], 0));
+    const change = firstClose ? ((lastClose - firstClose) / firstClose) * 100 : 0;
+    const latestDate = pick(last, ["日期", "date"], "Latest");
+
+    stats.innerHTML = `
+      <div><span class="fd-stats__k">${escapeHtml(latestDate)}</span><span class="fd-stats__v">${escapeHtml(lastClose || "--")}</span></div>
+      <div><span class="fd-stats__k">Period Return</span><span class="fd-stats__v ${change >= 0 ? "pos" : "neg"}">${formatPercent(change)}</span></div>
+      <div><span class="fd-stats__k">Rows</span><span class="fd-stats__v">${rows.length}</span></div>
+      <div><span class="fd-stats__k">Source</span><span class="fd-stats__v">Eastmoney</span></div>`;
+  }
+
+  async function loadFundDetail() {
+    const page = document.querySelector("[data-fund-page]");
+    if (!page) return;
+
+    setStatus("[data-api-status='fund']", "Connecting to fund backend...");
+    try {
+      const [spotRows, histRows] = await Promise.all([
+        api.publicFund.getOneRealTime({ platform: "eastmoney", symbol: "ETF", code: DEFAULT_FUND_CODE }),
+        api.publicFund.getHist({
+          platform: "eastmoney",
+          symbol: "ETF",
+          code: DEFAULT_FUND_CODE,
+          start_date: "20240101",
+          end_date: "20261231",
+          period: "daily",
+          adjust: "",
+        }),
+      ]);
+
+      if (Array.isArray(spotRows) && spotRows[0]) renderFundHeader(spotRows[0]);
+      if (Array.isArray(histRows)) renderFundHist(histRows);
+      setStatus("[data-api-status='fund']", "Live ETF data · 510300");
+    } catch (error) {
+      setStatus("[data-api-status='fund']", `Fund backend unavailable: ${error.message}`, true);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadMarketHub();
+    loadNewsFeed();
+    loadFundDetail();
+  });
+})(window, document);
