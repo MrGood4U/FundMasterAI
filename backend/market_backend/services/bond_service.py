@@ -1,4 +1,3 @@
-from daos.market_dao import MarketDao
 from apis.akshare_bond_api import AkshareBond
 from utils.kline_generator import KLineGenerator
 import pandas as pd
@@ -6,7 +5,6 @@ import pandas as pd
 
 class BondService:
     def __init__(self):
-        self.dao = MarketDao()
         self.akapi = AkshareBond()
 
     def get_bond_spot_quote(self):
