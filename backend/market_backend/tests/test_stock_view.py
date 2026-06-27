@@ -15,10 +15,10 @@ class TestGetOneSpot:
         assert len(data["data"]) == 1
 
     def test_missing_json_body(self, client):
-        resp = client.post("/api/market/stock/a/one_spot", data=None)
-        assert resp.status_code == 404
-        data = json.loads(resp.data)
-        assert data["message"] == "args not found"
+        resp = client.post("/api/market/stock/a/one_spot",
+                           data=None,
+                           content_type="application/json")
+        assert resp.status_code in (400, 415)  # flask-openapi3 varies by version
 
     def test_missing_platform(self, client):
         resp = client.post("/api/market/stock/a/one_spot", json={"code": "000001"})

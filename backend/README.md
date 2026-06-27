@@ -7,15 +7,15 @@ FundMasterAI 后端由三个独立的 Flask 微服务组成：Market Backend（�
 - Python >= 3.11
 - pip >= 3.11
 - MySQL（仅 portfolio_backend 需要）
-- Redis（预留，当前不需要）
+- Redis（可有, market_backend可以配置缓存加快请求速度）
 
 ## 三个后端概览
 
-| 后端 | 端口 | 功能 | 需要 MySQL | Function Calling |
+| 后端 | 端口 | 功能 | 需要 MySQL | 需要 Redis | Function Calling |
 |---|---|---|---|---|
-| [market_backend](market_backend/) | **5001** | A 股 / 公募基金 / 加密货币 实时行情、历史数据、K 线、技术指标 | 否 | `GET /api/market/functions` |
-| [news_backend](news_backend/) | **5000** | A 股近期新闻、公募基金公告查询 | 否 | `GET /api/news/functions` |
-| [portfolio_backend](portfolio_backend/) | **5002** | 交易记录、持仓管理、价格告警、自选关注 | **是** | `GET /api/portfolio/functions` |
+| [market_backend](market_backend/) | **5001** | A 股 / 公募基金 / 加密货币 实时行情、历史数据、K 线、技术指标 | 否 | 可选 | `GET /api/market/functions` |
+| [news_backend](news_backend/) | **5000** | A 股近期新闻、公募基金公告查询 | 否 | 否 | `GET /api/news/functions` |
+| [portfolio_backend](portfolio_backend/) | **5002** | 交易记录、持仓管理、价格告警、自选关注 | **是** | 否 | `GET /api/portfolio/functions` |
 
 详细说明请参见各后端目录下的 `README.md`。
 
@@ -57,6 +57,12 @@ mysql -u root -p fundmaster_db < init.sql
 ```
 
 `init.sql` 会创建 `user_profile`、`transactions`、`price_alert`、`watchlist` 四张表。
+
+## Redis 数据库初始化
+
+**只有 market_backend 可选需要 Redis**，其他两个后端不需要。
+
+不需要进行初始化, 修改market_backend下的config.ini配置redis即可.
 
 ## Function Calling 接口
 
