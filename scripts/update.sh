@@ -4,8 +4,8 @@
 # 本地开发请按 README.zh-CN.md 的方式各自启动，不要在本地跑这个脚本。
 set -e
 
-# 切到脚本所在目录(即仓库根目录)，无论仓库克隆在什么路径都能正确运行
-cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 切到仓库根目录(脚本在 scripts/ 下，往上一级即为根)，无论克隆在什么路径都能正确运行
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "[1/3] 拉取最新代码..."
 git pull

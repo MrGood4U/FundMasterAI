@@ -84,10 +84,10 @@ git push -u origin 你的名字/功能名
 ```bash
 ssh root@<云服务器IP>
 cd /root/FundMasterAI
-./update.sh          # 自动：git pull + 装依赖 + 重启所有服务
+bash scripts/update.sh   # 自动：git pull + 装依赖 + 重启所有服务
 ```
 
-> 约定：**谁合并了 PR，谁负责上云跑一次 `update.sh`**（或固定一人专门管部署），避免大家都以为别人会做。
+> 约定：**谁合并了 PR，谁负责上云跑一次 `scripts/update.sh`**（或固定一人专门管部署），避免大家都以为别人会做。
 
 ---
 
