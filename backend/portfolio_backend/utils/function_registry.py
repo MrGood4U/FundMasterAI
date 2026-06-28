@@ -701,7 +701,7 @@ FUNCTIONS = [
             "items": "行业分布数组（按市值降序）",
             "total_market_value": "总市值",
             "_item_fields": {
-                "sector": "行业名称（医药/科技/金融/消费/新能源/汽车/制造等）",
+                "sector": "行业名称（制造业/金融业/信息传输软件和信息技术服务业/采矿业/房地产业等）",
                 "market_value": "该行业持仓市值",
                 "pct": "该行业占总市值的百分比",
             },
@@ -725,6 +725,202 @@ FUNCTIONS = [
             "warnings": "风险警告字符串数组，如 ['前3大行业占比 85%，集中度过高']",
         },
     },
+
+    # =====================================================================
+    # Fund Detail 基金明细
+    # =====================================================================
+    {
+        "name": "get_fund_detail_hold",
+        "description": "(本接口为前端准备, agent请使用market_backend提供的接口)查询某只基金在指定时点的资产配置明细（股票/债券/现金等各类资产占净值比例）。",
+        "path": "/api/portfolio/fund/detail_hold",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码，如 000001",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "查询日期，格式 YYYYMMDD, 如 20241231。不传则默认今天",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "asset_type": "资产类型（股票/债券/现金/基金/权证等）",
+            "pct": "占净值比例(%)",
+        },
+    },
+    {
+        "name": "get_fund_industry_allocation",
+        "description": "(本接口为前端准备, agent请使用market_backend提供的接口)查询某只基金在指定年份的行业配置分布（各行业的持仓占比）。",
+        "path": "/api/portfolio/fund/industry_allocation",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码，如 000001",
+                },
+                "year": {
+                    "type": "string",
+                    "description": "查询年份，如 2025。不传则默认当前年份",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "sequence": "序号",
+            "industry_category": "行业类别",
+            "pct": "占净值比例(%)",
+            "market_value": "市值",
+            "as_of_date": "截止时间",
+        },
+    },
+    {
+        "name": "get_fund_stock_holds",
+        "description": "(本接口为前端准备, agent请使用market_backend提供的接口)查询某只基金在指定年份的全部股票持仓明细（包含每只股票的持仓数量、市值、占净值比例等）。",
+        "path": "/api/portfolio/fund/stock_holds",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码，如 000001",
+                },
+                "year": {
+                    "type": "string",
+                    "description": "查询年份，如 2025。不传则默认当前年份",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "sequence": "序号",
+            "stock_code": "股票代码",
+            "stock_name": "股票名称",
+            "pct": "占净值比例(%)",
+            "hold_shares": "持股数",
+            "hold_market_value": "持仓市值",
+            "quarter": "季度",
+        },
+    },
+    {
+        "name": "get_fund_bond_holds",
+        "description": "(本接口为前端准备, agent请使用market_backend提供的接口)查询某只基金在指定年份的全部债券持仓明细（包含每只债券的持仓数量、市值、占净值比例等）。",
+        "path": "/api/portfolio/fund/bond_holds",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码，如 000001",
+                },
+                "year": {
+                    "type": "string",
+                    "description": "查询年份，如 2025。不传则默认当前年份",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "sequence": "序号",
+            "bond_code": "债券代码",
+            "bond_name": "债券名称",
+            "pct": "占净值比例(%)",
+            "hold_market_value": "持仓市值",
+            "quarter": "季度",
+        },
+    },
+
+    # =====================================================================
+    # SMTP Config 邮件服务配置
+    # =====================================================================
+    {
+        "name": "get_smtp_config",
+        "description": "获取 SMTP 邮件配置（单用户系统，始终返回 id=1 的记录，密码已脱敏）。",
+        "path": "/api/portfolio/smtp_config/get_config",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "id": "配置ID（始终为 0）",
+            "email": "发件人邮箱",
+            "sender_name": "发件人名称",
+            "smtp_host": "SMTP 服务器域名",
+            "smtp_port": "SMTP 端口",
+            "encryption": "加密方式（tls/ssl/none）",
+            "created_at": "创建时间",
+            "updated_at": "更新时间",
+        },
+    },
+    {
+        "name": "update_smtp_config",
+        "description": "更新 SMTP 邮件配置（单用户系统，始终更新 id=1 的记录），只传需要修改的字段即可。",
+        "path": "/api/portfolio/smtp_config/update_config",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "description": "发件人邮箱地址，如 user@gmail.com",
+                },
+                "sender_name": {
+                    "type": "string",
+                    "description": "发件人显示名称，如 FundMasterAI 预警",
+                },
+                "smtp_host": {
+                    "type": "string",
+                    "description": "SMTP 服务器域名，如 smtp.gmail.com（Gmail）、smtp.qq.com（QQ邮箱）、smtp.163.com（163邮箱）",
+                },
+                "smtp_port": {
+                    "type": "integer",
+                    "description": "SMTP 服务器端口。TLS 通常用 587，SSL 通常用 465",
+                },
+                "password": {
+                    "type": "string",
+                    "description": "邮箱密钥/应用专用密码。Gmail 需使用应用专用密码（App Password），QQ邮箱/163邮箱使用授权码",
+                },
+                "encryption": {
+                    "type": "string",
+                    "description": "加密方式，默认 tls",
+                    "enum": ["tls", "ssl", "none"],
+                },
+            },
+            "required": [],
+        },
+        "returns": {
+            "_note": "更新成功返回空对象 {}，失败返回错误信息",
+        },
+    },
+    {
+        "name": "test_smtp_email",
+        "description": "使用当前 SMTP 配置发送一封测试邮件到指定邮箱，用于验证配置是否正确。",
+        "path": "/api/portfolio/smtp_config/test_email",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "to_email": {
+                    "type": "string",
+                    "description": "接收测试邮件的邮箱地址",
+                },
+            },
+            "required": ["to_email"],
+        },
+        "returns": {
+            "message": "test email sent successfully 或错误信息",
+        },
+    },
 ]
 
 
@@ -734,15 +930,7 @@ def get_all_functions():
 
 
 def get_functions_by_tag(tag: str):
-    """按标签筛选函数。tag 为 transaction / holding / alert / watchlist / allocation / sector。"""
-    prefix_map = {
-        "transaction": "create_transaction",
-        "holding": "get_holdings",
-        "alert": "create_alert",
-        "watchlist": "add_to_watchlist",
-        "allocation": "get_current_allocation",
-        "sector": "get_sector_exposure",
-    }
+    """按标签筛选函数。tag 为 transaction / holding / alert / watchlist / allocation / sector / fund / smtp。"""
     tag_names = {
         "transaction": ["create_transaction", "get_transaction", "update_transaction",
                         "delete_transaction", "list_transactions"],
@@ -753,6 +941,9 @@ def get_functions_by_tag(tag: str):
         "allocation": ["get_current_allocation", "set_target_allocation",
                        "get_target_allocation", "get_allocation_drift"],
         "sector": ["get_sector_exposure", "get_sector_concentration"],
+        "fund": ["get_fund_detail_hold", "get_fund_industry_allocation",
+                        "get_fund_stock_holds", "get_fund_bond_holds"],
+        "smtp": ["get_smtp_config", "update_smtp_config", "test_smtp_email"],
     }
     names = tag_names.get(tag)
     if names is None:

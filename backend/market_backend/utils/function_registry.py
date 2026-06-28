@@ -23,8 +23,8 @@ FUNCTIONS = [
             "properties": {
                 "platform": {
                     "type": "string",
-                    "description": "数据源平台，目前仅支持 eastmoney",
-                    "enum": ["eastmoney"],
+                    "description": "数据源平台",
+                    "enum": ["eastmoney", "sina"],
                 },
                 "code": {
                     "type": "string",
@@ -73,8 +73,8 @@ FUNCTIONS = [
             "properties": {
                 "platform": {
                     "type": "string",
-                    "description": "数据源平台，目前仅支持 eastmoney",
-                    "enum": ["eastmoney"],
+                    "description": "数据源平台",
+                    "enum": ["eastmoney", "sina"],
                 },
             },
             "required": ["platform"],

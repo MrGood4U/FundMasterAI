@@ -102,7 +102,7 @@ jobs:
       - name: Install integration dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e "ai_agent/fund_llm_engine[backend]" efinance okx numpy
+          python -m pip install -e "ai_agent/fund_llm_engine[backend]" efinance okx numpy redis
 
       - name: Start real backends and call agent analyze endpoint
         env:

@@ -6,6 +6,14 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    # --- Auto-migrate DB schema on startup ---
+    from utils.schema_migration import run_migration
+    run_migration()
+
+    # --- Ensure the single SMTP config row (id=0) exists ---
+    from daos.smtp_config_dao import SmtpConfigDao
+    SmtpConfigDao().ensure_exists()
+
     # Register blueprints
     from views.transaction_view import transaction_bp
     from views.holding_view import holding_bp
@@ -14,6 +22,8 @@ def create_app():
     from views.meta_view import meta_bp
     from views.allocation_view import allocation_bp
     from views.sector_view import sector_bp
+    from views.fund_detail_view import fund_detail_bp
+    from views.smtp_config_view import smtp_config_bp
 
     app.register_blueprint(transaction_bp)
     app.register_blueprint(holding_bp)
@@ -22,6 +32,8 @@ def create_app():
     app.register_blueprint(meta_bp)
     app.register_blueprint(allocation_bp)
     app.register_blueprint(sector_bp)
+    app.register_blueprint(fund_detail_bp)
+    app.register_blueprint(smtp_config_bp)
 
     @app.route("/")
     def hello_world():

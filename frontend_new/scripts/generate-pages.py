@@ -75,8 +75,9 @@ def topbar(placeholder: str, input_id: str = "q") -> str:
       </header>"""
 
 
-def doc_shell(title: str, extra_css: list[str], active_href: str, placeholder: str, body: str, fab: bool = True, input_id: str = "q") -> str:
+def doc_shell(title: str, extra_css: list[str], active_href: str, placeholder: str, body: str, fab: bool = True, input_id: str = "q", extra_scripts: list[str] | None = None) -> str:
     links = "\n    ".join(f'<link rel="stylesheet" href="{c}" />' for c in ["css/shell.css", *extra_css])
+    scripts = "\n    ".join(f'<script src="{s}"></script>' for s in (extra_scripts or []))
     fab_html = (
         '\n        <button type="button" class="fab" aria-label="快捷操作"><span class="fab__plus" aria-hidden="true">+</span></button>'
         if fab
@@ -102,6 +103,7 @@ def doc_shell(title: str, extra_css: list[str], active_href: str, placeholder: s
 {fab_html}
       </div>
     </div>
+    {scripts}
   </body>
 </html>
 """
@@ -111,7 +113,7 @@ def doc_shell(title: str, extra_css: list[str], active_href: str, placeholder: s
 
 
 def page_fund_deep_dive():
-    body = """        <main class="content">
+    body = """        <main class="content" data-fund-page>
           <nav class="breadcrumb" aria-label="面包屑">
             <a href="fund-deep-dive.html">Funds</a><span class="breadcrumb__sep">›</span>
             <a href="#">Global Tech Equities</a><span class="breadcrumb__sep">›</span>
@@ -119,15 +121,15 @@ def page_fund_deep_dive():
           </nav>
           <header class="page-head">
             <div>
-              <h2 class="page-head__title">MasterTech Growth Fund</h2>
+              <h2 class="page-head__title" data-fund-title>MasterTech Growth Fund</h2>
               <p class="page-head__sub">High-conviction global technology allocation with active risk overlays.</p>
             </div>
             <span class="chip chip--live">Active</span>
           </header>
           <div class="kpi-row">
-            <div class="kpi-card"><p class="kpi-card__label">Ticker</p><p class="kpi-card__value">MTGF.QX</p></div>
-            <div class="kpi-card"><p class="kpi-card__label">NAV</p><p class="kpi-card__value">$248.12</p></div>
-            <div class="kpi-card"><p class="kpi-card__label">24H Change</p><p class="kpi-card__value">+2.41%</p><p class="kpi-card__hint">vs prior close</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">Ticker</p><p class="kpi-card__value" data-fund-ticker>MTGF.QX</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">NAV</p><p class="kpi-card__value" data-fund-nav>$248.12</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">24H Change</p><p class="kpi-card__value pos" data-fund-change>+2.41%</p><p class="kpi-card__hint api-status" data-api-status="fund">Static preview</p></div>
           </div>
           <div class="toolbar"><button type="button" class="btn-outline">Prospectus</button></div>
           <section class="glass-panel fd-matrix">
@@ -142,7 +144,7 @@ def page_fund_deep_dive():
             </div>
             <p class="fd-caption">Historical NAV growth over selected period</p>
             <div class="fd-chart" role="img" aria-label="NAV 曲线示意图"></div>
-            <div class="fd-stats">
+            <div class="fd-stats" data-fund-stats>
               <div><span class="fd-stats__k">Oct 24, 2023</span><span class="fd-stats__v">$214.85</span></div>
               <div><span class="fd-stats__k">YTD Return</span><span class="fd-stats__v pos">+18.4%</span></div>
               <div><span class="fd-stats__k">1Y Return</span><span class="fd-stats__v pos">+32.1%</span></div>
@@ -208,6 +210,7 @@ def page_fund_deep_dive():
         "fund-deep-dive.html",
         "Search funds...",
         body,
+        extra_scripts=["scripts/api.js", "scripts/live-data.js"],
     )
     (ROOT / "fund-deep-dive.html").write_text(html, encoding="utf-8")
 
@@ -220,7 +223,7 @@ def page_market_hub():
               <p class="page-head__sub">Live indices, sentiment, heatmap and capital flow — Figma 11:626.</p>
               <p class="muted sm" style="margin:8px 0 0"><a href="market-flow.html" style="color:var(--accent-cyan)">Market liquidity &amp; flow 视图（Figma 11:1391）→</a></p>
             </div>
-            <div class="mh-clock"><span class="mh-clock__label">NASDAQ OPEN</span><span class="mh-clock__time">14:23:05 EST</span></div>
+            <div class="mh-clock"><span class="mh-clock__label">MARKET API</span><span class="mh-clock__time api-status" data-api-status="market">Static preview</span></div>
           </header>
           <section class="mh-indices">
             <article class="mh-index"><h4>S&amp;P 500</h4><p class="mh-index__v">5,147.22</p><p class="mh-index__p pos">+0.82%</p></article>
@@ -236,7 +239,7 @@ def page_market_hub():
             <section class="glass-panel">
               <h3 class="section-head__title section-head__title--compact">Global Market Heatmap</h3>
               <div class="mh-legend"><span>U.S. Tech</span><span>A-Shares</span><span>EU Broad</span><span class="mh-legend__vol">Volatility: Low</span></div>
-              <div class="mh-heat">
+              <div class="mh-heat" data-market-heat>
                 <div class="mh-cell pos"><span>AAPL</span><em>+2.84%</em><small>Apple Inc.</small></div>
                 <div class="mh-cell pos"><span>MSFT</span><em>+1.15%</em><small>MICROSOFT</small></div>
                 <div class="mh-cell pos"><span>GOOGL</span><em>+0.42%</em></div>
@@ -258,7 +261,7 @@ def page_market_hub():
           </section>
           <section class="glass-panel">
             <div class="section-head"><h3 class="section-head__title">Top Gaining / Declining</h3><button type="button" class="btn-outline">View all 18 sectors</button></div>
-            <div class="mh-movers">
+            <div class="mh-movers" data-market-movers>
               <ul><li class="pos">Semiconductors +5.82%</li><li class="pos">Cloud Computing +3.44%</li><li class="pos">Clean Energy +1.20%</li></ul>
               <ul><li class="neg">Real Estate -2.15%</li><li class="neg">Consumer Staples -4.88%</li></ul>
             </div>
@@ -270,6 +273,7 @@ def page_market_hub():
         "market-hub.html",
         "Search funds...",
         body,
+        extra_scripts=["scripts/api.js", "scripts/live-data.js"],
     )
     (ROOT / "market-hub.html").write_text(html, encoding="utf-8")
 
