@@ -41,7 +41,12 @@ const AGENT_LABELS = {
 
 function agentBase() {
   const params = new URLSearchParams(window.location.search);
-  return (params.get("agentBase") || window.FUNDMASTER_AGENT_BASE || "http://127.0.0.1:5003").replace(/\/$/, "");
+  if (params.get("agentBase")) return params.get("agentBase").replace(/\/$/, "");
+  if (window.FUNDMASTER_AGENT_BASE) return window.FUNDMASTER_AGENT_BASE.replace(/\/$/, "");
+  // 以 file:// 直接打开页面时连本机 agent；经 HTTP 服务器(dev-server)访问时用同源相对路径，
+  // 由 dev-server 转发到同机 agent —— 本地和云端自动适配，无需写死 IP。
+  if (window.location.protocol === "file:") return "http://127.0.0.1:5003";
+  return "";
 }
 
 function endpoint() {

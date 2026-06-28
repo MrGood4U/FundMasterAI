@@ -18,6 +18,8 @@ class DevProxyHandler(SimpleHTTPRequestHandler):
     market_port = 5001
     news_host = "127.0.0.1"
     news_port = 5000
+    agent_host = "127.0.0.1"
+    agent_port = 5003
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
@@ -29,6 +31,9 @@ class DevProxyHandler(SimpleHTTPRequestHandler):
         if self.path.startswith("/api/news/"):
             self.proxy_to(self.news_host, self.news_port)
             return
+        if self.path.startswith("/api/ai/"):
+            self.proxy_to(self.agent_host, self.agent_port)
+            return
         super().do_GET()
 
     def do_POST(self):
@@ -37,6 +42,9 @@ class DevProxyHandler(SimpleHTTPRequestHandler):
             return
         if self.path.startswith("/api/news/"):
             self.proxy_to(self.news_host, self.news_port)
+            return
+        if self.path.startswith("/api/ai/"):
+            self.proxy_to(self.agent_host, self.agent_port)
             return
         self.send_json(404, {"message": "proxy route not found"})
 
@@ -68,7 +76,7 @@ class DevProxyHandler(SimpleHTTPRequestHandler):
         path = target.path + (f"?{target.query}" if target.query else "")
 
         try:
-            conn = HTTPConnection(host, port, timeout=60)
+            conn = HTTPConnection(host, port, timeout=200)
             conn.request(self.command, path, body=body, headers=headers)
             response = conn.getresponse()
             payload = response.read()
@@ -104,15 +112,18 @@ def main():
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--market-port", type=int, default=5001)
     parser.add_argument("--news-port", type=int, default=5000)
+    parser.add_argument("--agent-port", type=int, default=5003)
     args = parser.parse_args()
 
     DevProxyHandler.market_port = args.market_port
     DevProxyHandler.news_port = args.news_port
+    DevProxyHandler.agent_port = args.agent_port
 
     server = ThreadingHTTPServer((args.host, args.port), DevProxyHandler)
     print(f"Frontend: http://{args.host}:{args.port}")
     print(f"Proxy: /api/market -> http://127.0.0.1:{args.market_port}")
     print(f"Proxy: /api/news -> http://127.0.0.1:{args.news_port}")
+    print(f"Proxy: /api/ai -> http://127.0.0.1:{args.agent_port}")
     server.serve_forever()
 
 
