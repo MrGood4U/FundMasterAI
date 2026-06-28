@@ -64,6 +64,21 @@ CREATE TABLE IF NOT EXISTS watchlist (
     UNIQUE KEY uk_asset (asset_type, asset_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS smtp_config (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    email           VARCHAR(200)  NOT NULL COMMENT '发件人邮箱地址',
+    sender_name     VARCHAR(100)  DEFAULT NULL COMMENT '发件人显示名称',
+    smtp_host       VARCHAR(200)  NOT NULL COMMENT 'SMTP服务器域名',
+    smtp_port       INT           NOT NULL COMMENT 'SMTP服务器端口 (587 TLS, 465 SSL)',
+    password        VARCHAR(500)  NOT NULL COMMENT '邮箱密钥/应用专用密码',
+    encryption      VARCHAR(10)   DEFAULT 'tls' COMMENT '加密方式: tls/ssl/none',
+    is_default      TINYINT(1)    DEFAULT 0 COMMENT '是否为默认配置',
+    created_at      DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_default (is_default)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS allocation_target (
     asset_type  VARCHAR(16)   NOT NULL COMMENT '资产大类: stock/fund/bond/crypto',
     target_pct  DECIMAL(5,2)  NOT NULL COMMENT '目标占比(%)',

@@ -48,7 +48,9 @@ class TestGetAllRealTime:
     def test_passes_platform_and_symbol(self, service, sample_fund_etf_spot_df):
         service.akapi.real_time = MagicMock(return_value=sample_fund_etf_spot_df)
         service.get_all_real_time("tonghuashun", "ETF")
-        service.akapi.real_time.assert_called_once_with("ETF", "tonghuashun")
+        # tonghuashun always fetches "all" to keep the shared cache complete,
+        # then filters by fund_type client-side.
+        service.akapi.real_time.assert_called_once_with("all", "tonghuashun")
 
 
 class TestGetHist:

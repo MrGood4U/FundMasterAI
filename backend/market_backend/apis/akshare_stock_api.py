@@ -4,6 +4,7 @@ import akshare as ak
 from apis.field_mapping import (
     apply_mapping,
     STOCK_SPOT_EM_MAP,
+    STOCK_SPOT_SINA_MAP,
     STOCK_HIST_EM_MAP,
     BID_ASK_EM_MAP,
     STOCK_HIST_SINA_MAP,
@@ -13,15 +14,28 @@ class AkshareStock:
     def eastmoney_a_spot_one(self, code: str, name: str):
         df = apply_mapping(ak.stock_zh_a_spot_em(), STOCK_SPOT_EM_MAP)
         if code is not None and code != "":
-            return df[df["code"] == code]
+            return df[df["stock_code"] == code]
         elif name is not None and name != "":
-            return df[df["name"] == name]
+            return df[df["stock_name"].str.contains(name)]
         else:
             return None
 
     def eastmoney_a_spot_all(self):
         df = ak.stock_zh_a_spot_em()
         return apply_mapping(df, STOCK_SPOT_EM_MAP)
+    
+    def sina_a_spot_one(self, code: str, name: str):
+        df = apply_mapping(ak.stock_zh_a_spot(), STOCK_SPOT_SINA_MAP)
+        if code is not None and code != "":
+            return df[df["stock_code"] == code]
+        elif name is not None and name != "":
+            return df[df["stock_name"].str.contains(name)]
+        else:
+            return None
+    
+    def sina_a_spot_all(self):
+        df = ak.stock_zh_a_spot()
+        return apply_mapping(df, STOCK_SPOT_SINA_MAP)
 
     def eastmoney_a_hist(self, code: str, period: str, start_date: str, end_date: str, adjust: str):
         periods = ['daily', 'weekly', 'monthly']
@@ -48,12 +62,16 @@ class AkshareStock:
     def a_spot_one(self, platform: str, code: str, name: str):
         if platform == "eastmoney":
             return self.eastmoney_a_spot_one(code, name)
+        elif platform == "sina":
+            return self.sina_a_spot_one(code, name)
         else:
             return None
 
     def a_spot_all(self, platform: str):
         if platform == "eastmoney":
             return self.eastmoney_a_spot_all()
+        elif platform == "sina":
+            return self.sina_a_spot_all()
         else:
             return None
 
