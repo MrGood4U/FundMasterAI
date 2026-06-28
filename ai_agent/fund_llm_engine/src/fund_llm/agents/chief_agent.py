@@ -158,6 +158,48 @@ def _build_fallback_summary(
     )
 
 
+# 年化类指标需要足够长的净值历史才可靠。低于一年（约 252 个交易日）时，
+# Sharpe / Calmar 等会被显著放大，因此随结果一起暴露样本量和可靠性标签，
+# 让前端决定是否展示或加注，而不是直接把失真的数值当成可信结论。
+QUANT_RELIABLE_MIN_POINTS = 252
+QUANT_LIMITED_MIN_POINTS = 120
+
+
+def _quant_metrics_reliability(nav_point_count: int) -> str:
+    if nav_point_count >= QUANT_RELIABLE_MIN_POINTS:
+        return "high"
+    if nav_point_count >= QUANT_LIMITED_MIN_POINTS:
+        return "medium"
+    return "low"
+
+
+def _build_quant_metrics(features: FundFeaturePack) -> dict:
+    """Surface the NAV-only (A-class) quantitative metrics for the frontend.
+
+    这些指标只依赖基金净值序列，对任何基金都成立，不需要个股交易记录。
+    有基准时才附带超额收益（B 类指标），没有就不放，避免伪造。
+    同时带上 sample_size（净值点数），让前端能判断年化指标是否基于足够样本。
+    """
+    return_metrics = features.return_metrics
+    risk_metrics = features.risk_metrics
+    nav_point_count = features.data_quality_metrics.get("nav_point_count", 0)
+    metrics = {
+        "total_return": return_metrics.get("total_return", 0.0),
+        "annualized_return": return_metrics.get("annualized_return", 0.0),
+        "annualized_volatility": risk_metrics.get("annualized_volatility", 0.0),
+        "max_drawdown": risk_metrics.get("max_drawdown", 0.0),
+        "sharpe_ratio": risk_metrics.get("sharpe_ratio", 0.0),
+        "sortino_ratio": risk_metrics.get("sortino_ratio", 0.0),
+        "calmar_ratio": risk_metrics.get("calmar_ratio", 0.0),
+        "positive_period_ratio": risk_metrics.get("positive_period_ratio", 0.0),
+    }
+    if "excess_return" in features.benchmark_metrics:
+        metrics["excess_return"] = features.benchmark_metrics["excess_return"]
+    rounded = {key: round(value, 6) for key, value in metrics.items()}
+    rounded["sample_size"] = float(nav_point_count)
+    return rounded
+
+
 class ChiefAgent:
     def __init__(self, llm_client):
         self.llm_client = llm_client
@@ -335,6 +377,9 @@ class ChiefAgent:
         }
         for key, value in features.data_coverage.items():
             metadata[f"coverage_{key}"] = value
+        nav_point_count = features.data_quality_metrics.get("nav_point_count", 0)
+        metadata["quant_metrics_sample_size"] = str(nav_point_count)
+        metadata["quant_metrics_reliability"] = _quant_metrics_reliability(nav_point_count)
 
         return FinalAnalysisResult(
             request_id=features.request_id,
@@ -348,4 +393,5 @@ class ChiefAgent:
             score_explanation=score_explanation,
             missing_fields=features.missing_fields,
             metadata=metadata,
+            quant_metrics=_build_quant_metrics(features),
         )

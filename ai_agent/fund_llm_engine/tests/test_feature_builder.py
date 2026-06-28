@@ -178,6 +178,59 @@ class FeatureBuilderTest(unittest.TestCase):
         self.assertNotIn("bond_holdings", features.missing_fields)
         self.assertNotIn("asset_allocation", features.missing_fields)
 
+    def test_build_features_adds_nav_only_risk_adjusted_metrics(self):
+        payload = build_sample_input()
+        payload.nav_series = build_long_nav_series(280)
+
+        features = FeatureBuilder().build(payload)
+
+        # A 类指标只依赖净值序列，应当全部产出
+        self.assertIn("annualized_return", features.return_metrics)
+        self.assertIn("sharpe_ratio", features.risk_metrics)
+        self.assertIn("sortino_ratio", features.risk_metrics)
+        self.assertIn("calmar_ratio", features.risk_metrics)
+        self.assertIn("positive_period_ratio", features.risk_metrics)
+
+        positive_ratio = features.risk_metrics["positive_period_ratio"]
+        self.assertGreaterEqual(positive_ratio, 0.0)
+        self.assertLessEqual(positive_ratio, 1.0)
+
+        # build_long_nav_series 总体上行，年化收益与夏普应为正且有限
+        self.assertGreater(features.return_metrics["annualized_return"], 0.0)
+        self.assertGreater(features.risk_metrics["sharpe_ratio"], 0.0)
+
+    def test_risk_adjusted_metrics_are_safe_on_short_series(self):
+        payload = build_sample_input()  # 仅 5 个净值点
+
+        features = FeatureBuilder().build(payload)
+
+        # 短序列也不应抛错或除零，应给出有限的数值
+        self.assertIn("sharpe_ratio", features.risk_metrics)
+        self.assertIn("calmar_ratio", features.risk_metrics)
+        self.assertGreaterEqual(features.risk_metrics["positive_period_ratio"], 0.0)
+
+    def test_quant_metrics_reliability_thresholds(self):
+        from fund_llm.agents.chief_agent import _quant_metrics_reliability
+
+        # 满一年(≥252个交易日)算高可靠;半年以上中等;更少则低
+        self.assertEqual(_quant_metrics_reliability(300), "high")
+        self.assertEqual(_quant_metrics_reliability(252), "high")
+        self.assertEqual(_quant_metrics_reliability(200), "medium")
+        self.assertEqual(_quant_metrics_reliability(120), "medium")
+        self.assertEqual(_quant_metrics_reliability(60), "low")
+        self.assertEqual(_quant_metrics_reliability(0), "low")
+
+    def test_quant_metrics_includes_sample_size(self):
+        from fund_llm.agents.chief_agent import _build_quant_metrics
+
+        payload = build_sample_input()
+        payload.nav_series = build_long_nav_series(280)
+        features = FeatureBuilder().build(payload)
+
+        quant_metrics = _build_quant_metrics(features)
+        self.assertEqual(quant_metrics["sample_size"], 280.0)
+        self.assertIn("sharpe_ratio", quant_metrics)
+
 
 if __name__ == "__main__":
     unittest.main()

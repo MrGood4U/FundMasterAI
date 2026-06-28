@@ -136,6 +136,7 @@ class ApiContractTest(unittest.TestCase):
                 "analysis_trace",
                 "missing_fields",
                 "metadata",
+                "quant_metrics",
             ],
         )
         self.assertIsInstance(data["overall_rating"], str)
@@ -149,6 +150,29 @@ class ApiContractTest(unittest.TestCase):
         self.assertIsInstance(data["analysis_trace"], list)
         self.assertIsInstance(data["missing_fields"], list)
         self.assertIsInstance(data["metadata"], dict)
+
+        self.assertIsInstance(data["quant_metrics"], dict)
+        self.assert_keys(
+            data["quant_metrics"],
+            [
+                "total_return",
+                "annualized_return",
+                "annualized_volatility",
+                "max_drawdown",
+                "sharpe_ratio",
+                "sortino_ratio",
+                "calmar_ratio",
+                "positive_period_ratio",
+                "sample_size",
+            ],
+        )
+        for metric_name, metric_value in data["quant_metrics"].items():
+            self.assertIsInstance(metric_value, (int, float), f"{metric_name} should be numeric")
+        self.assert_keys(
+            data["metadata"],
+            ["quant_metrics_sample_size", "quant_metrics_reliability"],
+        )
+        self.assertIn(data["metadata"]["quant_metrics_reliability"], {"high", "medium", "low"})
 
         self.assertGreater(len(data["agent_outputs"]), 0)
         for output in data["agent_outputs"]:

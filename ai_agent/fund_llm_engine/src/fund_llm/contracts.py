@@ -326,6 +326,7 @@ class FinalAnalysisResult:
     missing_fields: List[str] = field(default_factory=list)
     metadata: Dict[str, str] = field(default_factory=dict)
     analysis_trace: List[AnalysisTraceEvent] = field(default_factory=list)
+    quant_metrics: Dict[str, float] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, payload: Dict[str, Any]) -> "FinalAnalysisResult":
@@ -349,6 +350,10 @@ class FinalAnalysisResult:
                 AnalysisTraceEvent.from_dict(item)
                 for item in payload.get("analysis_trace", [])
             ],
+            quant_metrics={
+                str(key): float(value)
+                for key, value in (payload.get("quant_metrics") or {}).items()
+            },
         )
 
     def to_dict(self) -> Dict[str, Any]:
