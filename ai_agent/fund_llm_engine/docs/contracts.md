@@ -143,8 +143,44 @@ GET /api/ai/llm/models
 | `analysis_trace` | `AnalysisTraceEvent[]` | 是 | 证据链，解释后端取数、指标计算、Agent 检查、Chief 汇总过程。 |
 | `missing_fields` | string[] | 是 | 本次分析缺失或覆盖不足的字段。 |
 | `metadata` | object | 是 | 执行元数据。以后可以新增 key。 |
+| `quant_metrics` | object | 是 | 只依赖净值的量化指标（收益、波动率、Sharpe 等），前端可直接做指标卡。 |
 
 前端应当忽略自己不认识的额外字段，不要因为新增字段而报错。
+
+## `data.quant_metrics`
+
+`quant_metrics` 是只依赖基金净值序列的量化指标（A 类指标），对任何基金类型都成立，
+不需要个股交易记录。前端可以直接用它渲染指标卡（dials），不必再从 `key_points` 文本里解析数字。
+
+| 字段 | 类型 | 说明 |
+|---|---:|---|
+| `total_return` | number | 区间总收益率，小数表示，例如 `0.08` 表示 8%。 |
+| `annualized_return` | number | 年化收益率。净值点很少时会被放大，仅在足够长的历史下有意义。 |
+| `annualized_volatility` | number | 年化波动率。 |
+| `max_drawdown` | number | 最大回撤，负数。 |
+| `sharpe_ratio` | number | 夏普比率，使用约 2% 的年化无风险利率假设。 |
+| `sortino_ratio` | number | 索提诺比率，只惩罚下行波动。 |
+| `calmar_ratio` | number | 年化收益除以最大回撤绝对值。 |
+| `positive_period_ratio` | number | 上涨交易日占比，取值 0-1，作为“胜率”的净值版近似。 |
+| `excess_return` | number | 仅在提供基准净值序列时出现，等于基金区间收益减基准区间收益。 |
+| `sample_size` | number | 计算这些指标所用的净值点数量，用于判断年化指标是否基于足够样本。 |
+
+`excess_return` 属于需要基准数据的 B 类指标，只有传入 `benchmark_nav_series` 时才会出现，
+没有基准时不会伪造该字段。其余字段只要有净值就会返回。依赖个股交易记录的指标（如成交胜率、
+盈亏比）和个股估值指标（如 PE/PB）不属于这里，因为基金作为被分析标的没有这些原料。
+
+### 样本量与可靠性
+
+年化类指标（`annualized_return`、`sharpe_ratio`、`sortino_ratio`、`calmar_ratio`）需要足够长的
+净值历史才可靠。净值点不足一年（约 252 个交易日）时，这些指标会被显著放大。因此结果同时提供：
+
+- `data.quant_metrics.sample_size`：本次使用的净值点数量。
+- `data.metadata.quant_metrics_sample_size`：同一数量的字符串形式。
+- `data.metadata.quant_metrics_reliability`：可靠性标签，取值 `high`（≥252 点）、
+  `medium`（≥120 点）、`low`（更少）。
+
+前端建议在 `reliability` 为 `medium` 或 `low` 时，对年化指标加“样本不足”提示或弱化展示，
+而不是直接把可能失真的数值当成可信结论。指标值本身不会被改写，只附带可靠性说明。
 
 ## `agent_outputs`: AgentOutput
 

@@ -18,6 +18,11 @@ TRADING_WINDOWS = {
     "1y": 252,
 }
 
+TRADING_DAYS_PER_YEAR = 252
+# 年化无风险利率假设，约等于中国短期国债收益率，用于 Sharpe / Sortino 等风险调整指标。
+# 这些指标只依赖基金净值序列（A 类指标），不需要个股交易记录。
+ANNUAL_RISK_FREE_RATE = 0.02
+
 
 def _nav_values(nav_series: List[NavPoint]) -> List[float]:
     return [point.nav for point in nav_series if point.nav is not None]
@@ -70,6 +75,69 @@ def calculate_annualized_volatility(nav_series: List[NavPoint]) -> float:
     mean_return = sum(daily_returns) / len(daily_returns)
     variance = sum((value - mean_return) ** 2 for value in daily_returns) / len(daily_returns)
     return sqrt(variance) * sqrt(252)
+
+
+def _daily_returns(nav_series: List[NavPoint]) -> List[float]:
+    values = _nav_values(nav_series)
+    daily_returns = []
+    for previous, current in zip(values[:-1], values[1:]):
+        if previous == 0:
+            continue
+        daily_returns.append((current / previous) - 1.0)
+    return daily_returns
+
+
+def calculate_annualized_return(nav_series: List[NavPoint]) -> float:
+    daily_returns = _daily_returns(nav_series)
+    if not daily_returns:
+        return 0.0
+    mean_daily_return = sum(daily_returns) / len(daily_returns)
+    return mean_daily_return * TRADING_DAYS_PER_YEAR
+
+
+def calculate_downside_deviation(nav_series: List[NavPoint], target: float = 0.0) -> float:
+    daily_returns = _daily_returns(nav_series)
+    if not daily_returns:
+        return 0.0
+    squared_downside = [min(value - target, 0.0) ** 2 for value in daily_returns]
+    mean_squared = sum(squared_downside) / len(squared_downside)
+    return sqrt(mean_squared) * sqrt(TRADING_DAYS_PER_YEAR)
+
+
+def calculate_sharpe_ratio(
+    nav_series: List[NavPoint], risk_free_rate: float = ANNUAL_RISK_FREE_RATE
+) -> float:
+    annualized_volatility = calculate_annualized_volatility(nav_series)
+    if annualized_volatility == 0:
+        return 0.0
+    annualized_return = calculate_annualized_return(nav_series)
+    return (annualized_return - risk_free_rate) / annualized_volatility
+
+
+def calculate_sortino_ratio(
+    nav_series: List[NavPoint], risk_free_rate: float = ANNUAL_RISK_FREE_RATE
+) -> float:
+    downside_deviation = calculate_downside_deviation(nav_series)
+    if downside_deviation == 0:
+        return 0.0
+    annualized_return = calculate_annualized_return(nav_series)
+    return (annualized_return - risk_free_rate) / downside_deviation
+
+
+def calculate_calmar_ratio(nav_series: List[NavPoint]) -> float:
+    max_drawdown = calculate_max_drawdown(nav_series)
+    if max_drawdown == 0:
+        return 0.0
+    annualized_return = calculate_annualized_return(nav_series)
+    return annualized_return / abs(max_drawdown)
+
+
+def calculate_positive_period_ratio(nav_series: List[NavPoint]) -> float:
+    daily_returns = _daily_returns(nav_series)
+    if not daily_returns:
+        return 0.0
+    positive_periods = len([value for value in daily_returns if value > 0])
+    return positive_periods / len(daily_returns)
 
 
 def calculate_industry_concentration(industry_exposure: Dict[str, float]) -> float:
@@ -228,6 +296,7 @@ class FeatureBuilder:
         return_metrics = {
             "total_return": calculate_period_return(payload.nav_series),
             "return_since_inception": calculate_period_return(payload.nav_series),
+            "annualized_return": calculate_annualized_return(payload.nav_series),
         }
         return_metrics.update(
             _build_window_metrics(
@@ -240,6 +309,10 @@ class FeatureBuilder:
         risk_metrics = {
             "max_drawdown": calculate_max_drawdown(payload.nav_series),
             "annualized_volatility": calculate_annualized_volatility(payload.nav_series),
+            "sharpe_ratio": calculate_sharpe_ratio(payload.nav_series),
+            "sortino_ratio": calculate_sortino_ratio(payload.nav_series),
+            "calmar_ratio": calculate_calmar_ratio(payload.nav_series),
+            "positive_period_ratio": calculate_positive_period_ratio(payload.nav_series),
         }
         risk_metrics.update(
             _build_window_metrics(
