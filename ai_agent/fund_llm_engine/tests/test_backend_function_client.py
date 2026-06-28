@@ -1,0 +1,510 @@
+import unittest
+from unittest.mock import patch
+
+from fund_llm.adapters.backend_function_client import (
+    BackendFunctionClient,
+    BackendService,
+    build_fund_input_from_backend_functions,
+)
+
+
+def test_backend_function_client_discovers_and_calls_post_tool():
+    calls = []
+
+    def transport(method, url, payload, timeout):
+        calls.append((method, url, payload, timeout))
+        if url.endswith("/api/market/functions?tag=fund"):
+            return {
+                "code": 200,
+                "data": [
+                    {
+                        "name": "get_fund_hist",
+                        "path": "/api/market/fund_public/hist",
+                        "method": "POST",
+                        "parameters": {"type": "object", "properties": {}},
+                    }
+                ],
+                "message": "success",
+            }
+        if url.endswith("/api/market/fund_public/hist"):
+            return {"code": 200, "data": [{"date": "2026-01-01", "unit_net_value": 1.0}]}
+        return {"code": 200, "data": []}
+
+    client = BackendFunctionClient(
+        services={
+            "market": BackendService("market", "http://market", "/api/market/functions"),
+            "news": BackendService("news", "http://news", "/api/news/functions"),
+            "portfolio": BackendService("portfolio", "http://portfolio", "/api/portfolio/functions"),
+        },
+        transport=transport,
+    )
+    client.discover("market", tag="fund")
+    data = client.call("get_fund_hist", {"code": "000001"})
+
+    assert data == [{"date": "2026-01-01", "unit_net_value": 1.0}]
+    assert calls[-1][0] == "POST"
+    assert calls[-1][2] == {"code": "000001"}
+
+
+def test_build_fund_input_from_backend_functions_maps_core_fields():
+    def transport(method, url, payload, timeout):
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_holds", "path": "/holds", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_industry_allocation", "path": "/industry", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_analysis", "path": "/analysis", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_profit_probability", "path": "/profit", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {
+                "code": 200,
+                "data": [
+                    {"name": "get_public_fund_announcement", "path": "/ann", "method": "POST", "parameters": {}}
+                ],
+                "message": "success",
+            }
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2026-01-01", "unit_net_value": "1.00"},
+                    {"date": "2026-01-02", "unit_net_value": "1.04"},
+                ],
+            }
+        if url.endswith("/basic"):
+            return {
+                "code": 200,
+                "data": [
+                    {
+                        "fund_name": "Demo Fund",
+                        "fund_type": "mixed",
+                        "fund_manager": "Manager A",
+                        "latest_aum": "25.0亿元",
+                        "inception_date": "2020-01-01",
+                    }
+                ],
+            }
+        if url.endswith("/holds"):
+            return {
+                "code": 200,
+                "data": [
+                    {"stock_name": "A", "net_value_pct": "15.5", "quarter": "2025Q4"},
+                    {"stock_name": "B", "net_value_pct": "9.5", "quarter": "2025Q4"},
+                ],
+            }
+        if url.endswith("/industry"):
+            return {
+                "code": 200,
+                "data": [
+                    {"industry_category": "Technology", "pct": "35.0", "as_of_date": "2025-12-31"},
+                    {"industry_category": "Healthcare", "pct": "15.0", "as_of_date": "2025-12-31"},
+                ],
+            }
+        if url.endswith("/ann"):
+            return {
+                "code": 200,
+                "data": [
+                    {
+                        "announcement_title": "Dividend announcement",
+                        "announcement_date": "2026-01-03",
+                    }
+                ],
+            }
+        return {"code": 200, "data": []}
+
+    services = {
+        "market": BackendService("market", "http://market", "/api/market/functions"),
+        "news": BackendService("news", "http://news", "/api/news/functions"),
+        "portfolio": BackendService("portfolio", "http://portfolio", "/api/portfolio/functions"),
+    }
+    client = BackendFunctionClient(services=services, transport=transport)
+
+    payload = build_fund_input_from_backend_functions("000001", client=client, portfolio_year="2025")
+
+    assert payload.fund_info.name == "Demo Fund"
+    assert payload.fund_info.manager == "Manager A"
+    assert len(payload.nav_series) == 2
+    assert payload.top_holdings_weight == 0.25
+    assert payload.industry_exposure == {"Technology": 0.35, "Healthcare": 0.15}
+    assert len(payload.news_items) == 1
+    assert payload.operational_metrics.fund_size_billion == 2.5
+    assert payload.extra_context["data_source"] == "backend_function_registry"
+    assert payload.extra_context["normalized_fund_type"] == "mixed_fund"
+    assert "get_fund_hist" in payload.extra_context["available_backend_tools"]
+
+
+def test_build_fund_input_maps_bond_holdings_and_asset_allocation():
+    def transport(method, url, payload, timeout):
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_hold_bond", "path": "/bonds", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_detail_hold", "path": "/asset", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_analysis", "path": "/analysis", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_profit_probability", "path": "/profit", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {
+                "code": 200,
+                "data": [
+                    {"name": "get_public_fund_announcement", "path": "/ann", "method": "POST", "parameters": {}}
+                ],
+                "message": "success",
+            }
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2026-01-01", "unit_net_value": "1.00"},
+                    {"date": "2026-01-02", "unit_net_value": "1.01"},
+                ],
+            }
+        if url.endswith("/basic"):
+            return {"code": 200, "data": [{"fund_name": "Bond Fund", "fund_type": "index_fixed_income"}]}
+        if url.endswith("/bonds"):
+            return {
+                "code": 200,
+                "data": [
+                    {"bond_name": "Old Bond", "pct": "30.00", "quarter": "2025Q3"},
+                    {"bond_name": "20国开10", "pct": "21.28", "quarter": "2025Q4"},
+                    {"bond_name": "21国开03", "pct": "19.96", "quarter": "2025Q4"},
+                ],
+            }
+        if url.endswith("/asset"):
+            return {
+                "code": 200,
+                "data": [
+                    {"asset_type": "债券", "pct": "86.00%"},
+                    {"asset_type": "现金", "pct": "7.00%"},
+                    {"asset_type": "其他", "pct": "7.00%"},
+                ],
+            }
+        return {"code": 200, "data": []}
+
+    services = {
+        "market": BackendService("market", "http://market", "/api/market/functions"),
+        "news": BackendService("news", "http://news", "/api/news/functions"),
+        "portfolio": BackendService("portfolio", "http://portfolio", "/api/portfolio/functions"),
+    }
+    client = BackendFunctionClient(services=services, transport=transport)
+
+    payload = build_fund_input_from_backend_functions("003358", client=client, portfolio_year="2025")
+
+    assert payload.fund_info.category == "index_fixed_income"
+    assert [item["bond_name"] for item in payload.bond_holdings] == ["20国开10", "21国开03"]
+    assert payload.asset_allocation == {"债券": 0.86, "现金": 0.07, "其他": 0.07}
+    assert payload.extra_context["normalized_fund_type"] == "bond_index_fund"
+    assert payload.extra_context["bond_holdings_count"] == "2"
+    assert payload.extra_context["asset_allocation_count"] == "3"
+
+
+def test_build_fund_input_treats_small_holding_percentages_as_percent_units():
+    def transport(method, url, payload, timeout):
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_holds", "path": "/holds", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_analysis", "path": "/analysis", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_profit_probability", "path": "/profit", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {
+                "code": 200,
+                "data": [
+                    {"name": "get_public_fund_announcement", "path": "/ann", "method": "POST", "parameters": {}}
+                ],
+                "message": "success",
+            }
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2026-01-01", "unit_net_value": "1.00"},
+                    {"date": "2026-01-02", "unit_net_value": "1.04"},
+                ],
+            }
+        if url.endswith("/basic"):
+            return {"code": 200, "data": [{"fund_name": "Index Fund", "fund_type": "股票型-标准指数"}]}
+        if url.endswith("/holds"):
+            return {
+                "code": 200,
+                "data": [
+                    {"stock_name": "A", "net_value_pct": 18.33, "quarter": "2026年1季度股票投资明细"},
+                    {"stock_name": "B", "net_value_pct": 0.70, "quarter": "2026年1季度股票投资明细"},
+                    {"stock_name": "C", "net_value_pct": 16.14, "quarter": "2026年1季度股票投资明细"},
+                ],
+            }
+        return {"code": 200, "data": []}
+
+    services = {
+        "market": BackendService("market", "http://market", "/api/market/functions"),
+        "news": BackendService("news", "http://news", "/api/news/functions"),
+        "portfolio": BackendService("portfolio", "http://portfolio", "/api/portfolio/functions"),
+    }
+    client = BackendFunctionClient(services=services, transport=transport)
+
+    payload = build_fund_input_from_backend_functions("161725", client=client, top_holdings_n=2)
+
+    assert round(payload.top_holdings_weight, 4) == 0.3447
+    assert '"stock_name": "A"' in payload.extra_context["top_holdings"]
+    assert '"stock_name": "C"' in payload.extra_context["top_holdings"]
+    assert '"stock_name": "B"' not in payload.extra_context["top_holdings"]
+
+
+def test_build_fund_input_applies_start_date_even_without_end_date():
+    def transport(method, url, payload, timeout):
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_holds", "path": "/holds", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_analysis", "path": "/analysis", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_profit_probability", "path": "/profit", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {
+                "code": 200,
+                "data": [
+                    {"name": "get_public_fund_announcement", "path": "/ann", "method": "POST", "parameters": {}}
+                ],
+                "message": "success",
+            }
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2025-01-01", "unit_net_value": "1.00"},
+                    {"date": "2026-01-01", "unit_net_value": "1.10"},
+                    {"date": "2026-01-02", "unit_net_value": "1.21"},
+                ],
+            }
+        if url.endswith("/basic"):
+            return {"code": 200, "data": [{"fund_name": "Demo Fund", "fund_type": "混合型-偏股"}]}
+        return {"code": 200, "data": []}
+
+    services = {
+        "market": BackendService("market", "http://market", "/api/market/functions"),
+        "news": BackendService("news", "http://news", "/api/news/functions"),
+        "portfolio": BackendService("portfolio", "http://portfolio", "/api/portfolio/functions"),
+    }
+    client = BackendFunctionClient(services=services, transport=transport)
+
+    payload = build_fund_input_from_backend_functions("000001", client=client, start_date="2026-01-01")
+
+    assert [point.date for point in payload.nav_series] == ["2026-01-01", "2026-01-02"]
+    assert payload.analysis_window.start_date == "2026-01-01"
+
+
+def test_build_fund_input_does_not_truncate_explicit_start_date_window():
+    def transport(method, url, payload, timeout):
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_holds", "path": "/holds", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_analysis", "path": "/analysis", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_profit_probability", "path": "/profit", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {
+                "code": 200,
+                "data": [
+                    {"name": "get_public_fund_announcement", "path": "/ann", "method": "POST", "parameters": {}}
+                ],
+                "message": "success",
+            }
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2025-01-01", "unit_net_value": "1.00"},
+                    {"date": "2025-01-02", "unit_net_value": "1.01"},
+                    {"date": "2025-01-03", "unit_net_value": "1.02"},
+                ],
+            }
+        if url.endswith("/basic"):
+            return {"code": 200, "data": [{"fund_name": "Demo Fund", "fund_type": "混合型-偏股"}]}
+        return {"code": 200, "data": []}
+
+    services = {
+        "market": BackendService("market", "http://market", "/api/market/functions"),
+        "news": BackendService("news", "http://news", "/api/news/functions"),
+        "portfolio": BackendService("portfolio", "http://portfolio", "/api/portfolio/functions"),
+    }
+    client = BackendFunctionClient(services=services, transport=transport)
+
+    payload = build_fund_input_from_backend_functions(
+        "000001",
+        client=client,
+        start_date="2025-01-01",
+        max_nav_points=2,
+    )
+
+    assert [point.date for point in payload.nav_series] == [
+        "2025-01-01",
+        "2025-01-02",
+        "2025-01-03",
+    ]
+
+
+def test_build_fund_input_uses_latest_news_announcements():
+    def transport(method, url, payload, timeout):
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_holds", "path": "/holds", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_analysis", "path": "/analysis", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_profit_probability", "path": "/profit", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {
+                "code": 200,
+                "data": [
+                    {"name": "get_public_fund_announcement", "path": "/ann", "method": "POST", "parameters": {}}
+                ],
+                "message": "success",
+            }
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2026-01-01", "unit_net_value": "1.00"},
+                    {"date": "2026-01-02", "unit_net_value": "1.04"},
+                ],
+            }
+        if url.endswith("/basic"):
+            return {"code": 200, "data": [{"fund_name": "Demo Fund", "fund_type": "混合型-偏股"}]}
+        if url.endswith("/ann"):
+            return {
+                "code": 200,
+                "data": [
+                    {"announcement_title": "Old dividend", "announcement_date": "Thu, 11 Jan 2007 00:00:00 GMT"},
+                    {"announcement_title": "Newest dividend", "announcement_date": "Thu, 18 Sep 2025 00:00:00 GMT"},
+                    {"announcement_title": "Recent dividend", "announcement_date": "2023-01-10"},
+                    {"announcement_title": "Undated dividend"},
+                ],
+            }
+        return {"code": 200, "data": []}
+
+    services = {
+        "market": BackendService("market", "http://market", "/api/market/functions"),
+        "news": BackendService("news", "http://news", "/api/news/functions"),
+        "portfolio": BackendService("portfolio", "http://portfolio", "/api/portfolio/functions"),
+    }
+    client = BackendFunctionClient(services=services, transport=transport)
+
+    payload = build_fund_input_from_backend_functions(
+        "000001",
+        client=client,
+        max_news_items=2,
+    )
+
+    assert [item.title for item in payload.news_items] == ["Newest dividend", "Recent dividend"]
+    assert [item.published_at for item in payload.news_items] == ["2025-09-18", "2023-01-10"]
+
+
+def test_optional_bond_timeout_is_not_retried_across_years():
+    calls = []
+
+    def transport(method, url, payload, timeout):
+        calls.append((method, url, payload, timeout))
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_hold_bond", "path": "/bonds", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {
+                "code": 200,
+                "data": [
+                    {"name": "get_public_fund_announcement", "path": "/ann", "method": "POST", "parameters": {}}
+                ],
+                "message": "success",
+            }
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2026-01-01", "unit_net_value": "1.00"},
+                    {"date": "2026-01-02", "unit_net_value": "1.01"},
+                ],
+            }
+        if url.endswith("/basic"):
+            return {"code": 200, "data": [{"fund_name": "Mixed Fund", "fund_type": "混合型-偏股"}]}
+        if url.endswith("/bonds"):
+            raise TimeoutError("timed out")
+        return {"code": 200, "data": []}
+
+    services = {
+        "market": BackendService("market", "http://market", "/api/market/functions"),
+        "news": BackendService("news", "http://news", "/api/news/functions"),
+        "portfolio": BackendService("portfolio", "http://portfolio", "/api/portfolio/functions"),
+    }
+    client = BackendFunctionClient(services=services, transport=transport, timeout_seconds=120)
+
+    with patch.dict("os.environ", {"BACKEND_OPTIONAL_FUNCTION_TIMEOUT_SECONDS": "7"}):
+        payload = build_fund_input_from_backend_functions("000001", client=client)
+
+    bond_calls = [call for call in calls if call[1].endswith("/bonds")]
+    assert len(bond_calls) == 1
+    assert bond_calls[0][3] == 7
+    assert payload.bond_holdings == []
+    assert "get_fund_portfolio_hold_bond" in payload.extra_context["errored_backend_tools"]
+
+
+class BackendFunctionClientRegressionTest(unittest.TestCase):
+    def test_small_holding_percentages_are_run_by_unittest(self):
+        test_build_fund_input_treats_small_holding_percentages_as_percent_units()
+
+    def test_bond_holdings_and_asset_allocation_are_run_by_unittest(self):
+        test_build_fund_input_maps_bond_holdings_and_asset_allocation()
+
+    def test_start_date_filter_is_run_by_unittest(self):
+        test_build_fund_input_applies_start_date_even_without_end_date()
+
+    def test_explicit_start_date_window_is_not_truncated(self):
+        test_build_fund_input_does_not_truncate_explicit_start_date_window()
+
+    def test_latest_news_announcements_are_used(self):
+        test_build_fund_input_uses_latest_news_announcements()
+
+    def test_optional_bond_timeout_is_not_retried_across_years(self):
+        test_optional_bond_timeout_is_not_retried_across_years()
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,41 @@
+{
+  "request_id": "golden-sparse-payload-001",
+  "fund_info": {
+    "code": "999999",
+    "name": "示例低信息样例基金",
+    "asset_type": "fund_open",
+    "category": "mixed",
+    "manager": "示例经理"
+  },
+  "nav_series": [
+    {
+      "date": "2026-01-01",
+      "nav": 1.0
+    },
+    {
+      "date": "2026-01-02",
+      "nav": 0.99
+    },
+    {
+      "date": "2026-01-03",
+      "nav": 1.01
+    },
+    {
+      "date": "2026-01-04",
+      "nav": 1.0
+    },
+    {
+      "date": "2026-01-05",
+      "nav": 0.98
+    }
+  ],
+  "industry_exposure": {},
+  "top_holdings_weight": null,
+  "news_summary": [],
+  "news_items": [],
+  "fund_tags": [],
+  "operational_metrics": {},
+  "extra_context": {
+    "client_risk_profile": "balanced"
+  }
+}

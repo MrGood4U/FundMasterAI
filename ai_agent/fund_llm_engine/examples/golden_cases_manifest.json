@@ -1,0 +1,232 @@
+{
+  "manifest_version": 1,
+  "cases": [
+    {
+      "case_id": "mock_baseline_full_context",
+      "tier": "regression_case",
+      "description": "Full-context baseline payload used to detect structural regressions in the main demo flow.",
+      "input_path": "examples/mock_input.json",
+      "notes_path": null,
+      "expectations": {
+        "minimum_evaluation_status": "pass",
+        "required_agents": [
+          "PerformanceAgent",
+          "ExposureAgent",
+          "BondExposureAgent",
+          "RiskAgent",
+          "SentimentAgent",
+          "SectorAgent"
+        ],
+        "expected_metadata": {
+          "has_benchmark": "true",
+          "has_news_signal": "true",
+          "has_sector_context": "true"
+        },
+        "expected_missing_fields": []
+      }
+    },
+    {
+      "case_id": "real_005827_active_concentrated",
+      "tier": "golden_real",
+      "description": "Real active-equity case with concentrated holdings and manually reviewed public-data notes.",
+      "input_path": "examples/real_input_005827.json",
+      "notes_path": "docs/real_sample_005827_notes.md",
+      "expectations": {
+        "minimum_evaluation_status": "review",
+        "required_agents": [
+          "PerformanceAgent",
+          "ExposureAgent",
+          "BondExposureAgent",
+          "RiskAgent",
+          "SentimentAgent",
+          "SectorAgent"
+        ],
+        "expected_metadata": {
+          "has_benchmark": "false",
+          "has_news_signal": "false",
+          "has_sector_context": "true"
+        },
+        "expected_missing_fields": []
+      }
+    },
+    {
+      "case_id": "real_008163_dividend_lowvol",
+      "tier": "golden_real",
+      "description": "Real ETF-feeder case with dividend/low-vol style and lower direct-stock concentration.",
+      "input_path": "examples/real_input_008163.json",
+      "notes_path": "docs/real_sample_008163_notes.md",
+      "expectations": {
+        "minimum_evaluation_status": "review",
+        "required_agents": [
+          "PerformanceAgent",
+          "ExposureAgent",
+          "BondExposureAgent",
+          "RiskAgent",
+          "SentimentAgent",
+          "SectorAgent"
+        ],
+        "expected_metadata": {
+          "has_benchmark": "false",
+          "has_news_signal": "false",
+          "has_sector_context": "true"
+        },
+        "expected_missing_fields": []
+      }
+    },
+    {
+      "case_id": "real_161725_baijiu_single_sector",
+      "tier": "golden_real",
+      "description": "Real baijiu index fund case with very high single-sector and top-holdings concentration.",
+      "input_path": "examples/real_input_161725.json",
+      "notes_path": "docs/real_sample_161725_notes.md",
+      "expectations": {
+        "minimum_evaluation_status": "review",
+        "required_agents": [
+          "PerformanceAgent",
+          "ExposureAgent",
+          "BondExposureAgent",
+          "RiskAgent",
+          "SentimentAgent",
+          "SectorAgent"
+        ],
+        "expected_metadata": {
+          "has_benchmark": "false",
+          "has_news_signal": "false",
+          "has_sector_context": "true"
+        },
+        "expected_missing_fields": [
+          "benchmark_nav_series"
+        ],
+        "expected_text_fragments": [
+          "Top holdings weight is 84.79%.",
+          "Top sector is 白酒 at 94.34%.",
+          "Single-sector exposure is relatively concentrated.",
+          "No recent news signal was provided.",
+          "No benchmark series was provided, so relative performance checks remain limited."
+        ]
+      }
+    },
+    {
+      "case_id": "real_003358_fixed_income_duration",
+      "tier": "golden_real",
+      "description": "Real fixed-income index fund case with low NAV volatility, high bond-position concentration, and no equity industry exposure.",
+      "input_path": "examples/real_input_003358.json",
+      "notes_path": "docs/real_sample_003358_notes.md",
+      "expectations": {
+        "minimum_evaluation_status": "review",
+        "required_agents": [
+          "PerformanceAgent",
+          "ExposureAgent",
+          "BondExposureAgent",
+          "RiskAgent",
+          "SentimentAgent",
+          "SectorAgent"
+        ],
+        "expected_metadata": {
+          "has_benchmark": "false",
+          "has_news_signal": "false",
+          "has_sector_context": "false",
+          "has_bond_exposure": "true"
+        },
+        "expected_missing_fields": [
+          "asset_allocation",
+          "benchmark_nav_series"
+        ],
+        "expected_text_fragments": [
+          "Top bond holding weight is 21.28%.",
+          "Top three bond holdings are 56.28% of NAV.",
+          "Disclosed bond holdings sum to 83.64% of NAV.",
+          "Asset allocation is missing, so bond/cash/other exposure cannot be fully verified.",
+          "Duration and credit-rating fields were not provided",
+          "No recent news signal was provided.",
+          "No benchmark series was provided, so relative performance checks remain limited."
+        ]
+      }
+    },
+    {
+      "case_id": "regression_missing_exposure",
+      "tier": "regression_case",
+      "description": "Synthetic edge case used to verify that missing exposure fields degrade gracefully without breaking other views.",
+      "input_path": "examples/golden_input_missing_exposure.json",
+      "notes_path": null,
+      "expectations": {
+        "minimum_evaluation_status": "review",
+        "required_agents": [
+          "PerformanceAgent",
+          "ExposureAgent",
+          "BondExposureAgent",
+          "RiskAgent",
+          "SentimentAgent",
+          "SectorAgent"
+        ],
+        "expected_metadata": {
+          "has_benchmark": "true",
+          "has_news_signal": "true",
+          "has_sector_context": "false"
+        },
+        "expected_missing_fields": [
+          "industry_exposure",
+          "top_holdings_weight"
+        ]
+      }
+    },
+    {
+      "case_id": "regression_sparse_payload",
+      "tier": "regression_case",
+      "description": "Low-information payload used to verify downgrade messaging and baseline robustness under missing context.",
+      "input_path": "examples/golden_input_sparse_payload.json",
+      "notes_path": null,
+      "expectations": {
+        "minimum_evaluation_status": "review",
+        "required_agents": [
+          "PerformanceAgent",
+          "ExposureAgent",
+          "BondExposureAgent",
+          "RiskAgent",
+          "SentimentAgent",
+          "SectorAgent"
+        ],
+        "expected_metadata": {
+          "has_benchmark": "false",
+          "has_news_signal": "false",
+          "has_sector_context": "false"
+        },
+        "expected_missing_fields": [
+          "industry_exposure",
+          "top_holdings_weight"
+        ]
+      }
+    },
+    {
+      "case_id": "regression_conflicting_signals",
+      "tier": "regression_case",
+      "description": "Synthetic case where positive short-term performance conflicts with negative news flow and concentrated technology exposure.",
+      "input_path": "examples/golden_input_conflicting_signals.json",
+      "notes_path": null,
+      "expectations": {
+        "minimum_evaluation_status": "review",
+        "required_agents": [
+          "PerformanceAgent",
+          "ExposureAgent",
+          "BondExposureAgent",
+          "RiskAgent",
+          "SentimentAgent",
+          "SectorAgent"
+        ],
+        "expected_metadata": {
+          "has_benchmark": "true",
+          "has_news_signal": "true",
+          "has_sector_context": "true"
+        },
+        "expected_missing_fields": [],
+        "expected_text_fragments": [
+          "Sample excess return versus benchmark",
+          "Recent news flow leans negative.",
+          "Recent headlines include potential event-risk language.",
+          "Current concentration may feel aggressive for a conservative risk profile.",
+          "Current sector tilt may feel aggressive for a conservative profile."
+        ]
+      }
+    }
+  ]
+}

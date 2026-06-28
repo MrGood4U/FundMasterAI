@@ -74,63 +74,121 @@
         <main class="content">
           <header class="page-head">
             <div>
-              <h2 class="page-head__title">AI Strategy Analysis</h2>
-              <p class="page-head__sub">Neural-Mean Reversion v4.2 · live execution telemetry</p>
+              <h2 class="page-head__title">AI Fund Analysis</h2>
+              <p class="page-head__sub">Backend function registry · multi-agent fund reasoning</p>
             </div>
-            <span class="chip chip--live">Active Algorithm</span>
+            <span class="chip chip--live" data-analysis-status>Ready</span>
           </header>
-          <section class="glass-panel ai-hero">
-            <div class="ai-hero__grid">
-              <div>
-                <p class="muted">Predictive Alpha Curve</p>
-                <p class="ai-alpha">+14.82%</p>
-                <p class="muted sm">Alpha vs benchmark</p>
-              </div>
+	          <section class="glass-panel ai-hero">
+	            <div class="ai-hero__grid">
+              <form class="ai-form" data-analysis-form>
+                <label>
+                  <span>Fund code</span>
+                  <input data-fund-code value="000001" autocomplete="off" />
+                </label>
+                <label>
+                  <span>Start date</span>
+                  <input data-start-date type="date" value="2025-01-01" />
+                </label>
+                <label>
+                  <span>Risk profile</span>
+                  <select data-risk-profile>
+                    <option value="balanced">Balanced</option>
+                    <option value="conservative">Conservative</option>
+                    <option value="aggressive">Aggressive</option>
+                  </select>
+                </label>
+                <label class="ai-toggle">
+                  <input data-real-llm type="checkbox" />
+                  <span>Use real LLM</span>
+                </label>
+                <label>
+                  <span>LLM model</span>
+                  <select data-llm-model disabled>
+                    <option value="">Loading models...</option>
+                  </select>
+                </label>
+                <button class="ai-submit" type="submit">Analyze</button>
+              </form>
               <div class="ai-dials">
-                <div><span>Win rate</span><strong>68.4%</strong></div>
-                <div><span>Sharpe</span><strong>2.84</strong></div>
-                <div><span>Max drawdown</span><strong class="neg">-4.1%</strong></div>
-                <div><span>Volatility</span><strong>12.2%</strong></div>
+                <div><span>Rating</span><strong data-overall-rating>--</strong></div>
+                <div><span>Score</span><strong data-overall-score>--</strong></div>
+                <div><span>NAV points</span><strong data-nav-count>--</strong></div>
+                <div><span>LLM mode</span><strong data-llm-mode>--</strong></div>
+                <div><span>Model</span><strong data-llm-model-used>--</strong></div>
               </div>
             </div>
-            <div class="ai-confbox"><p>Current Confidence</p><p class="ai-confbox__n">85%</p><span>High conviction</span></div>
-          </section>
-          <div class="two-col">
+            <div class="ai-confbox">
+              <p>Current Fund</p>
+              <p class="ai-confbox__n" data-fund-name>Waiting</p>
+	              <span data-fund-window>Run analysis to load backend data.</span>
+	            </div>
+	          </section>
+	          <section class="glass-panel ai-evidence">
+	            <div class="section-head">
+	              <h3 class="section-head__title section-head__title--compact">Analysis Evidence</h3>
+	              <span class="muted sm" data-evidence-count>idle</span>
+	            </div>
+	            <ol class="analysis-trace" data-analysis-trace>
+	              <li>
+	                <div>
+	                  <span class="trace-status trace-status--idle">Waiting</span>
+	                  <strong>Ready to collect evidence</strong>
+	                  <p>Run an analysis to show backend data collection, metric calculation, specialist checks, and final aggregation.</p>
+	                </div>
+	              </li>
+	            </ol>
+	            <details class="technical-evidence">
+	              <summary>Technical evidence</summary>
+	              <ul data-technical-evidence>
+	                <li>No backend or agent trace has been recorded yet.</li>
+	              </ul>
+	            </details>
+	          </section>
+	          <div class="two-col">
             <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">AI Execution Logic</h3>
-              <ul class="ai-steps">
-                <li><strong>Pattern Synthesis</strong><span class="chip chip--live">Completed</span><p class="muted sm">Multi-timeframe feature fusion.</p></li>
-                <li><strong>Correlated Hedging</strong><span class="chip chip--live">Optimized</span><p class="muted sm">Dynamic beta neutralization.</p></li>
-                <li><strong>Risk Parity Adjustment</strong><span class="chip chip--warn">Watch</span><p class="muted sm">Liquidity-aware sizing.</p></li>
-              </ul>
+              <h3 class="section-head__title section-head__title--compact">Backend Data Coverage</h3>
+              <div class="source-summary" data-source-summary>
+                <strong>No backend data loaded</strong>
+                <span>Start an analysis request.</span>
+              </div>
+              <div class="coverage-grid">
+                <div><span>Missing fields</span><strong data-missing-count>--</strong></div>
+                <div><span>Agent health</span><strong data-agent-health>--</strong></div>
+                <div><span>Successful tools</span><strong data-success-tools>--</strong></div>
+                <div><span>Errored tools</span><strong data-error-tools>--</strong></div>
+              </div>
             </section>
             <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Liquidity Warning</h3>
-              <p class="muted">Tape velocity elevated on small-cap sleeve — reduce participation rate by 15% until spread normalizes.</p>
+              <h3 class="section-head__title section-head__title--compact">Chief Summary</h3>
+              <p class="muted" data-summary>Run analysis to generate a grounded multi-agent summary.</p>
+              <div class="rating-explanation">
+                <h4>Why This Rating</h4>
+                <p data-score-explanation>Run analysis to see how specialist scores shaped the final rating.</p>
+              </div>
+            </section>
+          </div>
+          <div class="three-col">
+            <section class="glass-panel">
+              <h3 class="section-head__title section-head__title--compact">Key Thesis</h3>
+              <ul class="ai-steps" data-key-thesis><li><strong>No output yet.</strong></li></ul>
+            </section>
+            <section class="glass-panel">
+              <h3 class="section-head__title section-head__title--compact">Main Risks</h3>
+              <ul class="ai-steps" data-main-risks><li><strong>No output yet.</strong></li></ul>
+            </section>
+            <section class="glass-panel">
+              <h3 class="section-head__title section-head__title--compact">Action Plan</h3>
+              <ul class="ai-steps" data-action-plan><li><strong>No output yet.</strong></li></ul>
             </section>
           </div>
           <section class="glass-panel">
-            <h3 class="section-head__title section-head__title--compact">Backtest Matrix</h3>
+            <h3 class="section-head__title section-head__title--compact">Agent Outputs</h3>
             <div class="data-table-wrap">
               <table class="data-table">
-                <thead><tr><th>Period</th><th>Scenario</th><th>Model</th><th>Net</th></tr></thead>
-                <tbody>
-                  <tr><td>DEC 23</td><td>Bearish Macro Spike</td><td>Omega</td><td class="pos">+4.2%</td></tr>
-                  <tr><td>NOV 15</td><td>Sustained Bull Run</td><td>Alpha</td><td class="pos">+11.8%</td></tr>
-                  <tr><td>OCT 02</td><td>Liquidity Flash Crash</td><td>Zeta</td><td class="neg">-1.2%</td></tr>
-                  <tr><td>SEP 18</td><td>Interest Rate Shock</td><td>Omega</td><td class="pos">+2.1%</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-          <section class="glass-panel">
-            <div class="section-head"><h3 class="section-head__title">Recent Algorithmic Trade Log</h3><div><span class="chip chip--live">Live Engine</span><span class="muted sm">14ms latency</span></div></div>
-            <div class="data-table-wrap">
-              <table class="data-table">
-                <thead><tr><th>Pair</th><th>Action</th><th>Price</th><th>AI Conf.</th><th>Status</th></tr></thead>
-                <tbody>
-                  <tr><td>BTC/USDT</td><td>LONG_MARKET</td><td>$64,281.42</td><td>92.4%</td><td>EXECUTED</td></tr>
-                  <tr><td>ETH/USDT</td><td>LONG_LIMIT</td><td>$3,482.11</td><td>88.1%</td><td>EXECUTED</td></tr>
+                <thead><tr><th>Agent</th><th>Stance</th><th>Score</th><th>Confidence</th><th>Status</th></tr></thead>
+                <tbody data-agent-rows>
+                  <tr><td colspan="5">No agent output yet.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -140,5 +198,6 @@
         <button type="button" class="fab" aria-label="快捷操作"><span class="fab__plus" aria-hidden="true">+</span></button>
       </div>
     </div>
+    <script src="js/ai-insights.js"></script>
   </body>
 </html>
