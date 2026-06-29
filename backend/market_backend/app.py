@@ -3,6 +3,15 @@
 from flask import Flask, jsonify
 from flask_openapi3 import OpenAPI, Info
 from config import Config
+from daos.cache_dao import CacheDao
+from utils.cache_scheduler import CacheScheduler
+import atexit
+import os
+
+
+# module-level singleton so the scheduler lifecycle is tied to the process
+_scheduler: CacheScheduler | None = None
+
 
 def create_app():
     info = Info(title="market backend API document", version="1.0.0")
@@ -13,7 +22,18 @@ def create_app():
     # app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Register blueprints here
+    # ---- cache layer ---------------------------------------------------
+    cache_dao = CacheDao.from_config()
+    app.config["cache_dao"] = cache_dao
+
+    # Skip scheduler during test runs to avoid polluting test data.
+    if not os.environ.get("MARKET_TESTING"):
+        global _scheduler
+        _scheduler = CacheScheduler(cache_dao)
+        _scheduler.start()
+        atexit.register(_scheduler.stop)
+
+    # ---- blueprints ----------------------------------------------------
     from views.public_fund_view import public_fund_bp
     from views.stock_view import stock_bp
     from views.crypto_view import crypto_bp

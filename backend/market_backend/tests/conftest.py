@@ -1,8 +1,25 @@
+import os
 import pytest
 import pandas as pd
 from unittest.mock import MagicMock, patch
 
+# Prevent the cache scheduler from starting during test runs.
+# Must be set BEFORE importing app.
+os.environ["MARKET_TESTING"] = "1"
+
 from app import create_app
+
+
+@pytest.fixture(autouse=True)
+def _disable_cache(monkeypatch):
+    """Make CacheDao always return None (cache miss) during tests so
+    mocks on the API layer are exercised."""
+    from daos.cache_dao import CacheDao
+    monkeypatch.setattr(CacheDao, "get", lambda *a, **kw: None)
+    monkeypatch.setattr(CacheDao, "get_df", lambda *a, **kw: None)
+    monkeypatch.setattr(CacheDao, "set", lambda *a, **kw: False)
+    monkeypatch.setattr(CacheDao, "set_df", lambda *a, **kw: False)
+    monkeypatch.setattr(CacheDao, "exists", lambda *a, **kw: False)
 
 
 @pytest.fixture
@@ -223,9 +240,9 @@ def sample_portfolio_industry_allocation_raw_df():
     """Simulates raw ak.fund_portfolio_industry_allocation_em() return.
     Contains two '截止日期' groups; the API filters to the first date only."""
     return pd.DataFrame([
-        {"截止日期": "2025Q4", "序号": 1, "行业类别": "制造业", "占净值比例": "45.20", "市值": "38.7亿"},
-        {"截止日期": "2025Q4", "序号": 2, "行业类别": "金融业", "占净值比例": "20.10", "市值": "17.2亿"},
-        {"截止日期": "2025Q3", "序号": 1, "行业类别": "制造业", "占净值比例": "42.80", "市值": "36.5亿"},
+        {"截止时间": "2025Q4", "序号": 1, "行业类别": "制造业", "占净值比例": "45.20", "市值": "38.7亿"},
+        {"截止时间": "2025Q4", "序号": 2, "行业类别": "金融业", "占净值比例": "20.10", "市值": "17.2亿"},
+        {"截止时间": "2025Q3", "序号": 1, "行业类别": "制造业", "占净值比例": "42.80", "市值": "36.5亿"},
     ])
 
 
@@ -249,11 +266,11 @@ def sample_portfolio_industry_allocation_mapped_df():
 def sample_portfolio_hold_stock_raw_df():
     """Simulates raw ak.fund_portfolio_hold_em() return for stocks."""
     return pd.DataFrame([
-        {"截止日期": "2025Q4", "序号": 1, "股票代码": "600519", "股票名称": "贵州茅台",
+        {"截止时间": "2025Q4", "序号": 1, "股票代码": "600519", "股票名称": "贵州茅台",
          "占净值比例": "9.85", "持股数": "120.5万", "持仓市值": "21.6亿", "季度": "2025Q4"},
-        {"截止日期": "2025Q4", "序号": 2, "股票代码": "000858", "股票名称": "五粮液",
+        {"截止时间": "2025Q4", "序号": 2, "股票代码": "000858", "股票名称": "五粮液",
          "占净值比例": "7.52", "持股数": "200.0万", "持仓市值": "16.5亿", "季度": "2025Q4"},
-        {"截止日期": "2025Q3", "序号": 1, "股票代码": "600519", "股票名称": "贵州茅台",
+        {"截止时间": "2025Q3", "序号": 1, "股票代码": "600519", "股票名称": "贵州茅台",
          "占净值比例": "9.20", "持股数": "118.0万", "持仓市值": "20.1亿", "季度": "2025Q3"},
     ])
 
@@ -279,11 +296,11 @@ def sample_portfolio_hold_stock_mapped_df():
 def sample_portfolio_hold_bond_raw_df():
     """Simulates raw ak.fund_portfolio_bond_hold_em() return."""
     return pd.DataFrame([
-        {"截止日期": "2025Q4", "序号": 1, "债券代码": "200210", "债券名称": "20国开10",
+        {"截止时间": "2025Q4", "序号": 1, "债券代码": "200210", "债券名称": "20国开10",
          "占净值比例": "5.20", "持仓市值": "4.45亿", "季度": "2025Q4"},
-        {"截止日期": "2025Q4", "序号": 2, "债券代码": "210203", "债券名称": "21国开03",
+        {"截止时间": "2025Q4", "序号": 2, "债券代码": "210203", "债券名称": "21国开03",
          "占净值比例": "3.80", "持仓市值": "3.25亿", "季度": "2025Q4"},
-        {"截止日期": "2025Q3", "序号": 1, "债券代码": "200210", "债券名称": "20国开10",
+        {"截止时间": "2025Q3", "序号": 1, "债券代码": "200210", "债券名称": "20国开10",
          "占净值比例": "5.50", "持仓市值": "4.70亿", "季度": "2025Q3"},
     ])
 

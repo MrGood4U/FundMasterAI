@@ -1,4 +1,6 @@
-from datetime import datetime
+import logging
+from datetime import datetime, timedelta
+
 import akshare as ak
 import pandas as pd
 from flask import current_app
@@ -99,9 +101,26 @@ class AksharePublicFund:
         if symbol not in tonghuashun_symbol_map:
             symbol = "all"
         symbol = tonghuashun_symbol_map[symbol]
-        today = datetime.now().strftime("%Y%m%d")
-        df = ak.fund_etf_category_ths(symbol=symbol, date=today)
-        return apply_mapping(df, FUND_CATEGORY_THS_MAP)
+
+        # Try progressively earlier dates to handle non-trading days
+        # (weekends / holidays) where the upstream API returns empty data.
+        _log = logging.getLogger(__name__)
+        for offset in range(7):
+            date_str = (datetime.now() - timedelta(days=offset)).strftime("%Y%m%d")
+            try:
+                df = ak.fund_etf_category_ths(symbol=symbol, date=date_str)
+                if offset > 0:
+                    _log.info(
+                        "tonghuashun_real_time: fell back to %s (offset=%d)",
+                        date_str, offset,
+                    )
+                return apply_mapping(df, FUND_CATEGORY_THS_MAP)
+            except Exception:
+                _log.warning(
+                    "tonghuashun_real_time: %s failed, retrying...", date_str
+                )
+        _log.error("tonghuashun_real_time: all 7 attempts failed")
+        return None
 
     def sina_real_time(self, symbol: str):
         sina_symbol_map = {

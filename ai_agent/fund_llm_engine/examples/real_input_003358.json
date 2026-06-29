@@ -1,0 +1,193 @@
+{
+  "request_id": "real-003358-20260424",
+  "fund_info": {
+    "code": "003358",
+    "name": "易方达中债7-10年期国开行债券指数A",
+    "asset_type": "fund_open",
+    "category": "index_fixed_income",
+    "manager": "杨真"
+  },
+  "nav_series": [
+    {
+      "date": "2026-03-13",
+      "nav": 1.3251
+    },
+    {
+      "date": "2026-03-16",
+      "nav": 1.3244
+    },
+    {
+      "date": "2026-03-17",
+      "nav": 1.3252
+    },
+    {
+      "date": "2026-03-18",
+      "nav": 1.3269
+    },
+    {
+      "date": "2026-03-19",
+      "nav": 1.3269
+    },
+    {
+      "date": "2026-03-20",
+      "nav": 1.3272
+    },
+    {
+      "date": "2026-03-23",
+      "nav": 1.3268
+    },
+    {
+      "date": "2026-03-24",
+      "nav": 1.3270
+    },
+    {
+      "date": "2026-03-25",
+      "nav": 1.3270
+    },
+    {
+      "date": "2026-03-26",
+      "nav": 1.3271
+    },
+    {
+      "date": "2026-03-27",
+      "nav": 1.3273
+    },
+    {
+      "date": "2026-03-30",
+      "nav": 1.3292
+    },
+    {
+      "date": "2026-03-31",
+      "nav": 1.3290
+    },
+    {
+      "date": "2026-04-01",
+      "nav": 1.3283
+    },
+    {
+      "date": "2026-04-02",
+      "nav": 1.3286
+    },
+    {
+      "date": "2026-04-03",
+      "nav": 1.3303
+    },
+    {
+      "date": "2026-04-07",
+      "nav": 1.3321
+    },
+    {
+      "date": "2026-04-08",
+      "nav": 1.3327
+    },
+    {
+      "date": "2026-04-09",
+      "nav": 1.3322
+    },
+    {
+      "date": "2026-04-10",
+      "nav": 1.3329
+    },
+    {
+      "date": "2026-04-13",
+      "nav": 1.3345
+    },
+    {
+      "date": "2026-04-14",
+      "nav": 1.3351
+    },
+    {
+      "date": "2026-04-15",
+      "nav": 1.3358
+    },
+    {
+      "date": "2026-04-16",
+      "nav": 1.3362
+    },
+    {
+      "date": "2026-04-17",
+      "nav": 1.3384
+    },
+    {
+      "date": "2026-04-20",
+      "nav": 1.3388
+    },
+    {
+      "date": "2026-04-21",
+      "nav": 1.3389
+    },
+    {
+      "date": "2026-04-22",
+      "nav": 1.3392
+    },
+    {
+      "date": "2026-04-23",
+      "nav": 1.3376
+    },
+    {
+      "date": "2026-04-24",
+      "nav": 1.3360
+    }
+  ],
+  "industry_exposure": {},
+  "top_holdings_weight": 0.8364,
+  "bond_holdings": [
+    {
+      "sequence": 1,
+      "pct": "21.28%",
+      "quarter": "2025Q4"
+    },
+    {
+      "sequence": 2,
+      "pct": "19.96%",
+      "quarter": "2025Q4"
+    },
+    {
+      "sequence": 3,
+      "pct": "15.04%",
+      "quarter": "2025Q4"
+    },
+    {
+      "sequence": 4,
+      "pct": "13.81%",
+      "quarter": "2025Q4"
+    },
+    {
+      "sequence": 5,
+      "pct": "13.55%",
+      "quarter": "2025Q4"
+    }
+  ],
+  "asset_allocation": {},
+  "news_summary": [],
+  "analysis_window": {
+    "start_date": "2026-03-13",
+    "end_date": "2026-04-24",
+    "as_of_date": "2026-04-24"
+  },
+  "benchmark": {
+    "code": "中债-7-10年期国开行债券指数",
+    "name": "中债-7-10年期国开行债券指数收益率",
+    "asset_type": "bond_index"
+  },
+  "fund_tags": [
+    "index_fund",
+    "fixed_income",
+    "policy_bank_bond",
+    "bond_duration_7_10y"
+  ],
+  "operational_metrics": {
+    "fund_size_billion": 26.98,
+    "inception_date": "2016-09-27",
+    "manager_tenure_years": 5.41
+  },
+  "extra_context": {
+    "client_risk_profile": "income_oriented",
+    "tracking_target": "中债7-10年国开行债券全价(总值)指数",
+    "official_benchmark": "中债-7-10年期国开行债券指数收益率",
+    "investment_scope_summary": "The fund invests in China Development Bank bonds and related fixed-income instruments, and does not directly invest in secondary-market equities, warrants, IPO subscriptions, convertible bonds, or share placements according to the public F10 overview.",
+    "top_holdings_weight_method": "Top five disclosed bond positions at 2025-12-31 sum to 83.64% of NAV.",
+    "industry_exposure_method": "No equity industry exposure is supplied because this is a fixed-income index fund; the current schema does not yet have a dedicated bond-sector or duration exposure field.",
+    "data_snapshot_date": "2026-04-24"
+  }
+}

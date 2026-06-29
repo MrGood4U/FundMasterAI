@@ -67,6 +67,16 @@ STOCK_SPOT_EM_MAP = {
     "年初至今涨跌幅": "change_ytd",
 }
 
+# ak.stock_zh_a_spot()  -- 新浪 A 股实时行情
+STOCK_SPOT_SINA_MAP = {
+    **_CODE_NAME,
+    **_PRICE_FIELDS,
+    "买入": "bid_price",
+    "卖出": "ask_price",
+    "今开": "open",
+    "时间戳": "timestamp",
+}
+
 # ak.stock_zh_a_hist()  -- 东方财富 A 股历史行情
 STOCK_HIST_EM_MAP = {
     "日期": "date",
