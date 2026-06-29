@@ -9,7 +9,9 @@ def create_app():
 
     # Register blueprints here
     from views.news_view import news_bp
+    from views.meta_view import meta_bp
     app.register_blueprint(news_bp)
+    app.register_blueprint(meta_bp)
 
     @app.route('/')
     def hello_world():
