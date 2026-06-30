@@ -61,16 +61,16 @@
     if (!heat || !rows.length) return;
 
     const topRows = rows
-      .filter((item) => pick(item, ["代码", "名称"]))
+      .filter((item) => pick(item, ["stock_code", "stock_name", "代码", "名称"]))
       .slice(0, 12);
 
     heat.innerHTML = topRows
       .map((item) => {
-        const code = pick(item, ["代码", "symbol"], "");
-        const name = pick(item, ["名称", "name"], "");
-        const change = pick(item, ["涨跌幅", "涨幅", "change"], 0);
+        const code = pick(item, ["stock_code", "代码", "symbol"], "");
+        const name = pick(item, ["stock_name", "名称", "name"], "");
+        const change = pick(item, ["change_pct", "涨跌幅", "涨幅", "change"], 0);
         const positive = numberValue(change) >= 0;
-        const price = pick(item, ["最新价", "现价", "price"], "");
+        const price = pick(item, ["latest_price", "最新价", "现价", "price"], "");
         return `<div class="mh-cell ${positive ? "pos" : "neg"}"><span>${escapeHtml(code)}</span><em>${formatPercent(change)}</em><small>${escapeHtml(name)} ${price ? "· " + escapeHtml(price) : ""}</small></div>`;
       })
       .join("");
@@ -81,9 +81,9 @@
     if (!movers || !rows.length) return;
 
     const sorted = rows
-      .filter((item) => pick(item, ["名称", "代码"]) !== undefined)
+      .filter((item) => pick(item, ["stock_name", "stock_code", "名称", "代码"]) !== undefined)
       .slice()
-      .sort((a, b) => numberValue(pick(b, ["涨跌幅"], 0)) - numberValue(pick(a, ["涨跌幅"], 0)));
+      .sort((a, b) => numberValue(pick(b, ["change_pct", "涨跌幅"], 0)) - numberValue(pick(a, ["change_pct", "涨跌幅"], 0)));
 
     const gainers = sorted.slice(0, 5);
     const decliners = sorted.slice(-5).reverse();
@@ -91,8 +91,8 @@
     function renderList(items, cls) {
       return `<ul>${items
         .map((item) => {
-          const name = pick(item, ["名称", "代码"], "Unknown");
-          const change = pick(item, ["涨跌幅"], 0);
+          const name = pick(item, ["stock_name", "stock_code", "名称", "代码"], "Unknown");
+          const change = pick(item, ["change_pct", "涨跌幅"], 0);
           return `<li class="${cls}">${escapeHtml(name)} ${formatPercent(change)}</li>`;
         })
         .join("")}</ul>`;
@@ -117,10 +117,10 @@
   }
 
   function newsCard(item, index) {
-    const title = pick(item, ["新闻标题", "标题", "title"], "Untitled market update");
-    const body = pick(item, ["新闻内容", "内容", "摘要", "summary"], "");
+    const title = pick(item, ["news_title", "新闻标题", "标题", "title"], "Untitled market update");
+    const body = pick(item, ["news_content", "新闻内容", "内容", "摘要", "summary"], "");
     const source = pick(item, ["文章来源", "来源", "source"], "MARKET NEWS");
-    const time = pick(item, ["发布时间", "时间", "date"], "");
+    const time = pick(item, ["publish_time", "发布时间", "时间", "date"], "");
     const url = pick(item, ["新闻链接", "链接", "url"], "#");
     const hot = index === 0;
 
@@ -164,10 +164,10 @@
     const nav = document.querySelector("[data-fund-nav]");
     const change = document.querySelector("[data-fund-change]");
 
-    const name = pick(record, ["基金名称", "名称"], "ETF Fund");
-    const code = pick(record, ["基金代码", "代码"], DEFAULT_FUND_CODE);
-    const price = pick(record, ["最新价", "现价", "单位净值"], "--");
-    const changeValue = pick(record, ["涨跌幅", "涨幅", "日增长率"], 0);
+    const name = pick(record, ["fund_name", "基金名称", "名称"], "ETF Fund");
+    const code = pick(record, ["fund_code", "基金代码", "代码"], DEFAULT_FUND_CODE);
+    const price = pick(record, ["latest_price", "unit_net_value", "最新价", "现价", "单位净值"], "--");
+    const changeValue = pick(record, ["change_pct", "daily_growth_rate", "涨跌幅", "涨幅", "日增长率"], 0);
 
     if (title) title.textContent = name;
     if (ticker) ticker.textContent = code;
@@ -185,8 +185,8 @@
 
     const first = rows[0];
     const last = rows[rows.length - 1];
-    const firstClose = numberValue(pick(first, ["收盘", "close", "单位净值"], 0));
-    const lastClose = numberValue(pick(last, ["收盘", "close", "单位净值"], 0));
+    const firstClose = numberValue(pick(first, ["close", "unit_net_value", "收盘", "单位净值"], 0));
+    const lastClose = numberValue(pick(last, ["close", "unit_net_value", "收盘", "单位净值"], 0));
     const change = firstClose ? ((lastClose - firstClose) / firstClose) * 100 : 0;
     const latestDate = pick(last, ["日期", "date"], "Latest");
 
