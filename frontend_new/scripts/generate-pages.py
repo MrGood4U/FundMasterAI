@@ -78,6 +78,7 @@ def topbar(placeholder: str, input_id: str = "q") -> str:
 def doc_shell(title: str, extra_css: list[str], active_href: str, placeholder: str, body: str, fab: bool = True, input_id: str = "q", extra_scripts: list[str] | None = None) -> str:
     links = "\n    ".join(f'<link rel="stylesheet" href="{c}" />' for c in ["css/shell.css", *extra_css])
     scripts = "\n    ".join(f'<script src="{s}"></script>' for s in (extra_scripts or []))
+    script_block = f"\n    {scripts}" if scripts else ""
     fab_html = (
         '\n        <button type="button" class="fab" aria-label="快捷操作"><span class="fab__plus" aria-hidden="true">+</span></button>'
         if fab
@@ -102,8 +103,7 @@ def doc_shell(title: str, extra_css: list[str], active_href: str, placeholder: s
 {body}
 {fab_html}
       </div>
-    </div>
-    {scripts}
+    </div>{script_block}
   </body>
 </html>
 """
@@ -416,6 +416,7 @@ def page_market_flow():
         "Search funds...",
         body,
         fab=False,
+        extra_scripts=["scripts/api.js", "scripts/dashboard-data.js"],
     )
     (ROOT / "market-flow.html").write_text(html, encoding="utf-8")
 
@@ -492,6 +493,7 @@ def page_equity():
         body,
         fab=False,
         input_id="eq-q",
+        extra_scripts=["scripts/api.js", "scripts/dashboard-data.js"],
     )
     (ROOT / "equity-funds.html").write_text(html, encoding="utf-8")
 
@@ -549,6 +551,7 @@ def page_global():
         body,
         fab=False,
         input_id="gi-q",
+        extra_scripts=["scripts/api.js", "scripts/dashboard-data.js"],
     )
     (ROOT / "global-investment.html").write_text(html, encoding="utf-8")
 
@@ -605,6 +608,7 @@ def page_portfolio():
         body,
         fab=True,
         input_id="po-q",
+        extra_scripts=["scripts/api.js", "scripts/dashboard-data.js"],
     )
     (ROOT / "portfolio-overview.html").write_text(html, encoding="utf-8")
 
@@ -671,6 +675,7 @@ def page_debt():
         body,
         fab=False,
         input_id="de-q",
+        extra_scripts=["scripts/api.js", "scripts/dashboard-data.js"],
     )
     (ROOT / "debt-funds.html").write_text(html, encoding="utf-8")
 
@@ -680,28 +685,30 @@ def page_settings():
           <header class="page-head">
             <div>
               <h2 class="page-head__title">Settings</h2>
-              <p class="page-head__sub">Account preferences and security — Figma 14:3184.</p>
+              <p class="page-head__sub">Portfolio email delivery configuration.</p>
             </div>
           </header>
+          <form data-smtp-form>
           <div class="two-col">
             <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Profile</h3>
-              <label class="st-label">Display name<input class="st-input" type="text" value="Alex Chen" /></label>
-              <label class="st-label">Work email<input class="st-input" type="email" value="alex@fundmaster.io" /></label>
-              <label class="st-label">Timezone<select class="st-input"><option>Asia/Shanghai</option><option>America/New_York</option></select></label>
+              <h3 class="section-head__title section-head__title--compact">Sender</h3>
+              <label class="st-label">Email<input class="st-input" name="email" type="email" autocomplete="email" required /></label>
+              <label class="st-label">Sender name<input class="st-input" name="sender_name" type="text" autocomplete="organization" /></label>
+              <label class="st-label">SMTP host<input class="st-input" name="smtp_host" type="text" placeholder="smtp.example.com" required /></label>
             </section>
             <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Notifications</h3>
-              <label class="st-row"><input type="checkbox" checked /> Macro calendar alerts</label>
-              <label class="st-row"><input type="checkbox" checked /> AI rebalancing suggestions</label>
-              <label class="st-row"><input type="checkbox" /> Marketing &amp; product updates</label>
+              <h3 class="section-head__title section-head__title--compact">Connection</h3>
+              <label class="st-label">SMTP port<input class="st-input" name="smtp_port" type="number" min="1" max="65535" value="587" required /></label>
+              <label class="st-label">Encryption<select class="st-input" name="encryption"><option value="tls">TLS</option><option value="ssl">SSL</option><option value="none">None</option></select></label>
+              <label class="st-label">App password<input class="st-input" name="password" type="password" autocomplete="new-password" placeholder="Leave unchanged when masked" /></label>
             </section>
           </div>
           <section class="glass-panel">
-            <h3 class="section-head__title section-head__title--compact">Security</h3>
-            <p class="muted">Two-factor authentication recommended for trading-enabled accounts.</p>
-            <div class="toolbar"><button type="button" class="btn-outline">Enable 2FA</button><button type="button" class="btn-outline">Rotate API keys</button></div>
+            <h3 class="section-head__title section-head__title--compact">Delivery Test</h3>
+            <label class="st-label">Test recipient<input class="st-input" name="test_email" type="email" autocomplete="email" /></label>
+            <div class="toolbar"><button type="submit" class="btn-outline">Save SMTP</button><button type="button" class="btn-outline" data-test-email>Send Test Email</button></div>
           </section>
+          </form>
         </main>"""
     html = doc_shell(
         "FundMaster — Settings",
@@ -711,6 +718,7 @@ def page_settings():
         body,
         fab=False,
         input_id="st-q",
+        extra_scripts=["scripts/api.js", "scripts/dashboard-data.js"],
     )
     (ROOT / "settings.html").write_text(html, encoding="utf-8")
 
@@ -718,7 +726,6 @@ def page_settings():
 def main():
     page_fund_deep_dive()
     page_market_hub()
-    page_ai()
     page_market_flow()
     page_equity()
     page_global()

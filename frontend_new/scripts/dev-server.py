@@ -18,6 +18,8 @@ class DevProxyHandler(SimpleHTTPRequestHandler):
     market_port = 5001
     news_host = "127.0.0.1"
     news_port = 5000
+    portfolio_host = "127.0.0.1"
+    portfolio_port = 5002
     agent_host = "127.0.0.1"
     agent_port = 5003
 
@@ -31,6 +33,9 @@ class DevProxyHandler(SimpleHTTPRequestHandler):
         if self.path.startswith("/api/news/"):
             self.proxy_to(self.news_host, self.news_port)
             return
+        if self.path.startswith("/api/portfolio/"):
+            self.proxy_to(self.portfolio_host, self.portfolio_port)
+            return
         if self.path.startswith("/api/ai/"):
             self.proxy_to(self.agent_host, self.agent_port)
             return
@@ -42,6 +47,9 @@ class DevProxyHandler(SimpleHTTPRequestHandler):
             return
         if self.path.startswith("/api/news/"):
             self.proxy_to(self.news_host, self.news_port)
+            return
+        if self.path.startswith("/api/portfolio/"):
+            self.proxy_to(self.portfolio_host, self.portfolio_port)
             return
         if self.path.startswith("/api/ai/"):
             self.proxy_to(self.agent_host, self.agent_port)
@@ -112,17 +120,20 @@ def main():
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--market-port", type=int, default=5001)
     parser.add_argument("--news-port", type=int, default=5000)
+    parser.add_argument("--portfolio-port", type=int, default=5002)
     parser.add_argument("--agent-port", type=int, default=5003)
     args = parser.parse_args()
 
     DevProxyHandler.market_port = args.market_port
     DevProxyHandler.news_port = args.news_port
+    DevProxyHandler.portfolio_port = args.portfolio_port
     DevProxyHandler.agent_port = args.agent_port
 
     server = ThreadingHTTPServer((args.host, args.port), DevProxyHandler)
     print(f"Frontend: http://{args.host}:{args.port}")
     print(f"Proxy: /api/market -> http://127.0.0.1:{args.market_port}")
     print(f"Proxy: /api/news -> http://127.0.0.1:{args.news_port}")
+    print(f"Proxy: /api/portfolio -> http://127.0.0.1:{args.portfolio_port}")
     print(f"Proxy: /api/ai -> http://127.0.0.1:{args.agent_port}")
     server.serve_forever()
 

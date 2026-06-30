@@ -166,8 +166,16 @@
 
     const name = pick(record, ["fund_name", "基金名称", "名称"], "ETF Fund");
     const code = pick(record, ["fund_code", "基金代码", "代码"], DEFAULT_FUND_CODE);
-    const price = pick(record, ["latest_price", "unit_net_value", "最新价", "现价", "单位净值"], "--");
-    const changeValue = pick(record, ["change_pct", "daily_growth_rate", "涨跌幅", "涨幅", "日增长率"], 0);
+    const price = pick(
+      record,
+      ["latest_price", "current_unit_net_value", "latest_unit_net_value", "unit_net_value", "最新价", "现价", "单位净值"],
+      "--"
+    );
+    const changeValue = pick(
+      record,
+      ["change_pct", "growth_rate", "daily_growth_rate", "涨跌幅", "涨幅", "日增长率"],
+      0
+    );
 
     if (title) title.textContent = name;
     if (ticker) ticker.textContent = code;
@@ -183,8 +191,13 @@
     const stats = document.querySelector("[data-fund-stats]");
     if (!stats || !rows.length) return;
 
-    const first = rows[0];
-    const last = rows[rows.length - 1];
+    const orderedRows = rows.slice().sort((a, b) => {
+      const aDate = Date.parse(pick(a, ["date", "日期"], ""));
+      const bDate = Date.parse(pick(b, ["date", "日期"], ""));
+      return (Number.isNaN(aDate) ? 0 : aDate) - (Number.isNaN(bDate) ? 0 : bDate);
+    });
+    const first = orderedRows[0];
+    const last = orderedRows[orderedRows.length - 1];
     const firstClose = numberValue(pick(first, ["close", "unit_net_value", "收盘", "单位净值"], 0));
     const lastClose = numberValue(pick(last, ["close", "unit_net_value", "收盘", "单位净值"], 0));
     const change = firstClose ? ((lastClose - firstClose) / firstClose) * 100 : 0;
