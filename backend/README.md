@@ -23,7 +23,7 @@ FundMasterAI 后端由三个独立的 Flask 微服务组成：Market Backend（�
 
 ```bash
 # market_backend
-pip3.11 install flask flask-openapi3 akshare pandas numpy efinance okx
+pip3.11 install flask flask-openapi3 akshare pandas numpy efinance okx forex-python
 pip3.11 install -U "flask-openapi3[swagger,redoc]"
 
 # news_backend

@@ -921,6 +921,89 @@ FUNCTIONS = [
             "message": "test email sent successfully 或错误信息",
         },
     },
+
+    # =====================================================================
+    # User Profile 用户个人信息
+    # =====================================================================
+    {
+        "name": "get_user_profile",
+        "description": "获取用户个人信息（单用户系统，始终返回 id=1 的记录）。",
+        "path": "/api/portfolio/user_profile/get_profile",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "id": "用户记录ID",
+            "phone": "手机号",
+            "email": "邮箱",
+            "created_at": "创建时间",
+            "updated_at": "更新时间",
+        },
+    },
+    {
+        "name": "update_phone",
+        "description": "更新用户手机号（始终更新 id=1）。",
+        "path": "/api/portfolio/user_profile/update_phone",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "phone": {
+                    "type": "string",
+                    "description": "手机号码",
+                },
+            },
+            "required": ["phone"],
+        },
+        "returns": {
+            "_note": "更新成功返回空对象 {}，失败返回错误信息",
+        },
+    },
+    {
+        "name": "update_email",
+        "description": "更新用户邮箱（始终更新 id=1）。",
+        "path": "/api/portfolio/user_profile/update_email",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "description": "邮箱地址",
+                },
+            },
+            "required": ["email"],
+        },
+        "returns": {
+            "_note": "更新成功返回空对象 {}，失败返回错误信息",
+        },
+    },
+    {
+        "name": "update_user_profile",
+        "description": "更新用户个人信息（始终更新 id=1）。可同时更新手机号和邮箱，至少传一个。",
+        "path": "/api/portfolio/user_profile/update",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "phone": {
+                    "type": "string",
+                    "description": "手机号码（可选）",
+                },
+                "email": {
+                    "type": "string",
+                    "description": "邮箱地址（可选）",
+                },
+            },
+            "required": [],
+        },
+        "returns": {
+            "_note": "更新成功返回空对象 {}，失败返回错误信息（如手机号或邮箱格式无效）",
+        },
+    },
 ]
 
 
@@ -930,7 +1013,7 @@ def get_all_functions():
 
 
 def get_functions_by_tag(tag: str):
-    """按标签筛选函数。tag 为 transaction / holding / alert / watchlist / allocation / sector / fund / smtp。"""
+    """按标签筛选函数。tag 为 transaction / holding / alert / watchlist / allocation / sector / fund / smtp / user_profile。"""
     tag_names = {
         "transaction": ["create_transaction", "get_transaction", "update_transaction",
                         "delete_transaction", "list_transactions"],
@@ -944,6 +1027,7 @@ def get_functions_by_tag(tag: str):
         "fund": ["get_fund_detail_hold", "get_fund_industry_allocation",
                         "get_fund_stock_holds", "get_fund_bond_holds"],
         "smtp": ["get_smtp_config", "update_smtp_config", "test_smtp_email"],
+        "user_profile": ["get_user_profile", "update_phone", "update_email", "update_user_profile"],
     }
     names = tag_names.get(tag)
     if names is None:

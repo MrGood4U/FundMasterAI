@@ -215,6 +215,7 @@ class CacheScheduler:
                 logger.warning("CacheScheduler: %s returned empty data", key)
         except Exception:
             logger.exception("CacheScheduler: %s refresh failed", key)
+            self._last_finished[key] = time.time()  # backoff: wait full interval before retry
         finally:
             self._in_flight[key] = False
 
