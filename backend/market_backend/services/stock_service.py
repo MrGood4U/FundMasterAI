@@ -4,6 +4,7 @@ import pandas as pd
 
 from daos.cache_dao import CacheDao, is_caching_enabled
 from apis.akshare_stock_api import AkshareStock
+from apis.finshare_stock_api import FinshareStockAPI
 from utils.kline_generator import KLineGenerator
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,7 @@ class StockService:
     def __init__(self):
         self.cache = CacheDao.from_config()
         self.akapi = AkshareStock()
+        self.finshare_api = FinshareStockAPI()
 
     # -- spot --------------------------------------------------------------
 
@@ -91,3 +93,33 @@ class StockService:
             return []
         gen = KLineGenerator(df)
         return gen.all().to_dict(orient="records")
+
+    # -- money flow / lhb (finshare) ------------------------------------
+
+    def get_stock_flow(self, stock_code: str):
+        """个股大额资金流向"""
+        df = self.finshare_api.get_stock_flow(stock_code)
+        if df is None or df.empty:
+            return []
+        return df.to_dict(orient="records")
+
+    def get_stock_flow_industry(self):
+        """行业资金流向"""
+        df = self.finshare_api.get_stock_flow_industry()
+        if df is None or df.empty:
+            return []
+        return df.to_dict(orient="records")
+
+    def get_stock_lhb(self, start_date: str, end_date: str):
+        """龙虎榜"""
+        df = self.finshare_api.get_stock_lhb(start_date, end_date)
+        if df is None or df.empty:
+            return []
+        return df.to_dict(orient="records")
+
+    def get_stock_lhb_detail(self, stock_code: str, trade_date: str):
+        """龙虎榜明细"""
+        df = self.finshare_api.get_stock_lhb_detail(stock_code, trade_date)
+        if df is None or df.empty:
+            return []
+        return df.to_dict(orient="records")

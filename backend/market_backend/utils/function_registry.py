@@ -314,6 +314,112 @@ FUNCTIONS = [
             "total_market_cap": "总市值",
         },
     },
+    {
+        "name": "get_stock_flow",
+        "description": "获取个股大额资金流向。返回主力/超大单/大单/中单/小单的净流入和净占比，适合分析主力资金动向和建仓/出货行为。",
+        "path": "/api/market/stock/flow",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "stock_code": {
+                    "type": "string",
+                    "description": "股票代码，如 600519, 000001.SZ",
+                },
+            },
+            "required": ["stock_code"],
+        },
+        "returns": {
+            "fs_code": "股票代码",
+            "trade_date": "交易日期",
+            "net_inflow_main": "主力净流入(元)",
+            "net_inflow_super": "超大单净流入(元)",
+            "net_inflow_large": "大单净流入(元)",
+            "net_inflow_medium": "中单净流入(元)",
+            "net_inflow_small": "小单净流入(元)",
+            "net_inflow_main_ratio": "主力净流入占比(%)",
+            "net_inflow_super_ratio": "超大单净流入占比(%)",
+            "net_inflow_large_ratio": "大单净流入占比(%)",
+            "net_inflow_medium_ratio": "中单净流入占比(%)",
+            "net_inflow_small_ratio": "小单净流入占比(%)",
+        },
+    },
+    {
+        "name": "get_stock_flow_industry",
+        "description": "获取全市场行业资金流向。返回各行业的主力净流入和净流入占比排名，适合判断当前资金偏好哪个行业板块。无参数，GET请求。",
+        "path": "/api/market/stock/flow_industry",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "industry": "行业名称",
+            "net_inflow": "主力净流入(元)",
+            "net_inflow_ratio": "主力净流入占比(%)",
+            "change_rate": "涨跌幅(%)",
+        },
+    },
+    {
+        "name": "get_stock_lhb",
+        "description": "获取龙虎榜数据（上榜股票列表）。展示每日涨跌幅偏离值达7%、换手率达20%、连续三个交易日涨幅偏离值累计达20%等异动上榜的股票，包含买入/卖出金额前五席位、净买额、机构席位明细。适合追踪游资和机构动向。日期格式YYYYMMDD。",
+        "path": "/api/market/stock/lhb",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "start_date": {
+                    "type": "string",
+                    "description": "起始日期，格式 YYYYMMDD，如 20250601",
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": "结束日期，格式 YYYYMMDD，如 20250630",
+                },
+            },
+            "required": ["start_date", "end_date"],
+        },
+        "returns": {
+            "buy_amount": "买入金额(元)",
+            "change_rate": "涨跌幅(%)",
+            "close_price": "收盘价",
+            "fs_code": "股票代码",
+            "net_buy_amount": "净买额(元)",
+            "reason": "上榜原因",
+            "sell_amount": "卖出金额(元)",
+            "trade_date": "交易日期",
+            "turnover_rate": "换手率(%)"
+        },
+    },
+    {
+        "name": "get_stock_lhb_detail",
+        "description": "获取单只股票在指定交易日的龙虎榜席位明细。展示该股当天所有席位的买入/卖出金额、净买额和机构参与情况。用于深入分析某只异动股的席位结构和主力意图。",
+        "path": "/api/market/stock/lhb_detail",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "stock_code": {
+                    "type": "string",
+                    "description": "股票代码，如 600519",
+                },
+                "trade_date": {
+                    "type": "string",
+                    "description": "交易日期，格式 YYYYMMDD，如 20250630",
+                },
+            },
+            "required": ["stock_code", "trade_date"],
+        },
+        "returns": {
+            "fs_code": "股票代码",
+            "trade_date": "交易日期",
+            "broker_name": "席位名称",
+            "buy_amount": "买入金额(元)",
+            "sell_amount": "卖出金额(元)",
+            "net_amount": "净买额(元)",
+        },
+    },
 
     # =====================================================================
     # 公募基金
