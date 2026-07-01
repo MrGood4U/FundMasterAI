@@ -33,6 +33,7 @@ const fields = {
 const AGENT_LABELS = {
   PerformanceAgent: "Performance Check",
   ExposureAgent: "Exposure Check",
+  BondExposureAgent: "Bond Exposure Check",
   RiskAgent: "Risk Check",
   SentimentAgent: "News Check",
   SectorAgent: "Sector Check",
