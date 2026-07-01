@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 import akshare as ak
 import pandas as pd
+import numpy as np
 from flask import current_app
 
 from apis.field_mapping import (
@@ -206,6 +207,8 @@ class AksharePublicFund:
         }
         fund_type = fund_type_set_map[fund_type]
         df = ak.fund_open_fund_rank_em(symbol=fund_type)
+        df = df.replace([np.nan, np.inf, -np.inf, pd.NaT], None)
+        df = df.replace([float('inf'), float('-inf')], None)
         return apply_mapping(df, FUND_OPEN_FUND_RANK_EM_MAP)
     
     # 指数基金信息(全部/沪深指数/行业主题/大盘指数/中盘指数/小盘指数/股票指数/债券指数) -- 东方财富
