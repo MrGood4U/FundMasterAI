@@ -62,6 +62,8 @@ class DevProxyHandler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def end_headers(self):
+        if not self.path.startswith("/api/"):
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
         self.send_cors_headers()
         super().end_headers()
 

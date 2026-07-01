@@ -3,6 +3,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+ASSET_VERSION = "20260630-1"
 
 NAV = [
     ("global-investment.html", "Overview", "overview"),
@@ -77,7 +78,7 @@ def topbar(placeholder: str, input_id: str = "q") -> str:
 
 def doc_shell(title: str, extra_css: list[str], active_href: str, placeholder: str, body: str, fab: bool = True, input_id: str = "q", extra_scripts: list[str] | None = None) -> str:
     links = "\n    ".join(f'<link rel="stylesheet" href="{c}" />' for c in ["css/shell.css", *extra_css])
-    scripts = "\n    ".join(f'<script src="{s}"></script>' for s in (extra_scripts or []))
+    scripts = "\n    ".join(f'<script src="{s}?v={ASSET_VERSION}"></script>' for s in (extra_scripts or []))
     script_block = f"\n    {scripts}" if scripts else ""
     fab_html = (
         '\n        <button type="button" class="fab" aria-label="快捷操作"><span class="fab__plus" aria-hidden="true">+</span></button>'
