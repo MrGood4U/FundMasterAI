@@ -12,7 +12,15 @@
 ```bash
 pip3.11 install flask flask-openapi3 akshare pandas numpy efinance okx redis
 pip3.11 install -U "flask-openapi3[swagger,redoc]"
+
+# 全球指数/汇率/宏观矩阵、个股资金流向与龙虎榜（新增于 2026-06）
+pip3.11 install yfinance pysqlite3-binary forex-python CurrencyConverter finshare
 ```
+
+> `pysqlite3-binary` 是必须的：`yfinance` 依赖标准库 `sqlite3`，但部分云服务器上的
+> Python 编译时未带 `_sqlite3` 模块，`app.py` 里用 `pysqlite3` 做了兼容替换
+> （`sys.modules["sqlite3"] = pysqlite3`）。少装这一个包会导致 `fundmaster-market`
+> 启动即崩溃、被 systemd 无限重启。
 
 ## 配置文件
 
