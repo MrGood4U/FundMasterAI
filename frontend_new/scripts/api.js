@@ -122,6 +122,23 @@
       getKlines: (params) => postMarket("/api/market/crypto/klines", params),
       getMovingAverages: (params) => postMarket("/api/market/crypto/ma", params),
     },
+    global: {
+      exchangeRate: (params) => postMarket("/api/market/global/exchange_rate/rate", params),
+      convertCurrency: (params) => postMarket("/api/market/global/exchange_rate/convert", params),
+      getAllRates: (params) => postMarket("/api/market/global/exchange_rate/all_rates", params),
+      getRateHistory: (params) => postMarket("/api/market/global/exchange_rate/history", params),
+      getIndexList: () => postMarket("/api/market/global/index/list", {}),
+      getIndexQuote: (params) => postMarket("/api/market/global/index/quote", params),
+      getIndexQuotes: (params) => postMarket("/api/market/global/index/quotes", params),
+      getIndexInfo: (params) => postMarket("/api/market/global/index/info", params),
+      getIndexHistory: (params) => postMarket("/api/market/global/index/hist", params),
+    },
+    macro: {
+      getCountries: () => postMarket("/api/market/macro/countries", {}),
+      getIndicators: (params = {}) => postMarket("/api/market/macro/indicators", params),
+      getSchema: (params) => postMarket("/api/market/macro/schema", params),
+      getData: (params) => postMarket("/api/market/macro/data", params),
+    },
     news: {
       getStockRecentNews: (params) => postNews("/api/news/stock/get_recent_news", params),
       getPublicFundAnnouncement: (params) => postNews("/api/news/public_fund/get_announcement", params),
@@ -171,6 +188,12 @@
         getConfig: () => getPortfolio("/api/portfolio/smtp_config/get_config"),
         updateConfig: (params) => postPortfolio("/api/portfolio/smtp_config/update_config", params),
         testEmail: (params) => postPortfolio("/api/portfolio/smtp_config/test_email", params),
+      },
+      userProfile: {
+        get: () => getPortfolio("/api/portfolio/user_profile/get_profile"),
+        updatePhone: (phone) => postPortfolio("/api/portfolio/user_profile/update_phone", { phone }),
+        updateEmail: (email) => postPortfolio("/api/portfolio/user_profile/update_email", { email }),
+        update: (params) => postPortfolio("/api/portfolio/user_profile/update", params),
       },
     },
   };

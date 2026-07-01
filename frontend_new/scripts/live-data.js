@@ -107,10 +107,39 @@
 
     setStatus("[data-api-status='market']", "Connecting to market backend...");
     try {
-      const rows = await api.stock.getAllASpot({ platform: "eastmoney" });
-      renderMarketHeatmap(Array.isArray(rows) ? rows : []);
-      renderMarketMovers(Array.isArray(rows) ? rows : []);
-      setStatus("[data-api-status='market']", `Live A-share feed · ${Array.isArray(rows) ? rows.length : 0} rows`);
+      const rows = await api.global.getIndexQuotes({ tickers: ["^GSPC", "^IXIC", "^FTSE", "^N225"] });
+      const quotes = Array.isArray(rows) ? rows : [];
+      document.querySelectorAll(".mh-indices .mh-index").forEach((card, index) => {
+        const quote = quotes[index];
+        if (!quote) return;
+        const change = pick(quote, ["change_pct", "changePercent", "percent_change"], 0);
+        const value = numberValue(pick(quote, ["price", "last_price", "regularMarketPrice"], 0));
+        const title = card.querySelector("h4");
+        const price = card.querySelector(".mh-index__v");
+        const percent = card.querySelector(".mh-index__p");
+        if (title) title.textContent = pick(quote, ["name", "short_name", "ticker"], "Global Index");
+        if (price) price.textContent = value ? value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "--";
+        if (percent) {
+          percent.textContent = formatPercent(change);
+          percent.classList.toggle("pos", numberValue(change) >= 0);
+          percent.classList.toggle("neg", numberValue(change) < 0);
+        }
+      });
+      renderMarketHeatmap(quotes.map((quote) => ({
+        stock_code: pick(quote, ["ticker"], ""),
+        stock_name: pick(quote, ["name", "region"], ""),
+        latest_price: pick(quote, ["price", "last_price"], ""),
+        change_pct: pick(quote, ["change_pct", "changePercent"], 0),
+      })));
+      renderMarketMovers(quotes.map((quote) => ({
+        stock_name: pick(quote, ["name", "ticker"], "Global Index"),
+        change_pct: pick(quote, ["change_pct", "changePercent"], 0),
+      })));
+      setStatus(
+        "[data-api-status='market']",
+        quotes.length ? `Global index API live · ${quotes.length} quotes` : "Global index API returned no quotes; showing preview values",
+        quotes.length === 0
+      );
     } catch (error) {
       setStatus("[data-api-status='market']", `Market backend unavailable: ${error.message}`, true);
     }
