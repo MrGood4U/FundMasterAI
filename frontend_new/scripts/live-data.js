@@ -107,7 +107,7 @@
 
     setStatus("[data-api-status='market']", "Connecting to market backend...");
     try {
-      const rows = await api.global.getIndexQuotes({ tickers: ["^GSPC", "^IXIC", "^FTSE", "^N225"] });
+      const rows = await api.global.getIndexQuotesFromList(["^GSPC", "^IXIC", "^FTSE", "^N225"], 4);
       const quotes = Array.isArray(rows) ? rows : [];
       document.querySelectorAll(".mh-indices .mh-index").forEach((card, index) => {
         const quote = quotes[index];

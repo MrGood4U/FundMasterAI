@@ -78,7 +78,7 @@
     config,
     stock: {
       getASpot: (params) => postMarket("/api/market/stock/a/one_spot", params),
-      getAllASpot: (params = { platform: "eastmoney" }) => postMarket("/api/market/stock/a/all_spot", params),
+      getAllASpot: (params = { platform: "sina" }) => postMarket("/api/market/stock/a/all_spot", params),
       getAHist: (params) => postMarket("/api/market/stock/a/hist", params),
       getAHistKline: (params) => postMarket("/api/market/stock/a/hist_kline", params),
       getABidAsk: (params) => postMarket("/api/market/stock/a/bid_ask", params),
@@ -130,6 +130,18 @@
       getIndexList: () => postMarket("/api/market/global/index/list", {}),
       getIndexQuote: (params) => postMarket("/api/market/global/index/quote", params),
       getIndexQuotes: (params) => postMarket("/api/market/global/index/quotes", params),
+      getIndexQuotesFromList: async (preferredTickers = [], limit = 4) => {
+        const supported = await postMarket("/api/market/global/index/list", {});
+        const available = Array.isArray(supported)
+          ? supported.map((item) => item && item.ticker).filter(Boolean)
+          : [];
+        const preferred = preferredTickers.filter((ticker) => available.includes(ticker));
+        const tickers = [...new Set([...preferred, ...available])].slice(0, limit);
+        const fallback = preferredTickers.slice(0, limit);
+        return postMarket("/api/market/global/index/quotes", {
+          tickers: tickers.length ? tickers : fallback,
+        });
+      },
       getIndexInfo: (params) => postMarket("/api/market/global/index/info", params),
       getIndexHistory: (params) => postMarket("/api/market/global/index/hist", params),
     },
