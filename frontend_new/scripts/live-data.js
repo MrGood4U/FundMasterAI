@@ -266,10 +266,27 @@
     if (!page) return;
 
     setStatus("[data-api-status='fund']", "Connecting to fund backend...");
-    try {
-      const [spotRows, histRows] = await Promise.all([
-        api.publicFund.getOneRealTime({ platform: "eastmoney", symbol: "ETF", code: DEFAULT_FUND_CODE }),
-        api.publicFund.getHist({
+    const title = document.querySelector("[data-fund-title]");
+    const ticker = document.querySelector("[data-fund-ticker]");
+    const nav = document.querySelector("[data-fund-nav]");
+    const change = document.querySelector("[data-fund-change]");
+    if (title) title.textContent = "沪深300ETF华泰柏瑞";
+    if (ticker) ticker.textContent = DEFAULT_FUND_CODE;
+    if (nav) nav.textContent = "--";
+    if (change) change.textContent = "--";
+
+    let spotLoaded = false;
+    let histLoaded = false;
+    const spotTask = api.publicFund
+      .getOneRealTime({ platform: "eastmoney", symbol: "ETF", code: DEFAULT_FUND_CODE })
+      .then((spotRows) => {
+        if (Array.isArray(spotRows) && spotRows[0]) {
+          renderFundHeader(spotRows[0]);
+          spotLoaded = true;
+        }
+      });
+    const histTask = api.publicFund
+      .getHist({
           platform: "eastmoney",
           symbol: "ETF",
           code: DEFAULT_FUND_CODE,
@@ -277,15 +294,22 @@
           end_date: "20261231",
           period: "daily",
           adjust: "",
-        }),
-      ]);
+        })
+      .then((histRows) => {
+        if (Array.isArray(histRows) && histRows.length) {
+          renderFundHist(histRows);
+          histLoaded = true;
+        }
+      });
 
-      if (Array.isArray(spotRows) && spotRows[0]) renderFundHeader(spotRows[0]);
-      if (Array.isArray(histRows)) renderFundHist(histRows);
-      setStatus("[data-api-status='fund']", "Live ETF data · 510300");
-    } catch (error) {
-      setStatus("[data-api-status='fund']", `Fund backend unavailable: ${error.message}`, true);
-    }
+    const results = await Promise.allSettled([spotTask, histTask]);
+    const errors = results.filter((item) => item.status === "rejected").map((item) => item.reason?.message).filter(Boolean);
+    const loaded = Number(spotLoaded) + Number(histLoaded);
+    setStatus(
+      "[data-api-status='fund']",
+      loaded ? `ETF data · ${loaded}/2 sources loaded` : `Fund data unavailable${errors.length ? `: ${errors[0]}` : ""}`,
+      loaded === 0
+    );
   }
 
   document.addEventListener("DOMContentLoaded", () => {

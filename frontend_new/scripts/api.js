@@ -19,14 +19,24 @@
   async function request(baseUrl, path, options = {}) {
     const method = options.method || "GET";
     const headers = new Headers(options.headers || {});
-    const init = { method, headers };
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), options.timeoutMs || 45000);
+    const init = { method, headers, signal: controller.signal };
 
     if (options.body !== undefined) {
       headers.set("Content-Type", "application/json");
       init.body = JSON.stringify(options.body);
     }
 
-    const response = await fetch(joinUrl(baseUrl, path), init);
+    let response;
+    try {
+      response = await fetch(joinUrl(baseUrl, path), init);
+    } catch (error) {
+      if (error.name === "AbortError") throw new Error("Request timed out");
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
     let payload = null;
     const responseText = await response.text();
 
