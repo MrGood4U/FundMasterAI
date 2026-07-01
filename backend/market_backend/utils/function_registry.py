@@ -314,6 +314,112 @@ FUNCTIONS = [
             "total_market_cap": "总市值",
         },
     },
+    {
+        "name": "get_stock_flow",
+        "description": "获取个股大额资金流向。返回主力/超大单/大单/中单/小单的净流入和净占比，适合分析主力资金动向和建仓/出货行为。",
+        "path": "/api/market/stock/flow",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "stock_code": {
+                    "type": "string",
+                    "description": "股票代码，如 600519, 000001.SZ",
+                },
+            },
+            "required": ["stock_code"],
+        },
+        "returns": {
+            "fs_code": "股票代码",
+            "trade_date": "交易日期",
+            "net_inflow_main": "主力净流入(元)",
+            "net_inflow_super": "超大单净流入(元)",
+            "net_inflow_large": "大单净流入(元)",
+            "net_inflow_medium": "中单净流入(元)",
+            "net_inflow_small": "小单净流入(元)",
+            "net_inflow_main_ratio": "主力净流入占比(%)",
+            "net_inflow_super_ratio": "超大单净流入占比(%)",
+            "net_inflow_large_ratio": "大单净流入占比(%)",
+            "net_inflow_medium_ratio": "中单净流入占比(%)",
+            "net_inflow_small_ratio": "小单净流入占比(%)",
+        },
+    },
+    {
+        "name": "get_stock_flow_industry",
+        "description": "获取全市场行业资金流向。返回各行业的主力净流入和净流入占比排名，适合判断当前资金偏好哪个行业板块。无参数，GET请求。",
+        "path": "/api/market/stock/flow_industry",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "industry": "行业名称",
+            "net_inflow": "主力净流入(元)",
+            "net_inflow_ratio": "主力净流入占比(%)",
+            "change_rate": "涨跌幅(%)",
+        },
+    },
+    {
+        "name": "get_stock_lhb",
+        "description": "获取龙虎榜数据（上榜股票列表）。展示每日涨跌幅偏离值达7%、换手率达20%、连续三个交易日涨幅偏离值累计达20%等异动上榜的股票，包含买入/卖出金额前五席位、净买额、机构席位明细。适合追踪游资和机构动向。日期格式YYYYMMDD。",
+        "path": "/api/market/stock/lhb",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "start_date": {
+                    "type": "string",
+                    "description": "起始日期，格式 YYYYMMDD，如 20250601",
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": "结束日期，格式 YYYYMMDD，如 20250630",
+                },
+            },
+            "required": ["start_date", "end_date"],
+        },
+        "returns": {
+            "buy_amount": "买入金额(元)",
+            "change_rate": "涨跌幅(%)",
+            "close_price": "收盘价",
+            "fs_code": "股票代码",
+            "net_buy_amount": "净买额(元)",
+            "reason": "上榜原因",
+            "sell_amount": "卖出金额(元)",
+            "trade_date": "交易日期",
+            "turnover_rate": "换手率(%)"
+        },
+    },
+    {
+        "name": "get_stock_lhb_detail",
+        "description": "获取单只股票在指定交易日的龙虎榜席位明细。展示该股当天所有席位的买入/卖出金额、净买额和机构参与情况。用于深入分析某只异动股的席位结构和主力意图。",
+        "path": "/api/market/stock/lhb_detail",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "stock_code": {
+                    "type": "string",
+                    "description": "股票代码，如 600519",
+                },
+                "trade_date": {
+                    "type": "string",
+                    "description": "交易日期，格式 YYYYMMDD，如 20250630",
+                },
+            },
+            "required": ["stock_code", "trade_date"],
+        },
+        "returns": {
+            "fs_code": "股票代码",
+            "trade_date": "交易日期",
+            "broker_name": "席位名称",
+            "buy_amount": "买入金额(元)",
+            "sell_amount": "卖出金额(元)",
+            "net_amount": "净买额(元)",
+        },
+    },
 
     # =====================================================================
     # 公募基金
@@ -1436,6 +1542,366 @@ FUNCTIONS = [
             "close": "收盘价",
             "volume": "成交量",
             "_ma_note": "ma{N} 列：N周期移动平均线，N由请求的 ma_periods 决定",
+        },
+    },
+
+    # =====================================================================
+    # 全球市场 — 外汇汇率
+    # =====================================================================
+    {
+        "name": "get_exchange_rate",
+        "description": "查询两种货币之间的实时汇率。返回1单位源货币可兑换的目标货币数量。",
+        "path": "/api/market/global/exchange_rate/rate",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "from_currency": {
+                    "type": "string",
+                    "description": "源货币代码，如 USD、CNY、EUR、JPY、GBP 等",
+                },
+                "to_currency": {
+                    "type": "string",
+                    "description": "目标货币代码，如 USD、CNY、EUR、JPY、GBP 等",
+                },
+            },
+            "required": ["from_currency", "to_currency"],
+        },
+        "returns": {
+            "from_currency": "源货币代码",
+            "to_currency": "目标货币代码",
+            "rate": "汇率（1 from_currency = rate to_currency）",
+        },
+    },
+    {
+        "name": "get_currency_convert",
+        "description": "货币金额转换。将指定金额从一种货币转换为另一种货币。",
+        "path": "/api/market/global/exchange_rate/convert",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "description": "要转换的金额",
+                },
+                "from_currency": {
+                    "type": "string",
+                    "description": "源货币代码，如 USD",
+                },
+                "to_currency": {
+                    "type": "string",
+                    "description": "目标货币代码，如 CNY",
+                },
+            },
+            "required": ["amount", "from_currency", "to_currency"],
+        },
+        "returns": {
+            "amount": "原始金额",
+            "from_currency": "源货币代码",
+            "to_currency": "目标货币代码",
+            "converted_amount": "转换后金额",
+        },
+    },
+    {
+        "name": "get_all_exchange_rates",
+        "description": "获取基础货币对所有其他主要货币的汇率报价。返回一个字典，key为目标货币代码，value为汇率。适合一次获取某种货币对所有货币的汇率全景。",
+        "path": "/api/market/global/exchange_rate/all_rates",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "base_currency": {
+                    "type": "string",
+                    "description": "基础货币代码，如 USD",
+                },
+            },
+            "required": ["base_currency"],
+        },
+        "returns": {
+            "base_currency": "基础货币代码",
+            "rates": "汇率字典 {目标货币代码: 汇率, ...}，如 {'CNY': 7.25, 'EUR': 0.92, ...}",
+        },
+    },
+    {
+        "name": "get_exchange_rate_history",
+        "description": "查询历史上某一天基础货币对所有其他货币的汇率。返回指定日期的全部汇率报价。适合回溯历史汇率水平。",
+        "path": "/api/market/global/exchange_rate/history",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "from_currency": {
+                    "type": "string",
+                    "description": "源货币代码，如 USD",
+                },
+                "to_currency": {
+                    "type": "string",
+                    "description": "目标货币代码，如 CNY",
+                },
+                "query_date": {
+                    "type": "string",
+                    "description": "查询日期，格式 YYYY-MM-DD，如 2025-06-01",
+                },
+            },
+            "required": ["from_currency", "to_currency", "query_date"],
+        },
+        "returns": {
+            "from_currency": "源货币代码",
+            "to_currency": "目标货币代码",
+            "query_date": "查询日期",
+            "rates": "该日期的基础货币对全部货币汇率字典 {货币代码: 汇率, ...}",
+        },
+    },
+
+    # =====================================================================
+    # 全球市场 — 全球指数
+    # =====================================================================
+    {
+        "name": "get_global_index_list",
+        "description": "获取支持的全球指数列表。包含14个主要指数：S&P 500、纳斯达克、道琼斯、富时100、日经225、恒生、德国DAX、法国CAC40、欧洲斯托克50、澳洲ASX200、韩国KOSPI、印度NIFTY50、巴西BOVESPA、罗素2000。",
+        "path": "/api/market/global/index/list",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "ticker": "指数代码（如 ^GSPC、^HSI），用于其他指数接口的入参",
+            "name": "指数名称（中文/英文）",
+            "region": "所属国家/地区",
+            "currency": "计价货币",
+        },
+    },
+    {
+        "name": "get_global_index_quote",
+        "description": "获取单个全球指数的最新实时行情。包含最新价、涨跌幅、涨跌额、当日最高最低价、成交量等。",
+        "path": "/api/market/global/index/quote",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "指数代码，如 ^GSPC（S&P 500）、^HSI（恒生）、^N225（日经225）。完整列表见 get_global_index_list",
+                },
+            },
+            "required": ["ticker"],
+        },
+        "returns": {
+            "ticker": "指数代码",
+            "name": "指数名称",
+            "price": "最新价",
+            "previous_close": "前收盘价",
+            "open": "今日开盘价",
+            "day_high": "今日最高价",
+            "day_low": "今日最低价",
+            "volume": "成交量",
+            "change": "涨跌额",
+            "change_pct": "涨跌幅(%)",
+            "currency": "计价货币",
+        },
+    },
+    {
+        "name": "get_global_index_quotes",
+        "description": "批量获取多个全球指数的最新行情。一次传入多个指数代码，返回各指数行情，附带地区和货币信息。比逐个调用 get_global_index_quote 效率更高。",
+        "path": "/api/market/global/index/quotes",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "tickers": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "指数代码列表，如 ['^GSPC', '^HSI', '^N225']",
+                },
+            },
+            "required": ["tickers"],
+        },
+        "returns": {
+            "ticker": "指数代码",
+            "name": "指数名称",
+            "price": "最新价",
+            "previous_close": "前收盘价",
+            "open": "今日开盘价",
+            "day_high": "今日最高价",
+            "day_low": "今日最低价",
+            "volume": "成交量",
+            "change": "涨跌额",
+            "change_pct": "涨跌幅(%)",
+            "currency": "计价货币",
+            "region": "所属国家/地区",
+        },
+    },
+    {
+        "name": "get_global_index_info",
+        "description": "获取单个全球指数的详细信息（比 quote 更全面）。除行情外，还包含50日/200日均价、交易所名称、市场类型等。适合深入了解指数背景。",
+        "path": "/api/market/global/index/info",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "指数代码，如 ^GSPC",
+                },
+            },
+            "required": ["ticker"],
+        },
+        "returns": {
+            "ticker": "指数代码",
+            "name": "指数名称",
+            "price": "最新价",
+            "previous_close": "前收盘价",
+            "open": "今日开盘价",
+            "day_high": "今日最高价",
+            "day_low": "今日最低价",
+            "volume": "成交量",
+            "change": "涨跌额",
+            "change_pct": "涨跌幅(%)",
+            "fifty_day_avg": "50日均价",
+            "two_hundred_day_avg": "200日均价",
+            "currency": "计价货币",
+            "market": "市场类型",
+            "exchange": "交易所名称",
+        },
+    },
+    {
+        "name": "get_global_index_hist",
+        "description": "获取全球指数历史K线数据（OHLCV）。支持指定日期范围或预定义周期，支持日/周/月/小时/分钟K线。适合技术分析、走势图绘制、历史回测。",
+        "path": "/api/market/global/index/hist",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "指数代码，如 ^GSPC",
+                },
+                "period": {
+                    "type": "string",
+                    "description": "预定义数据周期（与 start_date/end_date 互斥）。1d=1天, 5d=5天, 1mo=1月, 3mo=3月, 6mo=6月, 1y=1年, 2y=2年, 5y=5年, 10y=10年, ytd=年初至今, max=全部",
+                    "enum": ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"],
+                },
+                "start_date": {
+                    "type": "string",
+                    "description": "起始日期，格式 YYYY-MM-DD。与 period 互斥，需同时传 end_date",
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": "结束日期，格式 YYYY-MM-DD",
+                },
+                "interval": {
+                    "type": "string",
+                    "description": "K线周期，默认 1d",
+                    "enum": ["1d", "1wk", "1mo", "1h", "1m"],
+                },
+            },
+            "required": ["ticker"],
+        },
+        "returns": {
+            "date": "交易日期",
+            "open": "开盘价",
+            "high": "最高价",
+            "low": "最低价",
+            "close": "收盘价",
+            "volume": "成交量",
+            "dividends": "分红",
+            "stock_splits": "拆股系数",
+        },
+    },
+
+    # =====================================================================
+    # 宏观数据 — 全球经济指标
+    # =====================================================================
+    {
+        "name": "get_macro_countries",
+        "description": "获取支持的宏观经济数据国家/地区列表。返回每个国家支持的指标数量。覆盖中国、美国、欧元区、英国、日本、德国、加拿大、澳大利亚等8个国家/地区。",
+        "path": "/api/market/macro/countries",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "country": "国家/地区代码（如 china、usa、euro），用于其他宏观接口的 country 参数",
+            "indicator_count": "该国支持的宏观指标数量",
+        },
+    },
+    {
+        "name": "get_macro_indicators",
+        "description": "获取指定国家（或全部国家）的宏观指标列表。返回每个指标的 key、中文名、描述、输出字段数和可传递的额外参数。是使用宏观数据的第一步——先了解有哪些指标可用。",
+        "path": "/api/market/macro/indicators",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "country": {
+                    "type": "string",
+                    "description": "国家代码，如 china、usa、euro。不传则返回全部国家的指标列表",
+                },
+            },
+            "required": [],
+        },
+        "returns": {
+            "_note": "按国家分组的指标列表。每个指标包含：indicator=指标key(用于后续接口), name=中文名, desc=指标说明, column_count=输出字段数, extra_params=可传递的额外参数及其默认值",
+        },
+    },
+    {
+        "name": "get_macro_schema",
+        "description": "获取指定宏观指标的完整Schema定义（字段元数据）。返回该指标会输出哪些列，以及每列的中文名和含义。前端可据此渲染表头、图例、数据说明。在调用 get_macro_data 拉取数据前，先用此接口了解数据结构。",
+        "path": "/api/market/macro/schema",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "country": {
+                    "type": "string",
+                    "description": "国家代码，如 china",
+                },
+                "indicator": {
+                    "type": "string",
+                    "description": "指标 key，如 cpi、gdp、pmi、ppi。可用的指标列表通过 get_macro_indicators 获取",
+                },
+            },
+            "required": ["country", "indicator"],
+        },
+        "returns": {
+            "country": "国家代码",
+            "indicator": "指标 key",
+            "name": "指标中文名",
+            "desc": "指标描述",
+            "extra_params": "可传递的额外参数及默认值",
+            "columns": "输出字段定义字典 {key: {name: 中文列名, desc: 字段含义}, ...}",
+        },
+    },
+    {
+        "name": "get_macro_data",
+        "description": "获取宏观指标的实际数据。返回按时间排序的数据列表，每条记录包含该指标的全部字段。数据字段的含义请先用 get_macro_schema 查询——不同指标的输出列完全不同（如CPI返回全国/城市/农村同比环比，GDP返回总量/增速/三次产业等）。",
+        "path": "/api/market/macro/data",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "country": {
+                    "type": "string",
+                    "description": "国家代码，如 china",
+                },
+                "indicator": {
+                    "type": "string",
+                    "description": "指标 key，如 cpi、gdp、pmi、money_supply",
+                },
+                "extra": {
+                    "type": "object",
+                    "description": "额外参数（可选），用于传递指标特定的筛选条件。具体支持哪些参数见 get_macro_schema 返回的 extra_params。例如中国CPI可传 city_first='北京', city_second='上海' 来获取特定城市的CPI数据",
+                },
+            },
+            "required": ["country", "indicator"],
+        },
+        "returns": {
+            "_note": "数据字段取决于指标，不同指标返回的列完全不同。使用前务必先调用 get_macro_schema 获取字段定义。例如中国CPI包含 month/national_yoy/national_mom/city_yoy/city_mom/rural_yoy/rural_mom 等13列，GDP包含 gdp/yoy_change/primary_industry/secondary_industry/tertiary_industry 等9列",
         },
     },
 ]

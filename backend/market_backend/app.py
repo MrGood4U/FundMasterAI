@@ -1,4 +1,11 @@
 
+import sys
+
+# Monkey-patch: yfinance depends on sqlite3 (via multitasking), but this
+# Python was built without _sqlite3.  Use the pure-Python pysqlite3 instead.
+import pysqlite3
+
+sys.modules["sqlite3"] = pysqlite3
 
 from flask import Flask, jsonify
 from flask_openapi3 import OpenAPI, Info
@@ -39,12 +46,16 @@ def create_app():
     from views.crypto_view import crypto_bp
     from views.meta_view import meta_bp
     from views.bond_view import bond_bp
+    from views.global_view import global_bp
+    from views.macro_view import macro_bp
 
     app.register_blueprint(public_fund_bp)
     app.register_blueprint(stock_bp)
     app.register_blueprint(crypto_bp)
     app.register_blueprint(meta_bp)
     app.register_blueprint(bond_bp)
+    app.register_blueprint(global_bp)
+    app.register_blueprint(macro_bp)
 
     @app.route('/')
     def hello_world():

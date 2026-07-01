@@ -10,9 +10,13 @@ def create_app():
     from utils.schema_migration import run_migration
     run_migration()
 
-    # --- Ensure the single SMTP config row (id=0) exists ---
+    # --- Ensure the single SMTP config row (id=1) exists ---
     from daos.smtp_config_dao import SmtpConfigDao
     SmtpConfigDao().ensure_exists()
+
+    # --- Ensure the single user_profile row (id=1) exists ---
+    from daos.user_profile_dao import UserProfileDao
+    UserProfileDao().ensure_exists()
 
     # Register blueprints
     from views.transaction_view import transaction_bp
@@ -24,6 +28,7 @@ def create_app():
     from views.sector_view import sector_bp
     from views.fund_detail_view import fund_detail_bp
     from views.smtp_config_view import smtp_config_bp
+    from views.user_profile_view import user_profile_bp
 
     app.register_blueprint(transaction_bp)
     app.register_blueprint(holding_bp)
@@ -34,6 +39,7 @@ def create_app():
     app.register_blueprint(sector_bp)
     app.register_blueprint(fund_detail_bp)
     app.register_blueprint(smtp_config_bp)
+    app.register_blueprint(user_profile_bp)
 
     @app.route("/")
     def hello_world():

@@ -3,6 +3,17 @@ from daos.base_dao import get_connection
 
 class UserProfileDao:
 
+    def ensure_exists(self) -> None:
+        """确保 id=1 的那条 user_profile 行存在（不存在则插入占位行）。"""
+        sql = """
+            INSERT IGNORE INTO user_profile (id, phone, email)
+            VALUES (1, '', '')
+        """
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql)
+                conn.commit()
+
     def get(self) -> dict | None:
         sql = "SELECT * FROM user_profile LIMIT 1"
         with get_connection() as conn:
