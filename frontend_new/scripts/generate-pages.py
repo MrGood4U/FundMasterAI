@@ -6,14 +6,14 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSET_VERSION = "20260630-1"
 
 NAV = [
-    ("global-investment.html", "Overview", "overview"),
-    ("portfolio-overview.html", "Portfolio", "portfolio"),
+    ("portfolio-overview.html", "Overview", "overview"),
     ("fund-deep-dive.html", "Analytics", "analytics"),
-    ("market-hub.html", "Markets", "markets"),
     ("index.html", "News", "news"),
     ("ai-insights.html", "AI Insights", "ai"),
     ("settings.html", "Settings", "settings"),
 ]
+PORTFOLIO_NAV = [("equity-funds.html", "Equity Funds"), ("debt-funds.html", "Debt Funds"), ("global-investment.html", "Global Investment")]
+MARKETS_NAV = [("market-hub.html", "Market Hub"), ("market-flow.html", "Market Flow")]
 
 # 与 assets/icons/ 下 PNG 对应（由 Figma 导出后放入）
 ICON_SRC = {
@@ -39,7 +39,7 @@ def sidebar(active_href: str) -> str:
         "        </div>",
         '        <nav class="sidebar__nav" aria-label="功能菜单">',
     ]
-    for href, label, key in NAV:
+    def link(href, label, key):
         src = ICON_SRC[key]
         active = href == active_href
         cls = "nav-link nav-link--active" if active else "nav-link"
@@ -48,6 +48,28 @@ def sidebar(active_href: str) -> str:
         lines.append(f'            <img class="nav-link__icon" src="{src}" width="20" height="20" alt="" />')
         lines.append(f"            {label}")
         lines.append("          </a>")
+
+    def group(label, key, items):
+        group_active = any(href == active_href for href, _ in items)
+        lines.append(f'          <details class="nav-group"{" open" if group_active else ""}>')
+        lines.append(f'            <summary class="nav-link nav-parent{" nav-link--active" if group_active else ""}">')
+        lines.append(f'              <img class="nav-link__icon" src="{ICON_SRC[key]}" width="20" height="20" alt="" />')
+        lines.append(f'              {label}<span class="nav-caret" aria-hidden="true"></span>')
+        lines.append('            </summary>')
+        lines.append('            <div class="nav-submenu">')
+        for href, item_label in items:
+            active = href == active_href
+            cls = "nav-sublink nav-sublink--active" if active else "nav-sublink"
+            cur = ' aria-current="page"' if active else ""
+            lines.append(f'              <a class="{cls}" href="{href}"{cur}>{item_label}</a>')
+        lines.extend(['            </div>', '          </details>'])
+
+    link(*NAV[0])
+    group("Portfolio", "portfolio", PORTFOLIO_NAV)
+    link(*NAV[1])
+    group("Markets", "markets", MARKETS_NAV)
+    for item in NAV[2:]:
+        link(*item)
     lines += [
         "        </nav>",
         '        <div class="sidebar__footer">',

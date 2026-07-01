@@ -28,23 +28,37 @@
         </div>
 
         <nav class="sidebar__nav" aria-label="功能菜单">
-          <a class="nav-link" href="global-investment.html">
+          <a class="nav-link" href="portfolio-overview.html">
             <img class="nav-link__icon" src="assets/icons/nav-overview.png" width="20" height="20" alt="" />
             Overview
           </a>
-          <a class="nav-link" href="portfolio-overview.html">
-            <img class="nav-link__icon" src="assets/icons/nav-portfolio.png" width="20" height="20" alt="" />
-            Portfolio
-          </a>
+          <details class="nav-group">
+            <summary class="nav-link nav-parent">
+              <img class="nav-link__icon" src="assets/icons/nav-portfolio.png" width="20" height="20" alt="" />
+              Portfolio
+              <span class="nav-caret" aria-hidden="true"></span>
+            </summary>
+            <div class="nav-submenu">
+              <a class="nav-sublink" href="equity-funds.html">Equity Funds</a>
+              <a class="nav-sublink" href="debt-funds.html">Debt Funds</a>
+              <a class="nav-sublink" href="global-investment.html">Global Investment</a>
+            </div>
+          </details>
           <a class="nav-link" href="fund-deep-dive.html">
             <img class="nav-link__icon" src="assets/icons/nav-analytics.png" width="20" height="20" alt="" />
             Analytics
           </a>
-          <a class="nav-link" href="market-hub.html">
-            <img class="nav-link__icon" src="assets/icons/nav-markets.png" width="20" height="20" alt="" />
-            Markets
-          </a>
-          <!-- 当前页：News（Figma 11:336） -->
+          <details class="nav-group">
+            <summary class="nav-link nav-parent">
+              <img class="nav-link__icon" src="assets/icons/nav-markets.png" width="20" height="20" alt="" />
+              Markets
+              <span class="nav-caret" aria-hidden="true"></span>
+            </summary>
+            <div class="nav-submenu">
+              <a class="nav-sublink" href="market-hub.html">Market Hub</a>
+              <a class="nav-sublink" href="market-flow.html">Market Flow</a>
+            </div>
+          </details>
           <a class="nav-link nav-link--active" href="index.html" aria-current="page">
             <img class="nav-link__icon" src="assets/icons/nav-news.png" width="20" height="20" alt="" />
             News
