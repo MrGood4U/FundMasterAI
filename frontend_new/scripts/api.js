@@ -28,11 +28,21 @@
 
     const response = await fetch(joinUrl(baseUrl, path), init);
     let payload = null;
+    const responseText = await response.text();
 
     try {
-      payload = await response.json();
+      payload = responseText ? JSON.parse(responseText) : null;
     } catch (error) {
-      payload = { message: response.statusText || "Invalid JSON response" };
+      // Python's default JSON encoder may emit bare NaN/Infinity values.
+      // Browsers reject those as invalid JSON, so normalize numeric values to null.
+      const normalized = responseText
+        .replace(/(:|\[|,)\s*NaN\s*(?=,|\]|})/g, "$1 null")
+        .replace(/(:|\[|,)\s*-?Infinity\s*(?=,|\]|})/g, "$1 null");
+      try {
+        payload = normalized ? JSON.parse(normalized) : null;
+      } catch (normalizedError) {
+        payload = { message: response.statusText || "Invalid JSON response" };
+      }
     }
 
     if (!response.ok || (payload && payload.code && payload.code !== 200)) {

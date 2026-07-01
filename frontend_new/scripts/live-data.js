@@ -237,6 +237,28 @@
       <div><span class="fd-stats__k">Period Return</span><span class="fd-stats__v ${change >= 0 ? "pos" : "neg"}">${formatPercent(change)}</span></div>
       <div><span class="fd-stats__k">Rows</span><span class="fd-stats__v">${rows.length}</span></div>
       <div><span class="fd-stats__k">Source</span><span class="fd-stats__v">Eastmoney</span></div>`;
+
+    const chart = document.querySelector(".fd-chart");
+    const chartRows = orderedRows.filter((_, index) => index % Math.max(1, Math.ceil(orderedRows.length / 80)) === 0);
+    const values = chartRows.map((item) => numberValue(pick(item, ["close", "unit_net_value", "收盘", "单位净值"], 0)));
+    if (chart && values.length > 1) {
+      const width = 900;
+      const height = 240;
+      const pad = 24;
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const range = max - min || 1;
+      const points = values.map((value, index) => {
+        const x = pad + index * ((width - pad * 2) / Math.max(values.length - 1, 1));
+        const y = height - pad - ((value - min) / range) * (height - pad * 2);
+        return `${x},${y}`;
+      }).join(" ");
+      chart.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="历史净值曲线" preserveAspectRatio="none">
+        <defs><linearGradient id="nav-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#81ecff" stop-opacity=".3"/><stop offset="1" stop-color="#81ecff" stop-opacity="0"/></linearGradient></defs>
+        <polygon points="${pad},${height - pad} ${points} ${width - pad},${height - pad}" fill="url(#nav-fill)"/>
+        <polyline points="${points}" fill="none" stroke="#81ecff" stroke-width="3" vector-effect="non-scaling-stroke"/>
+      </svg>`;
+    }
   }
 
   async function loadFundDetail() {
