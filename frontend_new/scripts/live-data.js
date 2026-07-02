@@ -107,7 +107,7 @@
 
     setStatus("[data-api-status='market']", "Connecting to market backend...");
     try {
-      const rows = await api.global.getIndexQuotes({ tickers: ["^GSPC", "^IXIC", "^FTSE", "^N225"] });
+      const rows = await api.global.getIndexQuotesFromList(["^GSPC", "^IXIC", "^FTSE", "^N225"], 4);
       const quotes = Array.isArray(rows) ? rows : [];
       document.querySelectorAll(".mh-indices .mh-index").forEach((card, index) => {
         const quote = quotes[index];
@@ -237,6 +237,28 @@
       <div><span class="fd-stats__k">Period Return</span><span class="fd-stats__v ${change >= 0 ? "pos" : "neg"}">${formatPercent(change)}</span></div>
       <div><span class="fd-stats__k">Rows</span><span class="fd-stats__v">${rows.length}</span></div>
       <div><span class="fd-stats__k">Source</span><span class="fd-stats__v">Eastmoney</span></div>`;
+
+    const chart = document.querySelector(".fd-chart");
+    const chartRows = orderedRows.filter((_, index) => index % Math.max(1, Math.ceil(orderedRows.length / 80)) === 0);
+    const values = chartRows.map((item) => numberValue(pick(item, ["close", "unit_net_value", "收盘", "单位净值"], 0)));
+    if (chart && values.length > 1) {
+      const width = 900;
+      const height = 240;
+      const pad = 24;
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const range = max - min || 1;
+      const points = values.map((value, index) => {
+        const x = pad + index * ((width - pad * 2) / Math.max(values.length - 1, 1));
+        const y = height - pad - ((value - min) / range) * (height - pad * 2);
+        return `${x},${y}`;
+      }).join(" ");
+      chart.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="历史净值曲线" preserveAspectRatio="none">
+        <defs><linearGradient id="nav-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#81ecff" stop-opacity=".3"/><stop offset="1" stop-color="#81ecff" stop-opacity="0"/></linearGradient></defs>
+        <polygon points="${pad},${height - pad} ${points} ${width - pad},${height - pad}" fill="url(#nav-fill)"/>
+        <polyline points="${points}" fill="none" stroke="#81ecff" stroke-width="3" vector-effect="non-scaling-stroke"/>
+      </svg>`;
+    }
   }
 
   async function loadFundDetail() {
@@ -244,10 +266,27 @@
     if (!page) return;
 
     setStatus("[data-api-status='fund']", "Connecting to fund backend...");
-    try {
-      const [spotRows, histRows] = await Promise.all([
-        api.publicFund.getOneRealTime({ platform: "eastmoney", symbol: "ETF", code: DEFAULT_FUND_CODE }),
-        api.publicFund.getHist({
+    const title = document.querySelector("[data-fund-title]");
+    const ticker = document.querySelector("[data-fund-ticker]");
+    const nav = document.querySelector("[data-fund-nav]");
+    const change = document.querySelector("[data-fund-change]");
+    if (title) title.textContent = "沪深300ETF华泰柏瑞";
+    if (ticker) ticker.textContent = DEFAULT_FUND_CODE;
+    if (nav) nav.textContent = "--";
+    if (change) change.textContent = "--";
+
+    let spotLoaded = false;
+    let histLoaded = false;
+    const spotTask = api.publicFund
+      .getOneRealTime({ platform: "eastmoney", symbol: "ETF", code: DEFAULT_FUND_CODE })
+      .then((spotRows) => {
+        if (Array.isArray(spotRows) && spotRows[0]) {
+          renderFundHeader(spotRows[0]);
+          spotLoaded = true;
+        }
+      });
+    const histTask = api.publicFund
+      .getHist({
           platform: "eastmoney",
           symbol: "ETF",
           code: DEFAULT_FUND_CODE,
@@ -255,15 +294,22 @@
           end_date: "20261231",
           period: "daily",
           adjust: "",
-        }),
-      ]);
+        })
+      .then((histRows) => {
+        if (Array.isArray(histRows) && histRows.length) {
+          renderFundHist(histRows);
+          histLoaded = true;
+        }
+      });
 
-      if (Array.isArray(spotRows) && spotRows[0]) renderFundHeader(spotRows[0]);
-      if (Array.isArray(histRows)) renderFundHist(histRows);
-      setStatus("[data-api-status='fund']", "Live ETF data · 510300");
-    } catch (error) {
-      setStatus("[data-api-status='fund']", `Fund backend unavailable: ${error.message}`, true);
-    }
+    const results = await Promise.allSettled([spotTask, histTask]);
+    const errors = results.filter((item) => item.status === "rejected").map((item) => item.reason?.message).filter(Boolean);
+    const loaded = Number(spotLoaded) + Number(histLoaded);
+    setStatus(
+      "[data-api-status='fund']",
+      loaded ? `ETF data · ${loaded}/2 sources loaded` : `Fund data unavailable${errors.length ? `: ${errors[0]}` : ""}`,
+      loaded === 0
+    );
   }
 
   document.addEventListener("DOMContentLoaded", () => {
