@@ -75,6 +75,21 @@ def _nav_by_date(nav_series: List[NavPoint]) -> Dict[str, float]:
     return {point.date: point.nav for point in nav_series if point.nav is not None}
 
 
+def intersect_nav_dates(funds: List[PortfolioFundData]) -> List[str]:
+    """Sorted intersection of NAV dates across funds, without any length check.
+
+    对齐口径的唯一实现：adapter 构造 `analysis_window` 和管线做净值合成
+    必须使用同一份交集逻辑，避免"输入窗口"和"实际计算窗口"不一致。
+    """
+    if not funds:
+        return []
+    common_dates = None
+    for fund in funds:
+        dates = set(_nav_by_date(fund.nav_series))
+        common_dates = dates if common_dates is None else (common_dates & dates)
+    return sorted(common_dates or [])
+
+
 def align_common_dates(
     funds: List[PortfolioFundData],
     min_overlap_points: int = MIN_OVERLAP_POINTS,
@@ -87,12 +102,7 @@ def align_common_dates(
     if not funds:
         raise ValueError("Portfolio composition needs at least one constituent fund.")
 
-    common_dates = None
-    for fund in funds:
-        dates = set(_nav_by_date(fund.nav_series))
-        common_dates = dates if common_dates is None else (common_dates & dates)
-
-    sorted_dates = sorted(common_dates or [])
+    sorted_dates = intersect_nav_dates(funds)
     if len(sorted_dates) < min_overlap_points:
         detail = ", ".join(
             f"{fund.fund_info.code}({len(fund.nav_series)} NAV points)" for fund in funds

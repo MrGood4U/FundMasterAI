@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+from datetime import date, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -11,13 +12,21 @@ from fund_llm.portfolio_analysis import (
     build_constituent_metrics,
     build_portfolio_quant_metrics,
     compose_portfolio_nav,
+    intersect_nav_dates,
     normalize_positions,
 )
+
+# 真实日历日期基准：start_day=1 对应 2026-01-01，往后按自然日递增，
+# 跨月自动进位（不会生成 2026-01-40 这类后端不可能返回的日期）。
+BASE_DATE = date(2026, 1, 1)
 
 
 def build_nav_series(values, start_day=1):
     return [
-        NavPoint(date=f"2026-01-{start_day + index:02d}", nav=value)
+        NavPoint(
+            date=(BASE_DATE + timedelta(days=start_day - 1 + index)).isoformat(),
+            nav=value,
+        )
         for index, value in enumerate(values)
     ]
 
@@ -82,6 +91,7 @@ class NormalizePositionsTest(unittest.TestCase):
 
 class AlignCommonDatesTest(unittest.TestCase):
     def test_intersection_of_dates_is_used(self):
+        # 40 个自然日会跨到 2 月，验证真实日历日期下的交集与排序。
         fund_a = build_fund("A", build_nav_series([1.0] * 40, start_day=1), weight=0.5)
         fund_b = build_fund("B", build_nav_series([1.0] * 40, start_day=5), weight=0.5)
 
@@ -89,7 +99,17 @@ class AlignCommonDatesTest(unittest.TestCase):
 
         self.assertEqual(len(common_dates), 36)
         self.assertEqual(common_dates[0], "2026-01-05")
+        self.assertEqual(common_dates[-1], "2026-02-09")
         self.assertEqual(common_dates, sorted(common_dates))
+
+    def test_intersect_nav_dates_has_no_minimum_threshold(self):
+        fund_a = build_fund("A", build_nav_series([1.0] * 5), weight=0.5)
+        fund_b = build_fund("B", build_nav_series([1.0] * 5, start_day=3), weight=0.5)
+
+        shared = intersect_nav_dates([fund_a, fund_b])
+
+        self.assertEqual(shared, ["2026-01-03", "2026-01-04", "2026-01-05"])
+        self.assertEqual(intersect_nav_dates([]), [])
 
     def test_insufficient_overlap_raises_with_fund_details(self):
         fund_a = build_fund("A", build_nav_series([1.0] * 10), weight=0.5)

@@ -693,7 +693,13 @@ Actual changes:
   `adapters/backend_function_client.py`: light per-fund fetch
   (`get_fund_hist` + `get_fund_individual_basic_info` only); any missing NAV
   raises `ValueError` listing the failing codes (HTTP `422`), basic-info
-  failure degrades to code/unknown labels.
+  failure degrades to code/unknown labels. The input `analysis_window` and
+  `request_id` date use the shared NAV-date intersection (same
+  `intersect_nav_dates()` helper the composition uses), not the union of all
+  fund date ranges, so the input window always matches the actually analyzed
+  window; an empty intersection leaves the window unset with a
+  `no-shared-window` request-id placeholder and lets the pipeline raise the
+  structured `422`.
 - Added `agents/portfolio_chief_agent.py` (deterministic score/rating plus
   LLM explanation with deterministic fallback) and
   `portfolio_pipeline.py` (mock/real orchestration with alignment,

@@ -525,14 +525,18 @@ def _portfolio_services():
 
 
 def test_build_portfolio_input_fetches_nav_and_basic_info_per_fund():
+    # 两只基金的日期范围刻意不一致：000001 多一个更早的点，003358 多一个更晚的点。
+    # analysis_window 必须取共同交集（01-01..01-02），而不是并集（2025-12-30..01-03）。
     nav_by_code = {
         "000001": [
+            {"date": "2025-12-30", "unit_net_value": "0.99"},
             {"date": "2026-01-01", "unit_net_value": "1.00"},
             {"date": "2026-01-02", "unit_net_value": "1.02"},
         ],
         "003358": [
             {"date": "2026-01-01", "unit_net_value": "2.00"},
             {"date": "2026-01-02", "unit_net_value": "2.01"},
+            {"date": "2026-01-03", "unit_net_value": "2.02"},
         ],
     }
     basic_by_code = {
@@ -559,6 +563,30 @@ def test_build_portfolio_input_fetches_nav_and_basic_info_per_fund():
     assert payload.extra_context["fund_count"] == "2"
     assert payload.analysis_window.start_date == "2026-01-01"
     assert payload.analysis_window.end_date == "2026-01-02"
+    assert payload.request_id.endswith("2026-01-02")
+
+
+def test_build_portfolio_input_with_disjoint_calendars_leaves_window_empty():
+    # 完全无共同日期时不在取数层报错（留给管线的最小重叠检查给出 422），
+    # 但 window 必须为空，request_id 使用占位符而不是并集日期。
+    nav_by_code = {
+        "000001": [{"date": "2026-01-01", "unit_net_value": "1.00"}],
+        "003358": [{"date": "2026-02-01", "unit_net_value": "2.00"}],
+    }
+    client = BackendFunctionClient(
+        services=_portfolio_services(),
+        transport=_portfolio_transport_factory(nav_by_code),
+    )
+    positions = [
+        PortfolioPosition(code="000001", weight=0.5),
+        PortfolioPosition(code="003358", weight=0.5),
+    ]
+
+    payload = build_portfolio_input_from_backend_functions(positions, client=client)
+
+    assert payload.analysis_window.start_date is None
+    assert payload.analysis_window.end_date is None
+    assert payload.request_id.endswith("no-shared-window")
 
 
 def test_build_portfolio_input_raises_when_any_fund_nav_is_missing():
@@ -644,6 +672,9 @@ class BackendFunctionClientRegressionTest(unittest.TestCase):
 
     def test_portfolio_input_fetches_per_fund_data(self):
         test_build_portfolio_input_fetches_nav_and_basic_info_per_fund()
+
+    def test_portfolio_input_disjoint_calendars_leave_window_empty(self):
+        test_build_portfolio_input_with_disjoint_calendars_leaves_window_empty()
 
     def test_portfolio_input_raises_on_missing_nav(self):
         test_build_portfolio_input_raises_when_any_fund_nav_is_missing()

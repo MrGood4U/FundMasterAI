@@ -687,7 +687,7 @@ def build_portfolio_input_from_backend_functions(
 
     `positions` 权重必须已经归一化（见 `portfolio_analysis.normalize_positions`）。
     """
-    from fund_llm.portfolio_analysis import normalize_positions
+    from fund_llm.portfolio_analysis import intersect_nav_dates, normalize_positions
 
     normalized_positions, weights_rescaled = normalize_positions(positions)
     requested_weight_by_code = {position.code: position.weight for position in positions}
@@ -790,11 +790,13 @@ def build_portfolio_input_from_backend_functions(
             "for every constituent fund."
         )
 
-    all_dates = sorted({point.date for fund in funds for point in fund.nav_series})
+    # 窗口口径与组合指标一致：用共同日期交集，而不是所有基金日期的并集。
+    # 交集为空时留空，由管线的最小重叠检查给出结构化 422，不在这里报错。
+    shared_dates = intersect_nav_dates(funds)
     window = AnalysisWindow(
-        start_date=all_dates[0] if all_dates else None,
-        end_date=all_dates[-1] if all_dates else None,
-        as_of_date=all_dates[-1] if all_dates else None,
+        start_date=shared_dates[0] if shared_dates else None,
+        end_date=shared_dates[-1] if shared_dates else None,
+        as_of_date=shared_dates[-1] if shared_dates else None,
     )
     successful_tools = sorted(
         {item["function"] for item in tool_trace if item["status"] == "success"}
@@ -804,7 +806,10 @@ def build_portfolio_input_from_backend_functions(
     )
 
     return PortfolioAnalysisInput(
-        request_id=f"backend-portfolio-{'-'.join(fund.fund_info.code for fund in funds)}-{window.as_of_date}",
+        request_id=(
+            f"backend-portfolio-{'-'.join(fund.fund_info.code for fund in funds)}"
+            f"-{window.as_of_date or 'no-shared-window'}"
+        ),
         funds=funds,
         analysis_window=window,
         client_risk_profile=client_risk_profile,
