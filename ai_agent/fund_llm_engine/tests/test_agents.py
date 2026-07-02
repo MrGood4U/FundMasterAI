@@ -347,6 +347,45 @@ class AgentsTest(unittest.TestCase):
         self.assertIn("mock llm failure", result.narrative)
 
 
+class DataDrivenConfidenceTest(unittest.TestCase):
+    """Phase C：Performance/Risk 置信度必须随数据质量变化，且约束在 0.4-0.9。"""
+
+    def test_performance_confidence_is_high_with_rich_data(self):
+        result = PerformanceAgent(MockLLMClient("narrative")).analyze(build_rich_features())
+
+        self.assertGreaterEqual(result.confidence, 0.8)
+        self.assertLessEqual(result.confidence, 0.9)
+
+    def test_performance_confidence_is_low_with_sparse_data(self):
+        result = PerformanceAgent(MockLLMClient("narrative")).analyze(build_sample_features())
+
+        self.assertGreaterEqual(result.confidence, 0.4)
+        self.assertLessEqual(result.confidence, 0.55)
+
+    def test_risk_confidence_is_high_with_rich_data(self):
+        result = RiskAgent(MockLLMClient("narrative")).analyze(build_rich_features())
+
+        self.assertGreaterEqual(result.confidence, 0.8)
+        self.assertLessEqual(result.confidence, 0.9)
+
+    def test_risk_confidence_is_low_with_sparse_data(self):
+        result = RiskAgent(MockLLMClient("narrative")).analyze(build_sample_features())
+
+        self.assertGreaterEqual(result.confidence, 0.4)
+        self.assertLessEqual(result.confidence, 0.55)
+
+    def test_confidence_helper_respects_required_flags(self):
+        from fund_llm.agents.base import data_driven_confidence
+
+        features = build_rich_features()
+        full = data_driven_confidence(features, required_flags=["has_benchmark"])
+        missing = data_driven_confidence(features, required_flags=["has_bond_holdings"])
+
+        self.assertGreater(full, missing)
+        self.assertGreaterEqual(missing, 0.4)
+        self.assertLessEqual(full, 0.9)
+
+
 class ChiefAgentTest(unittest.TestCase):
     def test_chief_agent_aggregates_outputs(self):
         features = build_sample_features()

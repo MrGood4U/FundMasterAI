@@ -10,7 +10,7 @@ It records verified implementation state only. Future plans stay in
 
 ## Current Snapshot
 
-Date: 2026-06-24
+Date: 2026-07-02
 
 Branch:
 
@@ -38,7 +38,19 @@ RiskAgent
 SentimentAgent
 SectorAgent
 ChiefAgent
+PortfolioChiefAgent (portfolio-level aggregation)
 ```
+
+Implemented analysis levels:
+
+- Fund level: `POST /api/ai/fund/analyze` (multi-agent pipeline above).
+- Portfolio level (Phase A1 MVP): `POST /api/ai/portfolio/analyze` composes a
+  fixed-weight, daily-rebalanced portfolio NAV from constituent funds (date
+  intersection, then compound the weighted average of daily returns), reuses
+  the fund-level metric functions on the composed series, adds
+  `weighted_average_volatility` / `diversification_benefit` evidence
+  (guaranteed non-negative under daily rebalancing), and aggregates through
+  `PortfolioChiefAgent`.
 
 Frontend-facing AI output status:
 
@@ -94,11 +106,16 @@ Known gaps:
 
 ## Todo
 
-- Complete the narrowed Phase 1.5 engineering hardening plan before broader
-  Phase 2 evidence work: clean up Agent-side backend data handling, add
-  structured `top_holdings` / `profit_probability` / `individual_analysis`
-  fields, unify dynamic confidence, add explicit `is_mock`, add timeout /
-  `429` / `5xx` LLM retry, sanitize Agent HTTP `500`, and update tests/docs.
+- Phase A2 (holdings look-through): merge constituent top holdings for real
+  overlap/concentration checks; depends on structured `top_holdings` fields.
+- Phase B: sector-level aggregated view reusing `SectorAgent`, plus
+  MarketAgent / CapitalFlowAgent when upstream data is evidence-ready.
+- Remaining Phase D hardening (was Phase 1.5): structured `top_holdings` /
+  `profit_probability` / `individual_analysis` fields, explicit `is_mock`,
+  timeout / `429` / `5xx` LLM retry, sanitize Agent HTTP `500`, and update
+  tests/docs. Dynamic confidence for Performance/Risk is already done
+  (2026-07-02); extending the shared helper to the other agents remains
+  optional follow-up.
 - Add deeper bond analytics after backend data includes duration, maturity structure, issuer classification, and credit-rating fields.
 - Consider a future `ProfitabilityAgent` only if the team decides to make `get_fund_profit_probability` a first-class specialist view.
 - Add or expand regression cases after new bond, asset allocation, market, or capital-flow data becomes available.
@@ -610,6 +627,107 @@ Known unfinished work:
 
 - Models that require `/v1/messages` instead of chat/completions remain excluded
   until `LLMClient` grows a second transport path.
+
+### 2026-07-02 - Make Performance/Risk confidence data-driven (Phase C)
+
+Goal:
+
+- Replace the hard-coded `PerformanceAgent` (`0.78`) and `RiskAgent` (`0.80`)
+  confidence values with a data-quality-driven calculation, aligned with the
+  dynamic-confidence style already used by exposure/sentiment/sector/bond
+  agents.
+
+Actual changes:
+
+- Added `data_driven_confidence()` to `agents/base.py`: signals are NAV point
+  count (up to +0.20 at 252 points), available rolling return window count
+  (+0.04 each, up to 4), benchmark presence (+0.06), and required-flag
+  completeness (up to +0.08); output clamped to `0.4-0.9`.
+- `PerformanceAgent` and `RiskAgent` now call the helper instead of returning
+  fixed values. Other agents keep their existing dynamic confidence logic.
+- Added `DataDrivenConfidenceTest` regression tests (rich data high, sparse
+  data low, required-flag sensitivity).
+- Regenerated `examples/mock_output.json`; `average_confidence` for the 5-point
+  mock payload moved from `0.78` to `0.68` as expected.
+
+Impact:
+
+- AI Agent layer only; no backend/frontend changes.
+- Public API shape unchanged; only `confidence` values and derived
+  `average_confidence` metadata move with data quality.
+- Golden suite expectations did not assert fixed confidence values, so all 8
+  cases still pass unchanged.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest discover tests
+.venv/bin/python scripts/run_golden_suite.py --mode mock
+```
+
+### 2026-07-02 - Add portfolio-level analysis MVP (Phase A1)
+
+Goal:
+
+- Deliver the proposal-promised portfolio-level analysis as a stable JSON API
+  without depending on portfolio_backend or frontend changes.
+
+Actual changes:
+
+- Added `POST /api/ai/portfolio/analyze` to `app.py` with the same
+  `code/data/coverage/message` envelope and `mock` / `llm_model` /
+  `llm_timeout_seconds` request options as the fund endpoint.
+- Added `src/fund_llm/portfolio_analysis.py`: weight validation and
+  normalization (positive weights, no duplicate codes, auto rescale),
+  NAV date intersection with a 30-point minimum overlap, fixed-weight
+  daily-rebalanced composition (portfolio daily return = weighted average of
+  constituent daily returns, compounded), per-constituent metrics on the
+  shared window, and portfolio quant metrics including
+  `weighted_average_volatility` and `diversification_benefit` (non-negative
+  by construction).
+- Added portfolio contracts to `contracts.py`: `PortfolioPosition`,
+  `PortfolioFundData`, `PortfolioAnalysisInput`,
+  `PortfolioConstituentMetrics`, `PortfolioAnalysisResult`.
+- Added `build_portfolio_input_from_backend_functions()` to
+  `adapters/backend_function_client.py`: light per-fund fetch
+  (`get_fund_hist` + `get_fund_individual_basic_info` only); any missing NAV
+  raises `ValueError` listing the failing codes (HTTP `422`), basic-info
+  failure degrades to code/unknown labels.
+- Added `agents/portfolio_chief_agent.py` (deterministic score/rating plus
+  LLM explanation with deterministic fallback) and
+  `portfolio_pipeline.py` (mock/real orchestration with alignment,
+  composition, and aggregation trace events).
+- Added tests: `test_portfolio_analysis.py` (15 math/validation cases),
+  `test_portfolio_pipeline.py` (8 pipeline cases),
+  `test_portfolio_api.py` (6 endpoint contract cases), plus 3 adapter cases in
+  `test_backend_function_client.py`.
+- Added `examples/portfolio_input_demo.json` and the portfolio section in
+  `docs/contracts.md`.
+
+Impact:
+
+- New additive endpoint; existing fund-level API is unchanged (covered by a
+  regression test).
+- No backend or frontend code changes; frontend can adopt the endpoint on the
+  portfolio/overview page when ready.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest discover tests
+.venv/bin/python scripts/run_golden_suite.py --mode mock
+curl -s -X POST http://127.0.0.1:5003/api/ai/portfolio/analyze \
+  -H 'Content-Type: application/json' \
+  -d @examples/portfolio_input_demo.json
+```
+
+Known unfinished work:
+
+- Phase A2 holdings look-through and sector-level aggregation remain planned.
+- Real-LLM portfolio summary quality review should be added to the manual
+  acceptance checklist when real-mode smoke tests run.
 
 ## Handoff Notes For Future AI
 

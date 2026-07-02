@@ -1,4 +1,4 @@
-from fund_llm.agents.base import BaseAgent, clamp, score_to_stance
+from fund_llm.agents.base import BaseAgent, clamp, data_driven_confidence, score_to_stance
 from fund_llm.contracts import AgentOutput, FundFeaturePack
 
 
@@ -89,6 +89,6 @@ class RiskAgent(BaseAgent):
             key_points=key_points,
             risks=risks,
             recommendations=recommendations,
-            confidence=0.80,
+            confidence=data_driven_confidence(features),
             narrative=narrative,
         )

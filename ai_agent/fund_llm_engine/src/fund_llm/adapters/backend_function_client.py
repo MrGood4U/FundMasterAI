@@ -26,6 +26,9 @@ from fund_llm.contracts import (
     FundOperationalMetrics,
     NavPoint,
     NewsItem,
+    PortfolioAnalysisInput,
+    PortfolioFundData,
+    PortfolioPosition,
 )
 from fund_llm.fund_routing import classify_fund_type
 
@@ -663,5 +666,156 @@ def build_fund_input_from_backend_functions(
             "backend_asset_allocation": _json_preview(asset_allocation_records),
             "backend_individual_analysis": _json_preview(individual_analysis),
             "backend_profit_probability": _json_preview(profit_probability),
+        },
+    )
+
+
+def build_portfolio_input_from_backend_functions(
+    positions: List[PortfolioPosition],
+    *,
+    client: Optional[BackendFunctionClient] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    max_nav_points: int = 520,
+    client_risk_profile: str = "balanced",
+) -> PortfolioAnalysisInput:
+    """Assemble `PortfolioAnalysisInput` with a light per-fund backend fetch.
+
+    组合层 Level 1 每只基金只需要 NAV 和基本信息，不拉持仓/公告等可选数据，
+    避免 N 只基金 × 全量工具的调用放大。任何一只基金 NAV 拉取失败都会
+    抛出 ValueError（由 HTTP 层转成 422），不静默丢弃成分基金。
+
+    `positions` 权重必须已经归一化（见 `portfolio_analysis.normalize_positions`）。
+    """
+    from fund_llm.portfolio_analysis import normalize_positions
+
+    normalized_positions, weights_rescaled = normalize_positions(positions)
+    requested_weight_by_code = {position.code: position.weight for position in positions}
+
+    tool_client = client or BackendFunctionClient()
+    tool_client.discover_fund_tools()
+
+    tool_trace: List[JsonDict] = []
+    funds: List[PortfolioFundData] = []
+    failed_codes: List[str] = []
+
+    for position in normalized_positions:
+        hist_args = {"platform": "efinance", "symbol": "open_fund", "code": position.code}
+        if start_date:
+            hist_args["start_date"] = start_date
+        if end_date:
+            hist_args["end_date"] = end_date
+
+        try:
+            nav_records = tool_client.call("get_fund_hist", hist_args)
+            tool_trace.append(
+                {
+                    "function": "get_fund_hist",
+                    "fund_code": position.code,
+                    "status": "success",
+                    "records": len(nav_records) if isinstance(nav_records, list) else 0,
+                }
+            )
+        except Exception as exc:
+            tool_trace.append(
+                {
+                    "function": "get_fund_hist",
+                    "fund_code": position.code,
+                    "status": "error",
+                    "error": str(exc)[:240],
+                }
+            )
+            failed_codes.append(position.code)
+            continue
+
+        nav_series = _build_nav_series(
+            nav_records or [],
+            max_points=max_nav_points,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if not nav_series:
+            failed_codes.append(position.code)
+            continue
+
+        basic_info: JsonDict = {}
+        try:
+            basic_info = _first_record(
+                tool_client.call("get_fund_individual_basic_info", {"code": position.code})
+            )
+            tool_trace.append(
+                {
+                    "function": "get_fund_individual_basic_info",
+                    "fund_code": position.code,
+                    "status": "success",
+                    "records": 1 if basic_info else 0,
+                }
+            )
+        except Exception as exc:
+            # 基本信息是可选降级项：缺了只影响名称/类型展示，不影响组合净值合成。
+            tool_trace.append(
+                {
+                    "function": "get_fund_individual_basic_info",
+                    "fund_code": position.code,
+                    "status": "error",
+                    "error": str(exc)[:240],
+                }
+            )
+
+        fund_info = FundInfo(
+            code=position.code,
+            name=str(
+                basic_info.get("fund_name")
+                or basic_info.get("fund_full_name")
+                or position.name
+                or position.code
+            ),
+            asset_type="fund_open",
+            category=str(basic_info.get("fund_type") or "unknown"),
+            manager=basic_info.get("fund_manager"),
+        )
+        funds.append(
+            PortfolioFundData(
+                fund_info=fund_info,
+                nav_series=nav_series,
+                weight=position.weight,
+                requested_weight=requested_weight_by_code.get(position.code, position.weight),
+            )
+        )
+
+    if failed_codes:
+        raise ValueError(
+            "No NAV data returned by backend for fund code(s): "
+            f"{', '.join(sorted(failed_codes))}. Portfolio analysis needs NAV history "
+            "for every constituent fund."
+        )
+
+    all_dates = sorted({point.date for fund in funds for point in fund.nav_series})
+    window = AnalysisWindow(
+        start_date=all_dates[0] if all_dates else None,
+        end_date=all_dates[-1] if all_dates else None,
+        as_of_date=all_dates[-1] if all_dates else None,
+    )
+    successful_tools = sorted(
+        {item["function"] for item in tool_trace if item["status"] == "success"}
+    )
+    errored_tools = sorted(
+        {item["function"] for item in tool_trace if item["status"] == "error"}
+    )
+
+    return PortfolioAnalysisInput(
+        request_id=f"backend-portfolio-{'-'.join(fund.fund_info.code for fund in funds)}-{window.as_of_date}",
+        funds=funds,
+        analysis_window=window,
+        client_risk_profile=client_risk_profile,
+        extra_context={
+            "data_source": "backend_function_registry",
+            "client_risk_profile": client_risk_profile,
+            "weights_rescaled": str(weights_rescaled).lower(),
+            "fund_count": str(len(funds)),
+            "available_backend_tools": ",".join(sorted(tool_client.functions)),
+            "successful_backend_tools": ",".join(successful_tools),
+            "errored_backend_tools": ",".join(errored_tools),
+            "tool_trace": _json_preview(tool_trace),
         },
     )

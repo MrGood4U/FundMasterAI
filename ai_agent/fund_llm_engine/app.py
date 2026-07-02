@@ -23,12 +23,17 @@ if str(SRC) not in sys.path:
 from fund_llm.adapters.backend_function_client import (  # noqa: E402
     BackendFunctionClient,
     build_fund_input_from_backend_functions,
+    build_portfolio_input_from_backend_functions,
 )
-from fund_llm.contracts import AnalysisTraceEvent  # noqa: E402
+from fund_llm.contracts import AnalysisTraceEvent, PortfolioPosition  # noqa: E402
 from fund_llm.fund_routing import build_data_coverage, classify_fund_type  # noqa: E402
 from fund_llm import config  # noqa: E402
 from fund_llm.llm_models import resolve_available_models  # noqa: E402
 from fund_llm.mock_pipeline import run_mock_analysis_for_input  # noqa: E402
+from fund_llm.portfolio_pipeline import (  # noqa: E402
+    run_mock_portfolio_analysis_for_input,
+    run_real_portfolio_analysis_for_input,
+)
 from fund_llm.real_pipeline import run_real_analysis_for_input  # noqa: E402
 
 
@@ -172,6 +177,69 @@ def _build_source_trace(payload) -> list[AnalysisTraceEvent]:
     ]
 
 
+def _portfolio_coverage(payload) -> dict:
+    funds = []
+    for fund in payload.funds:
+        fund_type_profile = classify_fund_type(fund.fund_info.category)
+        funds.append(
+            {
+                "code": fund.fund_info.code,
+                "fund_name": fund.fund_info.name,
+                "fund_type": fund.fund_info.category,
+                "normalized_fund_type": fund_type_profile.normalized_type,
+                "weight": round(fund.weight, 6),
+                "nav_points": len(fund.nav_series),
+            }
+        )
+    return {
+        "fund_count": len(payload.funds),
+        "funds": funds,
+        "weights_rescaled": payload.extra_context.get("weights_rescaled", "false"),
+        "data_source": payload.extra_context.get("data_source", ""),
+        "available_backend_tools": payload.extra_context.get("available_backend_tools", ""),
+        "successful_backend_tools": payload.extra_context.get("successful_backend_tools", ""),
+        "errored_backend_tools": payload.extra_context.get("errored_backend_tools", ""),
+    }
+
+
+def _build_portfolio_source_trace(payload) -> list[AnalysisTraceEvent]:
+    tool_trace = _json_list(payload.extra_context.get("tool_trace", ""))
+    errored_tools = _csv_items(payload.extra_context.get("errored_backend_tools", ""))
+    return [
+        AnalysisTraceEvent(
+            category="backend",
+            title="Loaded constituent fund histories",
+            detail=(
+                "Fetched NAV history and basic information for every requested constituent "
+                "fund through the backend function registry before composing the portfolio."
+            ),
+            status="success" if not errored_tools else "warning",
+            evidence={
+                "fund_count": len(payload.funds),
+                "funds": {
+                    fund.fund_info.code: {
+                        "weight": round(fund.weight, 6),
+                        "nav_points": len(fund.nav_series),
+                    }
+                    for fund in payload.funds
+                },
+            },
+            technical={
+                "data_source": payload.extra_context.get("data_source", ""),
+                "required_function": "get_fund_hist",
+                "tool_trace": tool_trace,
+            },
+        ),
+    ]
+
+
+def _parse_portfolio_positions(body: dict) -> list[PortfolioPosition]:
+    raw_positions = body.get("positions") or body.get("funds") or []
+    if not isinstance(raw_positions, list) or not raw_positions:
+        raise ValueError("positions is required. Provide a list of {code, weight} items.")
+    return [PortfolioPosition.from_dict(item) for item in raw_positions if isinstance(item, dict)]
+
+
 def _setup_backend_call_logging() -> None:
     """让 fund_llm.backend_calls 的排障日志输出到 stdout（终端或 app.log）。
 
@@ -294,6 +362,57 @@ def create_app() -> Flask:
             return jsonify({"code": 422, "data": None, "message": str(exc)}), 422
         except Exception as exc:
             app.logger.exception("Fund analysis failed for code=%s", code)
+            return jsonify({"code": 500, "data": None, "message": str(exc)}), 500
+
+    @app.route("/api/ai/portfolio/analyze", methods=["POST", "OPTIONS"])
+    def analyze_portfolio():
+        if request.method == "OPTIONS":
+            return jsonify({"code": 200, "message": "ok"}), 200
+
+        body = request.get_json(silent=True) or {}
+        try:
+            positions = _parse_portfolio_positions(body)
+        except ValueError as exc:
+            return jsonify({"code": 400, "data": None, "message": str(exc)}), 400
+
+        position_codes = ",".join(position.code for position in positions)
+        try:
+            payload = build_portfolio_input_from_backend_functions(
+                positions,
+                start_date=body.get("start_date"),
+                end_date=body.get("end_date"),
+                max_nav_points=int(body.get("max_nav_points") or 520),
+                client_risk_profile=str(body.get("client_risk_profile") or "balanced"),
+            )
+
+            use_mock = _truthy(body.get("mock", os.getenv("LLM_MOCK_MODE", "false")))
+            if use_mock:
+                result = run_mock_portfolio_analysis_for_input(
+                    payload,
+                    mock_response="Mock LLM narrative generated for portfolio-level analysis.",
+                )
+            else:
+                result = run_real_portfolio_analysis_for_input(
+                    payload,
+                    model=_optional_text(body.get("llm_model") or body.get("model")),
+                    timeout_seconds=int(body.get("llm_timeout_seconds") or os.getenv("LLM_TIMEOUT_SECONDS", "60")),
+                )
+
+            result.analysis_trace = _build_portfolio_source_trace(payload) + result.analysis_trace
+
+            return jsonify(
+                {
+                    "code": 200,
+                    "data": result.to_dict(),
+                    "coverage": _portfolio_coverage(payload),
+                    "message": "success",
+                }
+            ), 200
+        except ValueError as exc:
+            app.logger.warning("Portfolio analysis rejected for codes=%s: %s", position_codes, exc)
+            return jsonify({"code": 422, "data": None, "message": str(exc)}), 422
+        except Exception as exc:
+            app.logger.exception("Portfolio analysis failed for codes=%s", position_codes)
             return jsonify({"code": 500, "data": None, "message": str(exc)}), 500
 
     return app

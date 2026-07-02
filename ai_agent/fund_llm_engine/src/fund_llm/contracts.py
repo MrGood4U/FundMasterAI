@@ -313,6 +313,137 @@ class AnalysisTraceEvent:
 
 
 @dataclass
+class PortfolioPosition:
+    """One user-requested portfolio constituent: fund code plus target weight."""
+
+    code: str
+    weight: float
+    name: str = ""
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "PortfolioPosition":
+        payload = payload or {}
+        return cls(
+            code=str(payload.get("code") or payload.get("fund_code") or "").strip(),
+            weight=float(_coerce_float(payload.get("weight")) or 0.0),
+            name=str(payload.get("name") or payload.get("fund_name") or "").strip(),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class PortfolioFundData:
+    """Fetched per-fund data used for portfolio NAV composition.
+
+    `weight` is the normalized weight actually used in composition;
+    `requested_weight` keeps the raw user input for traceability.
+    """
+
+    fund_info: FundInfo
+    nav_series: List[NavPoint]
+    weight: float
+    requested_weight: float
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class PortfolioAnalysisInput:
+    request_id: str
+    funds: List[PortfolioFundData]
+    analysis_window: Optional[AnalysisWindow] = None
+    client_risk_profile: str = "balanced"
+    extra_context: Dict[str, str] = field(default_factory=dict)
+
+    def validate_required_fields(self) -> List[str]:
+        missing_fields = []
+        if not self.request_id:
+            missing_fields.append("request_id")
+        if not self.funds:
+            missing_fields.append("funds")
+        for index, fund in enumerate(self.funds):
+            if not fund.fund_info.code:
+                missing_fields.append(f"funds[{index}].fund_info.code")
+            if not fund.nav_series:
+                missing_fields.append(f"funds[{index}].nav_series")
+        return missing_fields
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "funds": [fund.to_dict() for fund in self.funds],
+            "analysis_window": self.analysis_window.to_dict() if self.analysis_window else None,
+            "client_risk_profile": self.client_risk_profile,
+            "extra_context": dict(self.extra_context),
+        }
+
+
+@dataclass
+class PortfolioConstituentMetrics:
+    """Per-fund metrics computed on the shared aligned date window."""
+
+    code: str
+    name: str
+    fund_type: str
+    normalized_fund_type: str
+    weight: float
+    nav_points: int
+    total_return: float
+    annualized_return: float
+    annualized_volatility: float
+    max_drawdown: float
+    sharpe_ratio: float
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class PortfolioAnalysisResult:
+    """Portfolio-level analysis output.
+
+    Field names mirror `FinalAnalysisResult` where the meaning is the same
+    (`overall_rating`, `overall_score`, `summary`, `quant_metrics`, ...), so the
+    frontend can reuse its existing rendering logic. Portfolio-specific data
+    lives in `constituents` and the diversification entries of `quant_metrics`.
+    """
+
+    request_id: str
+    overall_rating: str
+    overall_score: float
+    summary: str
+    score_explanation: str
+    key_thesis: List[str]
+    main_risks: List[str]
+    action_plan: List[str]
+    quant_metrics: Dict[str, float]
+    constituents: List[PortfolioConstituentMetrics]
+    missing_fields: List[str] = field(default_factory=list)
+    metadata: Dict[str, str] = field(default_factory=dict)
+    analysis_trace: List[AnalysisTraceEvent] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "overall_rating": self.overall_rating,
+            "overall_score": self.overall_score,
+            "summary": self.summary,
+            "score_explanation": self.score_explanation,
+            "key_thesis": list(self.key_thesis),
+            "main_risks": list(self.main_risks),
+            "action_plan": list(self.action_plan),
+            "quant_metrics": dict(self.quant_metrics),
+            "constituents": [item.to_dict() for item in self.constituents],
+            "missing_fields": list(self.missing_fields),
+            "metadata": dict(self.metadata),
+            "analysis_trace": [event.to_dict() for event in self.analysis_trace],
+        }
+
+
+@dataclass
 class FinalAnalysisResult:
     request_id: str
     overall_rating: str

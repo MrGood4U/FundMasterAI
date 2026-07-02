@@ -11,7 +11,8 @@
 
 ## 兼容规则
 
-- 当前公开 AI 分析接口是 `POST /api/ai/fund/analyze`。
+- 当前公开 AI 分析接口是 `POST /api/ai/fund/analyze`（单基金）和
+  `POST /api/ai/portfolio/analyze`（组合层，见「组合层分析接口」一节）。
 - 成功响应的顶层结构固定为 `code`、`data`、`coverage`、`message`。
 - 前端可以长期依赖本文档列出的稳定字段。
 - 后续可以新增字段、新增 `metadata` key、新增 `analysis_trace` 事件，或在
@@ -70,6 +71,100 @@ Content-Type: application/json
   "max_parallel_agents": 3
 }
 ```
+
+## 组合层分析接口
+
+```text
+POST /api/ai/portfolio/analyze
+Content-Type: application/json
+```
+
+组合层 Level 1 分析：AI 服务为每只成分基金拉取 NAV 和基本信息，
+按「日期交集对齐 + 固定权重每日再平衡」合成组合净值（组合每日收益 =
+各成分当日收益的加权平均，逐日复利），在合成净值上计算组合层量化指标，
+最后由组合版 Chief 生成总评。设计给前端 portfolio / overview 页消费，
+不要求堆进 AI Insights 单基金页。
+
+### 请求字段
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|---|---:|---:|---|---|
+| `positions` | array | 是 | - | 成分基金列表，每项 `{code, weight}`。`weight` 必须为正数，权重和不为 1 时会按比例归一化（`60/40` 与 `0.6/0.4` 等价）。也兼容 `funds` 作为别名。 |
+| `start_date` | string | 否 | 后端或默认窗口 | 分析开始日期，会传给每只基金的 NAV 加载。 |
+| `end_date` | string | 否 | 后端或默认窗口 | 分析结束日期。 |
+| `client_risk_profile` | string | 否 | `balanced` | 用户风险偏好。 |
+| `mock` | boolean/string | 否 | `LLM_MOCK_MODE` 或 `false` | 为真时跑 mock LLM 模式。 |
+| `max_nav_points` | integer | 否 | `520` | 每只基金最多使用多少个净值点（无显式 `start_date` 时截尾）。 |
+| `llm_timeout_seconds` | integer | 否 | `LLM_TIMEOUT_SECONDS` 或 `60` | 真实 LLM 模式的超时时间。 |
+| `llm_model` | string | 否 | `.env` 中的 `LLM_MODEL` | 真实 LLM 模式下单次覆盖默认模型。也兼容 `model` 别名。 |
+
+最小请求示例（另见 `examples/portfolio_input_demo.json`）：
+
+```json
+{
+  "positions": [
+    {"code": "000001", "weight": 60},
+    {"code": "003358", "weight": 40}
+  ],
+  "start_date": "2025/01/01",
+  "mock": true
+}
+```
+
+### 成功响应
+
+顶层结构与单基金接口一致：`code`、`data`、`coverage`、`message`。
+
+`data` 的稳定字段（与 `FinalAnalysisResult` 同名字段语义一致，前端可复用渲染逻辑）：
+
+| 字段 | 类型 | 说明 |
+|---|---:|---|
+| `request_id` | string | 本次组合分析请求 id。 |
+| `overall_rating` | string | `buy` / `hold` / `watch` / `avoid`。 |
+| `overall_score` | number | 0-100 组合层确定性评分。 |
+| `summary` | string | 组合总评（真实模式为 LLM 解释，失败时回退确定性摘要）。 |
+| `score_explanation` | string | 评分如何由合成净值指标算出的确定性解释。 |
+| `key_thesis` / `main_risks` / `action_plan` | string[] | 组合层要点、风险、建议。 |
+| `quant_metrics` | object | 组合层量化指标，见下。 |
+| `constituents` | array | 每只成分基金在共同窗口上的对比指标，见下。 |
+| `missing_fields` | string[] | 组合路径当前恒为空数组（缺数据会直接 `422`，不静默降级）。 |
+| `metadata` | object | 执行元数据，含 `analysis_level=portfolio`、`fund_count`、`shared_nav_points`、`weights_rescaled`、`llm_mode`、`quant_metrics_reliability` 等。 |
+| `analysis_trace` | `AnalysisTraceEvent[]` | 证据链：取数、日期对齐、净值合成、组合汇总。 |
+
+`data.quant_metrics` 在单基金 A 类指标（`total_return`、`annualized_return`、
+`annualized_volatility`、`max_drawdown`、`sharpe_ratio`、`sortino_ratio`、
+`calmar_ratio`、`positive_period_ratio`、`sample_size`，另含可用窗口的
+`return_1m/3m/6m/1y` 等滚动指标）之外，新增两个组合特有字段：
+
+| 字段 | 类型 | 说明 |
+|---|---:|---|
+| `weighted_average_volatility` | number | 成分基金年化波动率按权重的线性平均。 |
+| `diversification_benefit` | number | 线性平均波动率减组合实际波动率。固定权重每日再平衡下恒 ≥ 0：成分相关性越低数值越大，完全同涨同跌时为 0，即分散化收益。 |
+
+`constituents` 每项字段：`code`、`name`、`fund_type`、`normalized_fund_type`、
+`weight`（归一化后）、`nav_points`、`total_return`、`annualized_return`、
+`annualized_volatility`、`max_drawdown`、`sharpe_ratio`。所有成分指标都在
+同一个共同日期窗口上计算，可直接横向比较。
+
+组合接口的 `coverage` 字段：
+
+| 字段 | 类型 | 说明 |
+|---|---:|---|
+| `fund_count` | integer | 成分基金数量。 |
+| `funds` | array | 每只基金的 `code`、`fund_name`、`fund_type`、`normalized_fund_type`、`weight`、`nav_points`。 |
+| `weights_rescaled` | string | `"true"` 表示输入权重和不为 1，已按比例归一化。 |
+| `data_source` / `available_backend_tools` / `successful_backend_tools` / `errored_backend_tools` | string | 与单基金接口同语义。 |
+
+### 组合接口错误语义
+
+| HTTP | 触发条件 |
+|---|---|
+| `400` | 缺少 `positions` 或列表为空。 |
+| `422` | 权重非正数、基金代码重复、任一成分基金拉不到 NAV（报错信息会列出失败代码）、共同交易日不足 30 个。 |
+| `500` | 未预期异常。 |
+
+防幻觉原则与单基金一致：任何成分基金数据缺失都会显式失败并说明原因，
+不会静默丢弃基金或让 LLM 编造缺失部分。
 
 ## 模型目录接口
 

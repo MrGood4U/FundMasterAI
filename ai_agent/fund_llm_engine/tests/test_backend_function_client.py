@@ -5,7 +5,9 @@ from fund_llm.adapters.backend_function_client import (
     BackendFunctionClient,
     BackendService,
     build_fund_input_from_backend_functions,
+    build_portfolio_input_from_backend_functions,
 )
+from fund_llm.contracts import PortfolioPosition
 
 
 def test_backend_function_client_discovers_and_calls_post_tool():
@@ -486,6 +488,141 @@ def test_optional_bond_timeout_is_not_retried_across_years():
     assert "get_fund_portfolio_hold_bond" in payload.extra_context["errored_backend_tools"]
 
 
+def _portfolio_transport_factory(nav_by_code, basic_by_code=None, failing_codes=None):
+    basic_by_code = basic_by_code or {}
+    failing_codes = failing_codes or set()
+
+    def transport(method, url, payload, timeout):
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {"code": 200, "data": [], "message": "success"}
+        code = (payload or {}).get("code", "")
+        if url.endswith("/hist"):
+            if code in failing_codes:
+                return {"code": 500, "data": None, "message": "no data"}
+            return {"code": 200, "data": nav_by_code.get(code, [])}
+        if url.endswith("/basic"):
+            return {"code": 200, "data": [basic_by_code.get(code, {})]}
+        return {"code": 200, "data": []}
+
+    return transport
+
+
+def _portfolio_services():
+    return {
+        "market": BackendService("market", "http://market", "/api/market/functions"),
+        "news": BackendService("news", "http://news", "/api/news/functions"),
+        "portfolio": BackendService("portfolio", "http://portfolio", "/api/portfolio/functions"),
+    }
+
+
+def test_build_portfolio_input_fetches_nav_and_basic_info_per_fund():
+    nav_by_code = {
+        "000001": [
+            {"date": "2026-01-01", "unit_net_value": "1.00"},
+            {"date": "2026-01-02", "unit_net_value": "1.02"},
+        ],
+        "003358": [
+            {"date": "2026-01-01", "unit_net_value": "2.00"},
+            {"date": "2026-01-02", "unit_net_value": "2.01"},
+        ],
+    }
+    basic_by_code = {
+        "000001": {"fund_name": "Mixed Demo", "fund_type": "混合型-偏股"},
+        "003358": {"fund_name": "Bond Demo", "fund_type": "债券型-债券指数"},
+    }
+    client = BackendFunctionClient(
+        services=_portfolio_services(),
+        transport=_portfolio_transport_factory(nav_by_code, basic_by_code),
+    )
+    positions = [
+        PortfolioPosition(code="000001", weight=60),
+        PortfolioPosition(code="003358", weight=40),
+    ]
+
+    payload = build_portfolio_input_from_backend_functions(positions, client=client)
+
+    assert len(payload.funds) == 2
+    assert payload.funds[0].fund_info.name == "Mixed Demo"
+    assert payload.funds[1].fund_info.category == "债券型-债券指数"
+    assert round(payload.funds[0].weight, 4) == 0.6
+    assert payload.funds[0].requested_weight == 60
+    assert payload.extra_context["weights_rescaled"] == "true"
+    assert payload.extra_context["fund_count"] == "2"
+    assert payload.analysis_window.start_date == "2026-01-01"
+    assert payload.analysis_window.end_date == "2026-01-02"
+
+
+def test_build_portfolio_input_raises_when_any_fund_nav_is_missing():
+    nav_by_code = {
+        "000001": [
+            {"date": "2026-01-01", "unit_net_value": "1.00"},
+        ],
+    }
+    client = BackendFunctionClient(
+        services=_portfolio_services(),
+        transport=_portfolio_transport_factory(nav_by_code, failing_codes={"000002"}),
+    )
+    positions = [
+        PortfolioPosition(code="000001", weight=0.5),
+        PortfolioPosition(code="000002", weight=0.5),
+    ]
+
+    try:
+        build_portfolio_input_from_backend_functions(positions, client=client)
+    except ValueError as exc:
+        assert "000002" in str(exc)
+        assert "000001" not in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for missing NAV data.")
+
+
+def test_build_portfolio_input_degrades_gracefully_without_basic_info():
+    nav_by_code = {
+        "000001": [
+            {"date": "2026-01-01", "unit_net_value": "1.00"},
+            {"date": "2026-01-02", "unit_net_value": "1.02"},
+        ],
+    }
+
+    def transport(method, url, payload, timeout):
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {"code": 200, "data": [], "message": "success"}
+        if url.endswith("/hist"):
+            return {"code": 200, "data": nav_by_code.get((payload or {}).get("code", ""), [])}
+        if url.endswith("/basic"):
+            return {"code": 500, "data": None, "message": "basic info unavailable"}
+        return {"code": 200, "data": []}
+
+    client = BackendFunctionClient(services=_portfolio_services(), transport=transport)
+
+    payload = build_portfolio_input_from_backend_functions(
+        [PortfolioPosition(code="000001", weight=1.0, name="Fallback Name")],
+        client=client,
+    )
+
+    assert payload.funds[0].fund_info.name == "Fallback Name"
+    assert payload.funds[0].fund_info.category == "unknown"
+    assert "get_fund_individual_basic_info" in payload.extra_context["errored_backend_tools"]
+
+
 class BackendFunctionClientRegressionTest(unittest.TestCase):
     def test_small_holding_percentages_are_run_by_unittest(self):
         test_build_fund_input_treats_small_holding_percentages_as_percent_units()
@@ -504,6 +641,15 @@ class BackendFunctionClientRegressionTest(unittest.TestCase):
 
     def test_optional_bond_timeout_is_not_retried_across_years(self):
         test_optional_bond_timeout_is_not_retried_across_years()
+
+    def test_portfolio_input_fetches_per_fund_data(self):
+        test_build_portfolio_input_fetches_nav_and_basic_info_per_fund()
+
+    def test_portfolio_input_raises_on_missing_nav(self):
+        test_build_portfolio_input_raises_when_any_fund_nav_is_missing()
+
+    def test_portfolio_input_degrades_without_basic_info(self):
+        test_build_portfolio_input_degrades_gracefully_without_basic_info()
 
 
 if __name__ == "__main__":

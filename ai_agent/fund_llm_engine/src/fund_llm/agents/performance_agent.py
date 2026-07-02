@@ -1,4 +1,4 @@
-from fund_llm.agents.base import BaseAgent, clamp, score_to_stance
+from fund_llm.agents.base import BaseAgent, clamp, data_driven_confidence, score_to_stance
 from fund_llm.contracts import AgentOutput, FundFeaturePack
 
 EXCESS_RETURN_ALERT_THRESHOLD = 0.005
@@ -98,6 +98,6 @@ class PerformanceAgent(BaseAgent):
             key_points=key_points,
             risks=risks,
             recommendations=recommendations,
-            confidence=0.78,
+            confidence=data_driven_confidence(features),
             narrative=narrative,
         )
