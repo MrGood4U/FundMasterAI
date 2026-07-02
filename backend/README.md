@@ -23,8 +23,9 @@ FundMasterAI 后端由三个独立的 Flask 微服务组成：Market Backend（�
 
 ```bash
 # market_backend
-pip3.11 install flask flask-openapi3 akshare pandas numpy efinance okx forex-python
+pip3.11 install flask flask-openapi3 akshare pandas numpy efinance okx redis
 pip3.11 install -U "flask-openapi3[swagger,redoc]"
+pip3.11 install yfinance pysqlite3-binary forex-python CurrencyConverter finshare
 
 # news_backend
 pip3.11 install flask akshare pandas
@@ -32,6 +33,10 @@ pip3.11 install flask akshare pandas
 # portfolio_backend
 pip3.11 install flask pymysql requests
 ```
+
+> `market_backend` 的依赖列表变了记得同步更新云服务器：`scripts/update.sh` 目前只会
+> 自动重装 `ai_agent` 的依赖，三个 Flask 后端的依赖仍需手动 `pip install`（见上），
+> 否则新代码里新增的第三方包在服务器上会因为没装而导致对应服务不断崩溃重启。
 
 ## 配置文件
 

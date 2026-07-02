@@ -103,6 +103,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e "ai_agent/fund_llm_engine[backend]" efinance okx numpy redis
+          # market_backend also needs these (global index/forex/macro + stock
+          # flow features); see backend/market_backend/README.md. Without them
+          # `from app import create_app` fails at import time with
+          # ModuleNotFoundError and this job times out waiting for the port.
+          python -m pip install yfinance pysqlite3-binary forex-python CurrencyConverter finshare
 
       - name: Start real backends and call agent analyze endpoint
         env:
