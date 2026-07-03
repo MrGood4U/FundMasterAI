@@ -3,9 +3,11 @@ from unittest.mock import patch
 
 from fund_llm.adapters.backend_function_client import (
     BackendFunctionClient,
+    BackendFunctionError,
     BackendService,
     build_fund_input_from_backend_functions,
     build_portfolio_input_from_backend_functions,
+    build_sector_view_funds_from_backend_functions,
 )
 from fund_llm.contracts import PortfolioPosition
 
@@ -118,6 +120,16 @@ def test_build_fund_input_from_backend_functions_maps_core_fields():
                     }
                 ],
             }
+        if url.endswith("/analysis"):
+            return {"code": 200, "data": [{"cumulative_return_rank": "top 25%"}]}
+        if url.endswith("/profit"):
+            return {
+                "code": 200,
+                "data": [
+                    {"holding_period": "6m", "profit_probability": "65.0%"},
+                    {"holding_period": "1y", "profit_probability": "78.5%"},
+                ],
+            }
         return {"code": 200, "data": []}
 
     services = {
@@ -139,6 +151,10 @@ def test_build_fund_input_from_backend_functions_maps_core_fields():
     assert payload.extra_context["data_source"] == "backend_function_registry"
     assert payload.extra_context["normalized_fund_type"] == "mixed_fund"
     assert "get_fund_hist" in payload.extra_context["available_backend_tools"]
+    # 结构化字段（不再只存 extra_context 的 JSON 预览字符串）
+    assert [row["stock_name"] for row in payload.top_holdings] == ["A", "B"]
+    assert payload.profit_probability[-1]["profit_probability"] == "78.5%"
+    assert payload.individual_analysis == [{"cumulative_return_rank": "top 25%"}]
 
 
 def test_build_fund_input_maps_bond_holdings_and_asset_allocation():
@@ -566,6 +582,122 @@ def test_build_portfolio_input_fetches_nav_and_basic_info_per_fund():
     assert payload.request_id.endswith("2026-01-02")
 
 
+def test_build_portfolio_input_fetches_lookthrough_data_per_fund():
+    # 000001 是权益基金：有股票持仓、行业配置、资产配置；
+    # 003358 是债券指数：这三类都没有，应降级为空而不是报错。
+    def transport(method, url, payload, timeout):
+        code = (payload or {}).get("code", "")
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_holds", "path": "/holds", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_industry_allocation", "path": "/industry", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_detail_hold", "path": "/asset", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {"code": 200, "data": [], "message": "success"}
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2026-01-01", "unit_net_value": "1.00"},
+                    {"date": "2026-01-02", "unit_net_value": "1.02"},
+                ],
+            }
+        if url.endswith("/basic"):
+            fund_type = "混合型-偏股" if code == "000001" else "债券型-债券指数"
+            return {"code": 200, "data": [{"fund_name": f"Fund {code}", "fund_type": fund_type}]}
+        if url.endswith("/holds"):
+            if code != "000001":
+                return {"code": 200, "data": []}
+            return {
+                "code": 200,
+                "data": [
+                    {"stock_code": "600519", "stock_name": "贵州茅台", "net_value_pct": "9.5", "quarter": "2026Q1"},
+                    {"stock_code": "000858", "stock_name": "五粮液", "net_value_pct": "7.2", "quarter": "2026Q1"},
+                ],
+            }
+        if url.endswith("/industry"):
+            if code != "000001":
+                return {"code": 200, "data": []}
+            return {"code": 200, "data": [{"industry_category": "食品饮料", "pct": "35.0"}]}
+        if url.endswith("/asset"):
+            if code != "000001":
+                return {"code": 200, "data": []}
+            return {
+                "code": 200,
+                "data": [
+                    {"asset_type": "股票", "pct": "88.0"},
+                    {"asset_type": "现金", "pct": "10.0"},
+                ],
+            }
+        return {"code": 200, "data": []}
+
+    client = BackendFunctionClient(services=_portfolio_services(), transport=transport)
+    positions = [
+        PortfolioPosition(code="000001", weight=0.6),
+        PortfolioPosition(code="003358", weight=0.4),
+    ]
+
+    payload = build_portfolio_input_from_backend_functions(positions, client=client)
+
+    equity_fund, bond_fund = payload.funds
+    assert [row["stock_name"] for row in equity_fund.top_holdings] == ["贵州茅台", "五粮液"]
+    assert equity_fund.industry_exposure == {"食品饮料": 0.35}
+    assert equity_fund.asset_allocation == {"股票": 0.88, "现金": 0.10}
+    assert bond_fund.top_holdings == []
+    assert bond_fund.industry_exposure == {}
+    assert bond_fund.asset_allocation == {}
+    assert payload.extra_context["lookthrough_enabled"] == "true"
+
+
+def test_build_portfolio_input_can_skip_lookthrough_fetch():
+    calls = []
+
+    def transport(method, url, payload, timeout):
+        calls.append(url)
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_holds", "path": "/holds", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {"code": 200, "data": [], "message": "success"}
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2026-01-01", "unit_net_value": "1.00"},
+                    {"date": "2026-01-02", "unit_net_value": "1.02"},
+                ],
+            }
+        if url.endswith("/basic"):
+            return {"code": 200, "data": [{"fund_name": "Demo", "fund_type": "mixed"}]}
+        return {"code": 200, "data": []}
+
+    client = BackendFunctionClient(services=_portfolio_services(), transport=transport)
+
+    payload = build_portfolio_input_from_backend_functions(
+        [PortfolioPosition(code="000001", weight=1.0)],
+        client=client,
+        include_lookthrough=False,
+    )
+
+    assert payload.funds[0].top_holdings == []
+    assert payload.extra_context["lookthrough_enabled"] == "false"
+    assert not any(url.endswith("/holds") for url in calls)
+
+
 def test_build_portfolio_input_with_disjoint_calendars_leaves_window_empty():
     # 完全无共同日期时不在取数层报错（留给管线的最小重叠检查给出 422），
     # 但 window 必须为空，request_id 使用占位符而不是并集日期。
@@ -651,6 +783,81 @@ def test_build_portfolio_input_degrades_gracefully_without_basic_info():
     assert "get_fund_individual_basic_info" in payload.extra_context["errored_backend_tools"]
 
 
+def test_news_registry_failure_degrades_instead_of_failing_analysis():
+    # 新闻后端整个不可用（例如 403/未启动）时，market 数据仍应正常组装，
+    # 新闻相关字段为空，由 SentimentAgent 输出 skipped，而不是整体 500。
+    def transport(method, url, payload, timeout):
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_hist", "path": "/hist", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            raise BackendFunctionError("HTTP 403 from news functions registry")
+        if url.endswith("/hist"):
+            return {
+                "code": 200,
+                "data": [
+                    {"date": "2026-01-01", "unit_net_value": "1.00"},
+                    {"date": "2026-01-02", "unit_net_value": "1.02"},
+                ],
+            }
+        if url.endswith("/basic"):
+            return {"code": 200, "data": [{"fund_name": "Demo", "fund_type": "mixed"}]}
+        return {"code": 200, "data": []}
+
+    client = BackendFunctionClient(services=_portfolio_services(), transport=transport)
+
+    payload = build_fund_input_from_backend_functions("000001", client=client)
+
+    assert len(payload.nav_series) == 2
+    assert payload.news_items == []
+    assert "get_public_fund_announcement" in payload.extra_context["errored_backend_tools"]
+
+
+def test_build_sector_view_funds_fetches_industry_and_degrades():
+    def transport(method, url, payload, timeout):
+        code = (payload or {}).get("code", "")
+        if "/functions" in url:
+            if "market" in url:
+                return {
+                    "code": 200,
+                    "data": [
+                        {"name": "get_fund_individual_basic_info", "path": "/basic", "method": "POST", "parameters": {}},
+                        {"name": "get_fund_portfolio_industry_allocation", "path": "/industry", "method": "POST", "parameters": {}},
+                    ],
+                    "message": "success",
+                }
+            return {"code": 200, "data": [], "message": "success"}
+        if url.endswith("/basic"):
+            if code == "161725":
+                return {"code": 200, "data": [{"fund_name": "白酒指数", "fund_type": "股票型-标准指数"}]}
+            # 003358 基本信息失败，应降级为 unknown 类型而不是报错
+            return {"code": 500, "data": None, "message": "basic unavailable"}
+        if url.endswith("/industry"):
+            if code == "161725":
+                return {"code": 200, "data": [{"industry_category": "白酒", "pct": "94.34"}]}
+            return {"code": 200, "data": []}
+        return {"code": 200, "data": []}
+
+    client = BackendFunctionClient(services=_portfolio_services(), transport=transport)
+
+    funds, context = build_sector_view_funds_from_backend_functions(
+        ["161725", "003358"], client=client
+    )
+
+    assert funds[0].fund_info.name == "白酒指数"
+    assert funds[0].industry_exposure == {"白酒": 0.9434}
+    assert funds[1].fund_info.category == "unknown"
+    assert funds[1].industry_exposure == {}
+    assert "get_fund_individual_basic_info" in context["errored_backend_tools"]
+    assert context["data_source"] == "backend_function_registry"
+
+
 class BackendFunctionClientRegressionTest(unittest.TestCase):
     def test_small_holding_percentages_are_run_by_unittest(self):
         test_build_fund_input_treats_small_holding_percentages_as_percent_units()
@@ -675,6 +882,18 @@ class BackendFunctionClientRegressionTest(unittest.TestCase):
 
     def test_portfolio_input_disjoint_calendars_leave_window_empty(self):
         test_build_portfolio_input_with_disjoint_calendars_leaves_window_empty()
+
+    def test_portfolio_input_fetches_lookthrough_data(self):
+        test_build_portfolio_input_fetches_lookthrough_data_per_fund()
+
+    def test_portfolio_input_can_skip_lookthrough(self):
+        test_build_portfolio_input_can_skip_lookthrough_fetch()
+
+    def test_sector_view_funds_fetch_and_degrade(self):
+        test_build_sector_view_funds_fetches_industry_and_degrades()
+
+    def test_news_registry_failure_degrades(self):
+        test_news_registry_failure_degrades_instead_of_failing_analysis()
 
     def test_portfolio_input_raises_on_missing_nav(self):
         test_build_portfolio_input_raises_when_any_fund_nav_is_missing()

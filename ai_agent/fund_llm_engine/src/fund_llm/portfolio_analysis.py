@@ -16,6 +16,9 @@ from fund_llm.contracts import (
     PortfolioPosition,
 )
 from fund_llm.feature_builder import (
+    _asset_bucket_weight,
+    _holding_weight,
+    _normalize_asset_allocation,
     calculate_annualized_return,
     calculate_annualized_volatility,
     calculate_calmar_ratio,
@@ -231,3 +234,154 @@ def build_portfolio_quant_metrics(
     rounded = {key: round(value, 6) for key, value in metrics.items()}
     rounded["sample_size"] = float(len(portfolio_nav))
     return rounded
+
+
+def _lookthrough_status(funds_with_data: List[str], total_funds: int) -> str:
+    if not funds_with_data:
+        return "missing"
+    if len(funds_with_data) < total_funds:
+        return "partial"
+    return "available"
+
+
+def build_holdings_lookthrough(
+    funds: List[PortfolioFundData],
+    top_n: int = 10,
+) -> Dict[str, object]:
+    """Merge constituent top holdings into portfolio-level real exposure.
+
+    每条持仓对组合的贡献 = 基金权重 × 该持仓占基金净值比例。
+    同一只股票在多只基金中出现时合并贡献，并记入 overlapping_holdings，
+    用于发现「几只基金其实重仓同一只票」的隐性集中。
+
+    披露口径限制：公募季报只披露前十大持仓，所以这是部分穿透，
+    `disclosed_weight_total` 表示可穿透部分占组合的比例，剩余仓位未知。
+    """
+    contributions: Dict[str, Dict[str, object]] = {}
+    funds_with_data: List[str] = []
+    funds_without_data: List[str] = []
+
+    for fund in funds:
+        if not fund.top_holdings:
+            funds_without_data.append(fund.fund_info.code)
+            continue
+        funds_with_data.append(fund.fund_info.code)
+        for row in fund.top_holdings:
+            weight_in_fund = _holding_weight(row)
+            if weight_in_fund is None:
+                continue
+            stock_code = str(row.get("stock_code") or row.get("code") or "").strip()
+            stock_name = str(row.get("stock_name") or row.get("name") or "").strip()
+            key = stock_code or stock_name
+            if not key:
+                continue
+            entry = contributions.setdefault(
+                key,
+                {
+                    "stock_code": stock_code,
+                    "stock_name": stock_name,
+                    "portfolio_weight": 0.0,
+                    "held_by": [],
+                },
+            )
+            entry["portfolio_weight"] += fund.weight * weight_in_fund
+            entry["held_by"].append(
+                {
+                    "fund_code": fund.fund_info.code,
+                    "weight_in_fund": round(weight_in_fund, 6),
+                }
+            )
+
+    ranked = sorted(contributions.values(), key=lambda item: -float(item["portfolio_weight"]))
+    for entry in ranked:
+        entry["portfolio_weight"] = round(float(entry["portfolio_weight"]), 6)
+    overlapping = [entry for entry in ranked if len(entry["held_by"]) >= 2]
+
+    return {
+        "status": _lookthrough_status(funds_with_data, len(funds)),
+        "disclosure_basis": "quarterly_top10_holdings",
+        "funds_with_data": funds_with_data,
+        "funds_without_data": funds_without_data,
+        "top_holdings": ranked[:top_n],
+        "overlapping_holdings": overlapping[:top_n],
+        "combined_top_weight": round(
+            sum(float(entry["portfolio_weight"]) for entry in ranked[:top_n]), 6
+        ),
+        "disclosed_weight_total": round(
+            sum(float(entry["portfolio_weight"]) for entry in ranked), 6
+        ),
+    }
+
+
+def build_industry_lookthrough(
+    funds: List[PortfolioFundData],
+    top_n: int = 10,
+) -> Dict[str, object]:
+    """Merge constituent industry exposure into a portfolio-level sector view.
+
+    组合行业暴露 = Σ 基金权重 × 该基金行业占比；同时保留 per-fund 明细
+    供前端做横向对比。缺行业数据的基金（含债券基金）列入
+    funds_without_data，不伪造行业占比。
+    """
+    aggregate: Dict[str, float] = {}
+    per_fund_exposure: Dict[str, Dict[str, float]] = {}
+    funds_with_data: List[str] = []
+    funds_without_data: List[str] = []
+
+    for fund in funds:
+        if not fund.industry_exposure:
+            funds_without_data.append(fund.fund_info.code)
+            continue
+        funds_with_data.append(fund.fund_info.code)
+        per_fund_exposure[fund.fund_info.code] = {
+            sector: round(exposure, 6) for sector, exposure in fund.industry_exposure.items()
+        }
+        for sector, exposure in fund.industry_exposure.items():
+            aggregate[sector] = aggregate.get(sector, 0.0) + fund.weight * exposure
+
+    ranked_sectors = sorted(aggregate.items(), key=lambda item: -item[1])
+    top_sectors = [
+        {"sector": sector, "portfolio_weight": round(weight, 6)}
+        for sector, weight in ranked_sectors[:top_n]
+    ]
+
+    return {
+        "status": _lookthrough_status(funds_with_data, len(funds)),
+        "funds_with_data": funds_with_data,
+        "funds_without_data": funds_without_data,
+        "aggregate_exposure": {sector: round(weight, 6) for sector, weight in ranked_sectors},
+        "top_sectors": top_sectors,
+        "top_sector_weight": round(ranked_sectors[0][1], 6) if ranked_sectors else 0.0,
+        "per_fund_exposure": per_fund_exposure,
+    }
+
+
+def build_asset_allocation_lookthrough(funds: List[PortfolioFundData]) -> Dict[str, object]:
+    """Merge constituent asset allocation into portfolio stock/bond/cash buckets."""
+    merged: Dict[str, float] = {}
+    funds_with_data: List[str] = []
+    funds_without_data: List[str] = []
+
+    for fund in funds:
+        allocation = _normalize_asset_allocation(fund.asset_allocation)
+        if not allocation:
+            funds_without_data.append(fund.fund_info.code)
+            continue
+        funds_with_data.append(fund.fund_info.code)
+        for asset_name, weight in allocation.items():
+            merged[asset_name] = merged.get(asset_name, 0.0) + fund.weight * weight
+
+    buckets = {
+        "stock": _asset_bucket_weight(merged, ["股票", "stock", "equity", "权益"]),
+        "bond": _asset_bucket_weight(merged, ["债券", "bond", "固定收益", "fixedincome"]),
+        "cash": _asset_bucket_weight(merged, ["现金", "cash", "货币", "money"]),
+    }
+    buckets["other"] = max(0.0, sum(merged.values()) - sum(buckets.values()))
+
+    return {
+        "status": _lookthrough_status(funds_with_data, len(funds)),
+        "funds_with_data": funds_with_data,
+        "funds_without_data": funds_without_data,
+        "aggregate_allocation": {name: round(weight, 6) for name, weight in merged.items()},
+        "buckets": {name: round(weight, 6) for name, weight in buckets.items()},
+    }

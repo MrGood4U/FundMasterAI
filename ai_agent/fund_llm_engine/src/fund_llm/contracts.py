@@ -30,6 +30,17 @@ def _dicts_from_list(value: Any) -> List[Dict[str, Any]]:
     return [dict(item) for item in value if isinstance(item, dict)]
 
 
+def _records_from_payload(value: Any) -> List[Dict[str, Any]]:
+    """Normalize backend tool results into a list of dict records.
+
+    后端工具有的返回记录列表，有的返回单个对象；统一成 list[dict]，
+    单个对象包装成单元素列表，其他类型（字符串/None）丢弃。
+    """
+    if isinstance(value, dict):
+        return [dict(value)]
+    return _dicts_from_list(value)
+
+
 def _fraction_dict_from_payload(value: Any) -> Dict[str, float]:
     if not isinstance(value, dict):
         return {}
@@ -169,8 +180,11 @@ class FundAnalysisInput:
     nav_series: List[NavPoint]
     industry_exposure: Dict[str, float] = field(default_factory=dict)
     top_holdings_weight: Optional[float] = None
+    top_holdings: List[Dict[str, Any]] = field(default_factory=list)
     bond_holdings: List[Dict[str, Any]] = field(default_factory=list)
     asset_allocation: Dict[str, float] = field(default_factory=dict)
+    profit_probability: List[Dict[str, Any]] = field(default_factory=list)
+    individual_analysis: List[Dict[str, Any]] = field(default_factory=list)
     news_summary: List[str] = field(default_factory=list)
     news_items: List[NewsItem] = field(default_factory=list)
     analysis_window: Optional[AnalysisWindow] = None
@@ -192,8 +206,11 @@ class FundAnalysisInput:
                 for key, value in (payload.get("industry_exposure") or {}).items()
             },
             top_holdings_weight=_coerce_float(payload.get("top_holdings_weight")),
+            top_holdings=_dicts_from_list(payload.get("top_holdings")),
             bond_holdings=_dicts_from_list(payload.get("bond_holdings")),
             asset_allocation=_fraction_dict_from_payload(payload.get("asset_allocation")),
+            profit_probability=_records_from_payload(payload.get("profit_probability")),
+            individual_analysis=_records_from_payload(payload.get("individual_analysis")),
             news_summary=[str(item) for item in payload.get("news_summary", [])],
             news_items=[NewsItem.from_dict(item) for item in payload.get("news_items", [])],
             analysis_window=AnalysisWindow.from_dict(payload["analysis_window"])
@@ -238,8 +255,11 @@ class FundFeaturePack:
     exposure_metrics: Dict[str, float]
     industry_exposure_breakdown: Dict[str, float] = field(default_factory=dict)
     bond_exposure_metrics: Dict[str, float] = field(default_factory=dict)
+    top_holdings: List[Dict[str, Any]] = field(default_factory=list)
     bond_holdings: List[Dict[str, Any]] = field(default_factory=list)
     asset_allocation_breakdown: Dict[str, float] = field(default_factory=dict)
+    profit_probability: List[Dict[str, Any]] = field(default_factory=list)
+    individual_analysis: List[Dict[str, Any]] = field(default_factory=list)
     benchmark_metrics: Dict[str, float] = field(default_factory=dict)
     data_quality_metrics: Dict[str, int] = field(default_factory=dict)
     data_quality_flags: Dict[str, bool] = field(default_factory=dict)
@@ -339,12 +359,18 @@ class PortfolioFundData:
 
     `weight` is the normalized weight actually used in composition;
     `requested_weight` keeps the raw user input for traceability.
+    Look-through fields (`top_holdings` / `industry_exposure` /
+    `asset_allocation`) are optional: missing data degrades to structured
+    partial/missing statuses instead of failing the portfolio analysis.
     """
 
     fund_info: FundInfo
     nav_series: List[NavPoint]
     weight: float
     requested_weight: float
+    top_holdings: List[Dict[str, Any]] = field(default_factory=list)
+    industry_exposure: Dict[str, float] = field(default_factory=dict)
+    asset_allocation: Dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -421,6 +447,9 @@ class PortfolioAnalysisResult:
     action_plan: List[str]
     quant_metrics: Dict[str, float]
     constituents: List[PortfolioConstituentMetrics]
+    holdings_lookthrough: Dict[str, Any] = field(default_factory=dict)
+    industry_lookthrough: Dict[str, Any] = field(default_factory=dict)
+    asset_allocation_lookthrough: Dict[str, Any] = field(default_factory=dict)
     missing_fields: List[str] = field(default_factory=list)
     metadata: Dict[str, str] = field(default_factory=dict)
     analysis_trace: List[AnalysisTraceEvent] = field(default_factory=list)
@@ -437,6 +466,9 @@ class PortfolioAnalysisResult:
             "action_plan": list(self.action_plan),
             "quant_metrics": dict(self.quant_metrics),
             "constituents": [item.to_dict() for item in self.constituents],
+            "holdings_lookthrough": dict(self.holdings_lookthrough),
+            "industry_lookthrough": dict(self.industry_lookthrough),
+            "asset_allocation_lookthrough": dict(self.asset_allocation_lookthrough),
             "missing_fields": list(self.missing_fields),
             "metadata": dict(self.metadata),
             "analysis_trace": [event.to_dict() for event in self.analysis_trace],

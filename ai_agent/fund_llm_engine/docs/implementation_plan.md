@@ -121,18 +121,20 @@ AI Insights 单一页面**。每个能力以稳定 JSON 返回，由前端在合
   - 解耦：输入直接传 `code + weight`，先不依赖 portfolio_backend / 前端，AI 侧独立可跑通；
   - 交付：mock 测试 + golden case + contracts / docs 更新；
   - 展示：前端在 portfolio / overview 页接入，不堆 AI Insights。
-- **A2 · Level 2（加分）**
+- **A2 · Level 2（加分）—— 已完成（2026-07-02，见 development log）**
   - 持仓穿透：合并各基金 top holdings，算组合真实重仓 / 行业集中度（发现重叠暴露）；
-  - 整体股 / 债 / 现金资产配置合并；依赖结构化 `top_holdings`（见原 Phase 1.5 第 2 项）。
+  - 整体股 / 债 / 现金资产配置合并；依赖结构化 `top_holdings`（原 Phase 1.5 第 2 项已同日完成）。
 
 #### Phase B：行业层 + 市场 / 资金流（次优先，proposal 也点名）
 
 对齐 proposal：`sector level`、`market trends`、`capital flow`。
 
-- **B1 · 行业层视图**：复用现有 `SectorAgent`，将多基金行业暴露聚合为「行业层」横向比较；前端在行业页展示。
-- **B2 · MarketAgent / CapitalFlowAgent（看数据二选一）**：
-  - 有现成可证据化数据（指数趋势 / 申赎 / 同类排名）→ 做轻量版 agent；
-  - 上游数据未就绪 → 保留结构化 `skipped` 状态，答辩中说明为「依赖上游数据的扩展」。
+- **B1 · 行业层视图 —— 已完成（2026-07-02，`POST /api/ai/sector/analyze`，见 development log）**：
+  复用 `SectorAgent` 的状态语义，将多基金行业暴露聚合为「行业层」横向比较；前端在行业页展示。
+- **B2 · MarketAgent / CapitalFlowAgent（看数据二选一）—— MarketAgent 已完成（2026-07-03）**：
+  - 同类排名数据已就绪（`get_fund_individual_analysis` 同类百分位 + `get_fund_profit_probability` 持有期盈利概率），
+    据此实现了轻量版 `MarketAgent`；
+  - CapitalFlowAgent 上游无资金流数据源，按计划不接入，在 contracts 中说明为「依赖上游数据的扩展」。
 
 #### Phase C：动态置信度（穿插做，小而高价值）—— 已完成（2026-07-02）
 
@@ -142,10 +144,11 @@ AI Insights 单一页面**。每个能力以稳定 JSON 返回，由前端在合
 - 实现为 `agents/base.py` 的 `data_driven_confidence()` 统一 helper；golden suite 未断言固定置信度，8 个 case 全部保持通过；
   `examples/mock_output.json` 已重新生成（5 点稀疏样本的 `average_confidence` 由 0.78 变为 0.68，属预期内变化）。
 
-#### Phase D：工程加固剩余 + Evidence（有余力再做）
+#### Phase D：工程加固剩余 + Evidence（有余力再做）—— 主体已完成（2026-07-02/03）
 
-- 原 Phase 1.5 其余项（结构化字段、`timeout / 429 / 5xx` retry、`500` 脱敏、取数整理）+ 原 Phase 2 evidence 留档；
-- 答辩边际价值较低，排在最后。
+- 结构化字段（7/2）、`is_mock` 显式化（7/3）、LLM `timeout / 429 / 5xx` 一次退避 retry（7/3）、
+  HTTP `500` 对外脱敏（7/3）、`prompt_version` 运行元数据（7/3）均已完成，见 development log；
+- 剩余可选项：把统一动态置信度 helper 推广到其余 agent、按 `prompt_version` 留档更多真实模型样例。
 
 #### 不做（答辩不需要，风险 / 成本高）
 
@@ -158,7 +161,9 @@ AI Insights 单一页面**。每个能力以稳定 JSON 返回，由前端在合
 ```text
 现在 → 7/6 ：Phase A1（组合 Level 1）+ Phase C（动态置信度）   [已于 7/2 完成]
 7/6  → 7/13：Phase A2（持仓穿透）+ Phase B（行业层 / 市场）+ 前端联调
+             [A2、B1 于 7/2 完成；B2 MarketAgent 于 7/3 完成；剩余：前端联调（队友）]
 7/13 → 7/16：Phase D 力所能及 + golden case + 文档 + 答辩材料
+             [Phase D 主体已于 7/2-7/3 提前完成；剩余：答辩材料]
 ```
 
 A1 交付说明：`POST /api/ai/portfolio/analyze` 已上线（合成净值 + 组合指标 +

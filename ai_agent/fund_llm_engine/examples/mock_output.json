@@ -1,7 +1,7 @@
 {
   "request_id": "mock-demo-001",
   "overall_rating": "hold",
-  "overall_score": 60.5,
+  "overall_score": 61.72,
   "key_thesis": [
     "Benchmark-relative context is available for cross-checking the agent views.",
     "Recent news flow is available as an additional sentiment cross-check.",
@@ -132,17 +132,34 @@
       ],
       "confidence": 0.76,
       "narrative": "Mock analysis narrative."
+    },
+    {
+      "agent_name": "MarketAgent",
+      "status": "success",
+      "score": 67.8,
+      "stance": "neutral",
+      "key_points": [
+        "Risk-adjusted return outperforms 72% of peers over 近1年.",
+        "Average peer percentile across 2 periods is 68.",
+        "Historical profit probability is 70% when held for 满3年."
+      ],
+      "risks": [],
+      "recommendations": [
+        "Historical win rates favor longer holding periods; align the holding horizon accordingly."
+      ],
+      "confidence": 0.54,
+      "narrative": "Mock analysis narrative."
     }
   ],
   "summary": "Mock analysis narrative.",
-  "score_explanation": "The HOLD rating comes from the current average of 5 successful specialist score(s), resulting in 60.5/100. Performance scored 70.3 and supports the rating; Portfolio exposure scored 42.9 and pulls the rating down; Risk control scored 60.1 and supports the rating; News signal scored 70.0 and supports the rating; Sector context scored 59.1 and keeps the view mixed. The rating is held back by weaker signals from Portfolio exposure (42.9). 1 module(s) were marked not applicable for this fund type.",
+  "score_explanation": "The HOLD rating comes from the current average of 6 successful specialist score(s), resulting in 61.7/100. Performance scored 70.3 and supports the rating; Portfolio exposure scored 42.9 and pulls the rating down; Risk control scored 60.1 and supports the rating; News signal scored 70.0 and supports the rating; Sector context scored 59.1 and keeps the view mixed; Peer/market context scored 67.8 and supports the rating. The rating is held back by weaker signals from Portfolio exposure (42.9). 1 module(s) were marked not applicable for this fund type.",
   "missing_fields": [],
   "metadata": {
-    "success_agent_count": "5",
+    "success_agent_count": "6",
     "skipped_agent_count": "0",
     "not_applicable_agent_count": "1",
     "error_agent_count": "0",
-    "average_confidence": "0.68",
+    "average_confidence": "0.66",
     "normalized_fund_type": "mixed_fund",
     "fund_family": "equity_like",
     "has_benchmark": "true",
@@ -154,6 +171,7 @@
     "agent_health": "healthy",
     "fund_tags": "core_holding,active_equity,consumer_tilt",
     "summary_source": "llm",
+    "prompt_version": "2026-07-03.1",
     "coverage_fund_type": "available",
     "coverage_nav": "available",
     "coverage_basic_info": "available",
@@ -165,7 +183,7 @@
     "quant_metrics_sample_size": "5",
     "quant_metrics_reliability": "low",
     "agent_execution_mode": "parallel",
-    "agent_worker_count": "6"
+    "agent_worker_count": "7"
   },
   "analysis_trace": [
     {
@@ -201,10 +219,13 @@
           "has_benchmark": true,
           "has_industry_exposure": true,
           "has_top_holdings_weight": true,
+          "has_top_holdings": false,
           "has_news_signal": true,
           "has_structured_news": true,
           "has_bond_holdings": false,
           "has_asset_allocation": false,
+          "has_profit_probability": true,
+          "has_individual_analysis": true,
           "fund_type_known": true,
           "equity_exposure_applicable": true,
           "sector_analysis_applicable": true,
@@ -349,20 +370,40 @@
       }
     },
     {
+      "category": "agent",
+      "title": "Checked peer and market context",
+      "detail": "Compared the fund against peer-category percentiles and holding-period profit probabilities when available.",
+      "status": "success",
+      "evidence": {
+        "stance": "neutral",
+        "score": 67.8,
+        "confidence": 0.54,
+        "key_points": [
+          "Risk-adjusted return outperforms 72% of peers over 近1年.",
+          "Average peer percentile across 2 periods is 68."
+        ],
+        "risks": []
+      },
+      "technical": {
+        "agent_name": "MarketAgent",
+        "raw_status": "success"
+      }
+    },
+    {
       "category": "aggregation",
       "title": "Combined specialist views",
       "detail": "Aggregated successful specialist scores, confidence, skipped modules, and missing data into one final rating and action plan.",
       "status": "success",
       "evidence": {
         "overall_rating": "hold",
-        "overall_score": 60.5,
-        "successful_agents": 5,
+        "overall_score": 61.72,
+        "successful_agents": 6,
         "skipped_agents": 1,
         "error_agents": 0
       },
       "technical": {
         "execution_mode": "parallel",
-        "agent_worker_count": 6
+        "agent_worker_count": 7
       }
     }
   ],

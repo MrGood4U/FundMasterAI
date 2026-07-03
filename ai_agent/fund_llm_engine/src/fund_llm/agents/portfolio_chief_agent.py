@@ -52,6 +52,7 @@ class PortfolioChiefAgent:
         constituents: List[PortfolioConstituentMetrics],
         client_risk_profile: str = "balanced",
         weights_rescaled: bool = False,
+        lookthrough: Dict[str, dict] | None = None,
     ) -> Dict[str, object]:
         overall_score = compute_portfolio_score(quant_metrics)
         overall_rating = _score_to_rating(overall_score)
@@ -83,7 +84,52 @@ class PortfolioChiefAgent:
                 f"the weakest is {worst.name} ({worst.code}) at {worst.total_return:.2%}."
             )
 
-        main_risks = []
+        # 持仓穿透证据（A2）：只在数据可用时陈述，缺数据不编造。
+        lookthrough = lookthrough or {}
+        holdings_view = lookthrough.get("holdings") or {}
+        industry_view = lookthrough.get("industry") or {}
+        allocation_view = lookthrough.get("asset_allocation") or {}
+        lookthrough_risks: List[str] = []
+
+        if holdings_view.get("status") in {"available", "partial"}:
+            top_rows = holdings_view.get("top_holdings") or []
+            if top_rows:
+                top_row = top_rows[0]
+                key_thesis.append(
+                    f"Look-through top holding is {top_row['stock_name'] or top_row['stock_code']} at "
+                    f"{top_row['portfolio_weight']:.2%} of the portfolio "
+                    f"(disclosed holdings cover {holdings_view.get('disclosed_weight_total', 0.0):.2%})."
+                )
+            overlaps = holdings_view.get("overlapping_holdings") or []
+            if overlaps:
+                overlap_row = overlaps[0]
+                lookthrough_risks.append(
+                    f"{overlap_row['stock_name'] or overlap_row['stock_code']} is held by "
+                    f"{len(overlap_row['held_by'])} constituent funds at a combined "
+                    f"{overlap_row['portfolio_weight']:.2%}, so the funds overlap more than the weights suggest."
+                )
+        if industry_view.get("status") in {"available", "partial"}:
+            top_sector_weight = float(industry_view.get("top_sector_weight") or 0.0)
+            top_sectors = industry_view.get("top_sectors") or []
+            if top_sectors:
+                key_thesis.append(
+                    f"Look-through top sector is {top_sectors[0]['sector']} at "
+                    f"{top_sectors[0]['portfolio_weight']:.2%} of the portfolio."
+                )
+            if top_sector_weight > 0.30:
+                lookthrough_risks.append(
+                    f"Portfolio-level exposure to {top_sectors[0]['sector']} reaches "
+                    f"{top_sector_weight:.2%}, which concentrates sector risk."
+                )
+        if allocation_view.get("status") in {"available", "partial"}:
+            buckets = allocation_view.get("buckets") or {}
+            key_thesis.append(
+                "Look-through asset mix is "
+                f"stock {buckets.get('stock', 0.0):.2%}, bond {buckets.get('bond', 0.0):.2%}, "
+                f"cash {buckets.get('cash', 0.0):.2%}."
+            )
+
+        main_risks = list(lookthrough_risks)
         if max_drawdown < -0.15:
             main_risks.append("Portfolio drawdown history is meaningful and needs drawdown tolerance.")
         if annualized_volatility > 0.25:
@@ -126,16 +172,36 @@ class PortfolioChiefAgent:
             f"max_drawdown={item.max_drawdown:.2%} sharpe={item.sharpe_ratio:.2f}"
             for item in constituents
         )
+        lookthrough_block = "Not available."
+        lookthrough_parts = []
+        if holdings_view.get("status") in {"available", "partial"}:
+            lookthrough_parts.append(
+                f"Top combined holdings: {holdings_view.get('top_holdings', [])[:5]} | "
+                f"overlapping holdings: {holdings_view.get('overlapping_holdings', [])[:3]} | "
+                f"disclosed weight total: {holdings_view.get('disclosed_weight_total')}"
+            )
+        if industry_view.get("status") in {"available", "partial"}:
+            lookthrough_parts.append(f"Top sectors: {industry_view.get('top_sectors', [])[:5]}")
+        if allocation_view.get("status") in {"available", "partial"}:
+            lookthrough_parts.append(f"Asset buckets: {allocation_view.get('buckets', {})}")
+        if lookthrough_parts:
+            lookthrough_block = "\n".join(lookthrough_parts)
+
         system_prompt = (
             "You are the chief portfolio advisor. Summarize the portfolio-level findings into one final view. "
-            "Write in clear user-facing English. Use only the supplied portfolio metrics and constituent table. "
+            "Respond in English only: even though fund names may be Chinese, the summary itself must be "
+            "written in clear user-facing English. "
+            "Use only the supplied portfolio metrics, constituent table, "
+            "and holdings look-through evidence. "
             "Do not use outside knowledge about the funds, managers, holdings, or market narrative. "
             "Explain the diversification effect using the provided volatility comparison. "
+            "If look-through evidence shows overlapping holdings or sector concentration, mention it. "
             "Keep the final summary under 160 words and end with a complete sentence."
         )
         user_prompt = (
             f"Portfolio constituents:\n{constituent_lines}\n\n"
             f"Portfolio metrics: {quant_metrics}\n"
+            f"Holdings look-through (quarterly top-10 disclosure basis):\n{lookthrough_block}\n"
             f"Overall score: {overall_score:.2f}\n"
             f"Overall rating: {overall_rating}\n"
             f"Sample size (shared NAV points): {sample_size} ({reliability} reliability)\n"
@@ -148,13 +214,13 @@ class PortfolioChiefAgent:
 
         summary_source = "llm"
         try:
-            summary = self.llm_client.chat(system_prompt, user_prompt, max_tokens=700)
+            summary = self.llm_client.chat(system_prompt, user_prompt, max_tokens=1000)
         except Exception:
             summary = ""
             summary_source = "deterministic_fallback"
 
         if (
-            self.llm_client.__class__.__name__ != "MockLLMClient"
+            not getattr(self.llm_client, "is_mock", False)
             and _summary_looks_incomplete(summary)
         ):
             summary = ""

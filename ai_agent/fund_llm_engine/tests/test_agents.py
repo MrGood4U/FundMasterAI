@@ -8,6 +8,7 @@ from fund_llm.agents import (
     BondExposureAgent,
     ChiefAgent,
     ExposureAgent,
+    MarketAgent,
     PerformanceAgent,
     RiskAgent,
     SectorAgent,
@@ -345,6 +346,82 @@ class AgentsTest(unittest.TestCase):
         self.assertIsNone(result.score)
         self.assertEqual(result.confidence, 0.0)
         self.assertIn("mock llm failure", result.narrative)
+
+
+class MarketAgentTest(unittest.TestCase):
+    def build_peer_input(self):
+        payload = build_sample_input()
+        payload.individual_analysis = [
+            {
+                "period": "近1年",
+                "risk_return_ratio_vs_peers": 77,
+                "risk_robustness_vs_peers": 40,
+                "annualized_sharpe_ratio": 2.59,
+            },
+            {
+                "period": "近3年",
+                "risk_return_ratio_vs_peers": 76,
+                "risk_robustness_vs_peers": 52,
+            },
+        ]
+        payload.profit_probability = [
+            {"holding_period": "满6个月", "profit_probability": 55, "average_return": 6.19},
+            {"holding_period": "满3年", "profit_probability": 71, "average_return": 43.57},
+        ]
+        return payload
+
+    def test_market_agent_succeeds_with_peer_evidence(self):
+        features = FeatureBuilder().build(self.build_peer_input())
+        result = MarketAgent(MockLLMClient("market narrative")).analyze(features)
+
+        self.assertEqual(result.agent_name, "MarketAgent")
+        self.assertEqual(result.status, "success")
+        self.assertIsNotNone(result.score)
+        self.assertIn(result.stance, {"positive", "neutral", "negative"})
+        self.assertTrue(any("outperforms 77% of peers" in point for point in result.key_points))
+        self.assertTrue(any("71% when held for 满3年" in point for point in result.key_points))
+        self.assertEqual(result.narrative, "market narrative")
+
+    def test_market_agent_flags_weak_robustness_and_short_horizon(self):
+        payload = self.build_peer_input()
+        payload.individual_analysis = [
+            {"period": "近1年", "risk_return_ratio_vs_peers": 30, "risk_robustness_vs_peers": 35},
+        ]
+        payload.profit_probability = [
+            {"holding_period": "满6个月", "profit_probability": 42, "average_return": 1.0},
+        ]
+        features = FeatureBuilder().build(payload)
+
+        result = MarketAgent(MockLLMClient("weak narrative")).analyze(features)
+
+        self.assertEqual(result.status, "success")
+        self.assertLess(result.score, 55)
+        self.assertTrue(any("lags most peers" in risk for risk in result.risks))
+        self.assertTrue(any("below-50% profit probability" in risk for risk in result.risks))
+
+    def test_market_agent_skips_without_upstream_data(self):
+        features = FeatureBuilder().build(build_sample_input())
+        result = MarketAgent(MockLLMClient("unused")).analyze(features)
+
+        self.assertEqual(result.status, "skipped")
+        self.assertIsNone(result.score)
+        self.assertEqual(result.stance, "insufficient_data")
+        self.assertEqual(result.confidence, 0.0)
+        self.assertIn(
+            "No peer-comparison or holding-period probability data was provided.",
+            result.key_points,
+        )
+
+    def test_market_agent_ignores_rows_without_parsable_numbers(self):
+        payload = build_sample_input()
+        payload.individual_analysis = [{"period": "近1年", "risk_return_ratio_vs_peers": "N/A"}]
+        payload.profit_probability = [{"holding_period": "满1年", "profit_probability": None}]
+        features = FeatureBuilder().build(payload)
+
+        result = MarketAgent(MockLLMClient("unused")).analyze(features)
+
+        self.assertEqual(result.status, "skipped")
+        self.assertEqual(result.stance, "insufficient_data")
 
 
 class DataDrivenConfidenceTest(unittest.TestCase):

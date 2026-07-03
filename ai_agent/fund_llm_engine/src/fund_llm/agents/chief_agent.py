@@ -1,5 +1,6 @@
 from statistics import mean
 
+from fund_llm import config
 from fund_llm.agents.base import merge_lists
 from fund_llm.contracts import AgentOutput, FinalAnalysisResult, FundFeaturePack
 
@@ -22,6 +23,7 @@ def _agent_display_name(agent_name: str) -> str:
         "RiskAgent": "Risk control",
         "SentimentAgent": "News signal",
         "SectorAgent": "Sector context",
+        "MarketAgent": "Peer/market context",
     }
     return labels.get(agent_name, agent_name)
 
@@ -303,7 +305,9 @@ class ChiefAgent:
 
         system_prompt = (
             "You are the chief fund advisor. Summarize the multi-agent findings into one final investment view. "
-            "Write in clear user-facing English. Use only the supplied metrics, data quality flags, missing fields, and agent reports. "
+            "Respond in English only: even though fund names and data labels may be Chinese, "
+            "the summary itself must be written in clear user-facing English. "
+            "Use only the supplied metrics, data quality flags, missing fields, and agent reports. "
             "Do not use outside knowledge about the fund, manager, holdings, sectors, or market narrative. "
             "If a field or agent is missing/skipped, state that it is unavailable instead of inferring it. "
             "Do not describe zero missing fields as a limitation. "
@@ -334,13 +338,15 @@ class ChiefAgent:
         )
         summary_source = "llm"
         try:
-            summary = self.llm_client.chat(system_prompt, user_prompt, max_tokens=700)
+            # 7 个 agent 报告拼进 prompt 后较长，放宽输出预算，
+            # 减少总评被截断而触发确定性回退的情况。
+            summary = self.llm_client.chat(system_prompt, user_prompt, max_tokens=1100)
         except Exception:
             summary = ""
             summary_source = "deterministic_fallback"
 
         if (
-            self.llm_client.__class__.__name__ != "MockLLMClient"
+            not getattr(self.llm_client, "is_mock", False)
             and _summary_looks_incomplete(summary)
         ):
             summary = _build_fallback_summary(
@@ -374,6 +380,7 @@ class ChiefAgent:
             "agent_health": "healthy" if not error_outputs and not skipped_outputs else "partial",
             "fund_tags": ",".join(features.fund_tags[:3]),
             "summary_source": summary_source,
+            "prompt_version": config.PROMPT_VERSION,
         }
         for key, value in features.data_coverage.items():
             metadata[f"coverage_{key}"] = value

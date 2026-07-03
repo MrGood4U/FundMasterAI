@@ -9,7 +9,10 @@ from fund_llm.contracts import FundInfo, NavPoint, PortfolioFundData, PortfolioP
 from fund_llm.portfolio_analysis import (
     MIN_OVERLAP_POINTS,
     align_common_dates,
+    build_asset_allocation_lookthrough,
     build_constituent_metrics,
+    build_holdings_lookthrough,
+    build_industry_lookthrough,
     build_portfolio_quant_metrics,
     compose_portfolio_nav,
     intersect_nav_dates,
@@ -260,6 +263,119 @@ class PortfolioMetricsTest(unittest.TestCase):
         # 60 aligned points support the 1m rolling window but not 1y.
         self.assertIn("return_1m", metrics)
         self.assertNotIn("return_1y", metrics)
+
+
+class HoldingsLookthroughTest(unittest.TestCase):
+    def build_funds_with_holdings(self):
+        fund_a = build_fund("A", build_nav_series([1.0] * 5), weight=0.6)
+        fund_a.top_holdings = [
+            {"stock_code": "600519", "stock_name": "贵州茅台", "net_value_pct": "10.0", "quarter": "2026Q1"},
+            {"stock_code": "000858", "stock_name": "五粮液", "net_value_pct": "8.0", "quarter": "2026Q1"},
+        ]
+        fund_b = build_fund("B", build_nav_series([1.0] * 5), weight=0.4)
+        fund_b.top_holdings = [
+            {"stock_code": "600519", "stock_name": "贵州茅台", "net_value_pct": "5.0", "quarter": "2026Q1"},
+            {"stock_code": "300750", "stock_name": "宁德时代", "net_value_pct": "9.0", "quarter": "2026Q1"},
+        ]
+        return [fund_a, fund_b]
+
+    def test_contributions_are_weighted_and_merged_by_stock(self):
+        view = build_holdings_lookthrough(self.build_funds_with_holdings())
+
+        self.assertEqual(view["status"], "available")
+        top = view["top_holdings"][0]
+        # 茅台：0.6*10% + 0.4*5% = 8% 组合权重，且合并为一条
+        self.assertEqual(top["stock_code"], "600519")
+        self.assertAlmostEqual(top["portfolio_weight"], 0.08)
+        self.assertEqual(len(top["held_by"]), 2)
+
+    def test_overlapping_holdings_are_detected(self):
+        view = build_holdings_lookthrough(self.build_funds_with_holdings())
+
+        overlaps = view["overlapping_holdings"]
+        self.assertEqual(len(overlaps), 1)
+        self.assertEqual(overlaps[0]["stock_code"], "600519")
+        # 非重叠个股不应出现在 overlap 列表
+        self.assertNotIn("300750", [item["stock_code"] for item in overlaps])
+
+    def test_disclosed_weight_total_reflects_partial_disclosure(self):
+        view = build_holdings_lookthrough(self.build_funds_with_holdings())
+
+        # 0.6*(10%+8%) + 0.4*(5%+9%) = 10.8% + 5.6% = 16.4%
+        self.assertAlmostEqual(view["disclosed_weight_total"], 0.164)
+        self.assertEqual(view["disclosure_basis"], "quarterly_top10_holdings")
+
+    def test_partial_status_when_one_fund_lacks_holdings(self):
+        funds = self.build_funds_with_holdings()
+        funds[1].top_holdings = []
+
+        view = build_holdings_lookthrough(funds)
+
+        self.assertEqual(view["status"], "partial")
+        self.assertEqual(view["funds_without_data"], ["B"])
+
+    def test_missing_status_when_no_fund_has_holdings(self):
+        funds = self.build_funds_with_holdings()
+        for fund in funds:
+            fund.top_holdings = []
+
+        view = build_holdings_lookthrough(funds)
+
+        self.assertEqual(view["status"], "missing")
+        self.assertEqual(view["top_holdings"], [])
+
+
+class IndustryLookthroughTest(unittest.TestCase):
+    def test_industry_exposure_is_weighted_and_aggregated(self):
+        fund_a = build_fund("A", build_nav_series([1.0] * 5), weight=0.6)
+        fund_a.industry_exposure = {"食品饮料": 0.40, "医药": 0.20}
+        fund_b = build_fund("B", build_nav_series([1.0] * 5), weight=0.4)
+        fund_b.industry_exposure = {"食品饮料": 0.10, "电力设备": 0.30}
+
+        view = build_industry_lookthrough([fund_a, fund_b])
+
+        self.assertEqual(view["status"], "available")
+        # 食品饮料：0.6*40% + 0.4*10% = 28%
+        self.assertAlmostEqual(view["aggregate_exposure"]["食品饮料"], 0.28)
+        self.assertEqual(view["top_sectors"][0]["sector"], "食品饮料")
+        self.assertAlmostEqual(view["top_sector_weight"], 0.28)
+        self.assertIn("A", view["per_fund_exposure"])
+
+    def test_bond_fund_without_industry_data_is_listed_not_faked(self):
+        fund_a = build_fund("A", build_nav_series([1.0] * 5), weight=0.5)
+        fund_a.industry_exposure = {"食品饮料": 0.40}
+        fund_b = build_fund("B", build_nav_series([1.0] * 5), weight=0.5, category="债券型-债券指数")
+
+        view = build_industry_lookthrough([fund_a, fund_b])
+
+        self.assertEqual(view["status"], "partial")
+        self.assertEqual(view["funds_without_data"], ["B"])
+        self.assertNotIn("B", view["per_fund_exposure"])
+
+
+class AssetAllocationLookthroughTest(unittest.TestCase):
+    def test_allocation_is_merged_into_buckets(self):
+        fund_a = build_fund("A", build_nav_series([1.0] * 5), weight=0.6)
+        fund_a.asset_allocation = {"股票": 0.90, "现金": 0.10}
+        fund_b = build_fund("B", build_nav_series([1.0] * 5), weight=0.4)
+        fund_b.asset_allocation = {"债券": 0.86, "现金": 0.07, "其他": 0.07}
+
+        view = build_asset_allocation_lookthrough([fund_a, fund_b])
+
+        self.assertEqual(view["status"], "available")
+        self.assertAlmostEqual(view["buckets"]["stock"], 0.54)
+        self.assertAlmostEqual(view["buckets"]["bond"], 0.344)
+        # 现金：0.6*10% + 0.4*7% = 8.8%
+        self.assertAlmostEqual(view["buckets"]["cash"], 0.088)
+        self.assertAlmostEqual(view["buckets"]["other"], 0.028)
+
+    def test_missing_allocation_gives_missing_status(self):
+        fund_a = build_fund("A", build_nav_series([1.0] * 5), weight=1.0)
+
+        view = build_asset_allocation_lookthrough([fund_a])
+
+        self.assertEqual(view["status"], "missing")
+        self.assertEqual(view["buckets"]["stock"], 0.0)
 
 
 if __name__ == "__main__":

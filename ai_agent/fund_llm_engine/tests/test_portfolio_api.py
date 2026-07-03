@@ -128,11 +128,21 @@ class PortfolioApiContractTest(unittest.TestCase):
                 "action_plan",
                 "quant_metrics",
                 "constituents",
+                "holdings_lookthrough",
+                "industry_lookthrough",
+                "asset_allocation_lookthrough",
                 "missing_fields",
                 "metadata",
                 "analysis_trace",
             ],
         )
+        for section_name in (
+            "holdings_lookthrough",
+            "industry_lookthrough",
+            "asset_allocation_lookthrough",
+        ):
+            self.assertIsInstance(data[section_name], dict)
+            self.assertIn(data[section_name]["status"], {"available", "partial", "missing"})
         self.assertIn(data["overall_rating"], {"buy", "hold", "watch", "avoid"})
         self.assertIsInstance(data["overall_score"], (int, float))
         self.assertEqual(data["metadata"]["analysis_level"], "portfolio")
@@ -290,6 +300,22 @@ class PortfolioApiContractTest(unittest.TestCase):
         self.assertEqual(captured["timeout_seconds"], 45)
         body = response.get_json()
         self.assertEqual(body["data"]["metadata"]["llm_model"], "deepseek-v4-pro")
+
+    def test_unexpected_error_response_is_sanitized(self):
+        with patch.object(
+            agent_app,
+            "build_portfolio_input_from_backend_functions",
+            side_effect=RuntimeError("secret backend stacktrace"),
+        ):
+            response = self.client.post(
+                "/api/ai/portfolio/analyze",
+                json={"positions": [{"code": "000001", "weight": 1.0}], "mock": True},
+            )
+
+        body = response.get_json()
+        self.assertEqual(response.status_code, 500)
+        self.assertNotIn("secret backend stacktrace", body["message"])
+        self.assertIn("Internal error", body["message"])
 
     def test_fund_endpoint_contract_is_unchanged(self):
         # 老的单基金端点必须继续工作（向后兼容检查）。

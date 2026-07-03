@@ -24,6 +24,7 @@ from fund_llm.adapters.backend_function_client import (  # noqa: E402
     BackendFunctionClient,
     build_fund_input_from_backend_functions,
     build_portfolio_input_from_backend_functions,
+    build_sector_view_funds_from_backend_functions,
 )
 from fund_llm.contracts import AnalysisTraceEvent, PortfolioPosition  # noqa: E402
 from fund_llm.fund_routing import build_data_coverage, classify_fund_type  # noqa: E402
@@ -35,6 +36,10 @@ from fund_llm.portfolio_pipeline import (  # noqa: E402
     run_real_portfolio_analysis_for_input,
 )
 from fund_llm.real_pipeline import run_real_analysis_for_input  # noqa: E402
+from fund_llm.sector_pipeline import (  # noqa: E402
+    run_mock_sector_view_for_funds,
+    run_real_sector_view_for_funds,
+)
 
 
 def _truthy(value) -> bool:
@@ -51,9 +56,12 @@ def _coverage(payload) -> dict:
     return {
         "nav_points": len(payload.nav_series),
         "has_top_holdings_weight": payload.top_holdings_weight is not None,
+        "has_top_holdings": bool(payload.top_holdings),
         "has_industry_exposure": bool(payload.industry_exposure),
         "has_bond_holdings": bool(payload.bond_holdings),
         "has_asset_allocation": bool(payload.asset_allocation),
+        "has_profit_probability": bool(payload.profit_probability),
+        "has_individual_analysis": bool(payload.individual_analysis),
         "has_news_items": bool(payload.news_items),
         "fund_name": payload.fund_info.name,
         "fund_type": payload.fund_info.category,
@@ -360,9 +368,16 @@ def create_app() -> Flask:
         except ValueError as exc:
             app.logger.warning("Fund analysis rejected for code=%s: %s", code, exc)
             return jsonify({"code": 422, "data": None, "message": str(exc)}), 422
-        except Exception as exc:
+        except Exception:
+            # 完整异常只进服务端日志；对外不回传 raw exception，避免泄露内部细节。
             app.logger.exception("Fund analysis failed for code=%s", code)
-            return jsonify({"code": 500, "data": None, "message": str(exc)}), 500
+            return jsonify(
+                {
+                    "code": 500,
+                    "data": None,
+                    "message": "Internal error while running fund analysis. Check the Agent service log for details.",
+                }
+            ), 500
 
     @app.route("/api/ai/portfolio/analyze", methods=["POST", "OPTIONS"])
     def analyze_portfolio():
@@ -383,6 +398,8 @@ def create_app() -> Flask:
                 end_date=body.get("end_date"),
                 max_nav_points=int(body.get("max_nav_points") or 520),
                 client_risk_profile=str(body.get("client_risk_profile") or "balanced"),
+                include_lookthrough=_truthy(body.get("include_lookthrough", True)),
+                top_holdings_n=int(body.get("top_holdings_n") or 10),
             )
 
             use_mock = _truthy(body.get("mock", os.getenv("LLM_MOCK_MODE", "false")))
@@ -411,9 +428,75 @@ def create_app() -> Flask:
         except ValueError as exc:
             app.logger.warning("Portfolio analysis rejected for codes=%s: %s", position_codes, exc)
             return jsonify({"code": 422, "data": None, "message": str(exc)}), 422
-        except Exception as exc:
+        except Exception:
             app.logger.exception("Portfolio analysis failed for codes=%s", position_codes)
-            return jsonify({"code": 500, "data": None, "message": str(exc)}), 500
+            return jsonify(
+                {
+                    "code": 500,
+                    "data": None,
+                    "message": "Internal error while running portfolio analysis. Check the Agent service log for details.",
+                }
+            ), 500
+
+    @app.route("/api/ai/sector/analyze", methods=["POST", "OPTIONS"])
+    def analyze_sector():
+        if request.method == "OPTIONS":
+            return jsonify({"code": 200, "message": "ok"}), 200
+
+        body = request.get_json(silent=True) or {}
+        raw_codes = body.get("codes") or body.get("funds") or []
+        if isinstance(raw_codes, list):
+            codes = [
+                str(item.get("code") if isinstance(item, dict) else item or "").strip()
+                for item in raw_codes
+            ]
+        else:
+            codes = []
+        codes = [code for code in codes if code]
+        if not codes:
+            return jsonify(
+                {"code": 400, "data": None, "message": "codes is required. Provide a list of fund codes."}
+            ), 400
+
+        joined_codes = ",".join(codes)
+        try:
+            funds, context = build_sector_view_funds_from_backend_functions(codes)
+
+            use_mock = _truthy(body.get("mock", os.getenv("LLM_MOCK_MODE", "false")))
+            if use_mock:
+                result = run_mock_sector_view_for_funds(funds, context=context)
+            else:
+                result = run_real_sector_view_for_funds(
+                    funds,
+                    context=context,
+                    model=_optional_text(body.get("llm_model") or body.get("model")),
+                    timeout_seconds=int(body.get("llm_timeout_seconds") or os.getenv("LLM_TIMEOUT_SECONDS", "60")),
+                )
+
+            coverage = {
+                "fund_count": len(funds),
+                "funds_with_data": result["funds_with_data"],
+                "funds_without_data": result["funds_without_data"],
+                "data_source": context.get("data_source", ""),
+                "available_backend_tools": context.get("available_backend_tools", ""),
+                "successful_backend_tools": context.get("successful_backend_tools", ""),
+                "errored_backend_tools": context.get("errored_backend_tools", ""),
+            }
+            return jsonify(
+                {"code": 200, "data": result, "coverage": coverage, "message": "success"}
+            ), 200
+        except ValueError as exc:
+            app.logger.warning("Sector view rejected for codes=%s: %s", joined_codes, exc)
+            return jsonify({"code": 422, "data": None, "message": str(exc)}), 422
+        except Exception:
+            app.logger.exception("Sector view failed for codes=%s", joined_codes)
+            return jsonify(
+                {
+                    "code": 500,
+                    "data": None,
+                    "message": "Internal error while running sector view. Check the Agent service log for details.",
+                }
+            ), 500
 
     return app
 

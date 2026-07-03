@@ -29,6 +29,7 @@ from fund_llm.contracts import (
     PortfolioAnalysisInput,
     PortfolioFundData,
     PortfolioPosition,
+    _records_from_payload,
 )
 from fund_llm.fund_routing import classify_fund_type
 
@@ -243,10 +244,21 @@ class BackendFunctionClient:
         return registered
 
     def discover_fund_tools(self, include_portfolio: bool = False) -> Dict[str, RegisteredFunction]:
+        # market registry 是必需的（NAV/基本信息都来自它），失败直接抛出；
+        # news registry 是可降级项：新闻后端不可用时继续分析，
+        # SentimentAgent 会按"无新闻数据"输出 skipped，而不是拖垮整体分析。
         self.discover("market", tag="fund")
-        self.discover("news", tag="fund")
+        try:
+            self.discover("news", tag="fund")
+        except BackendFunctionError as exc:
+            logger.warning("News registry discovery failed, continuing without news tools: %s", exc)
         if include_portfolio:
-            self.discover("portfolio", tag="holding")
+            try:
+                self.discover("portfolio", tag="holding")
+            except BackendFunctionError as exc:
+                logger.warning(
+                    "Portfolio registry discovery failed, continuing without portfolio tools: %s", exc
+                )
         return dict(self.functions)
 
     def openai_tools(self, names: Optional[Iterable[str]] = None) -> List[JsonDict]:
@@ -638,8 +650,11 @@ def build_fund_input_from_backend_functions(
         nav_series=nav_series,
         industry_exposure=industry_exposure,
         top_holdings_weight=top_holdings_weight,
+        top_holdings=[dict(row) for row in top_holdings],
         bond_holdings=latest_bond_holdings,
         asset_allocation=asset_allocation,
+        profit_probability=_records_from_payload(profit_probability),
+        individual_analysis=_records_from_payload(individual_analysis),
         news_items=news_items,
         analysis_window=window,
         fund_tags=fund_tags,
@@ -678,12 +693,17 @@ def build_portfolio_input_from_backend_functions(
     end_date: Optional[str] = None,
     max_nav_points: int = 520,
     client_risk_profile: str = "balanced",
+    include_lookthrough: bool = True,
+    top_holdings_n: int = 10,
 ) -> PortfolioAnalysisInput:
-    """Assemble `PortfolioAnalysisInput` with a light per-fund backend fetch.
+    """Assemble `PortfolioAnalysisInput` with a per-fund backend fetch.
 
-    组合层 Level 1 每只基金只需要 NAV 和基本信息，不拉持仓/公告等可选数据，
-    避免 N 只基金 × 全量工具的调用放大。任何一只基金 NAV 拉取失败都会
-    抛出 ValueError（由 HTTP 层转成 422），不静默丢弃成分基金。
+    必需数据只有 NAV：任何一只基金 NAV 拉取失败都会抛出 ValueError
+    （由 HTTP 层转成 422），不静默丢弃成分基金。
+
+    基本信息和穿透数据（股票持仓 / 行业配置 / 资产配置）是可选降级项：
+    某只基金缺某类数据时记入 tool_trace 并继续，由穿透计算输出
+    partial / missing 状态，而不是让整个组合分析失败。
 
     `positions` 权重必须已经归一化（见 `portfolio_analysis.normalize_positions`）。
     """
@@ -695,9 +715,73 @@ def build_portfolio_input_from_backend_functions(
     tool_client = client or BackendFunctionClient()
     tool_client.discover_fund_tools()
 
+    optional_timeout_seconds = int(
+        os.getenv("BACKEND_OPTIONAL_FUNCTION_TIMEOUT_SECONDS", str(tool_client.timeout_seconds))
+    )
+    current_year = datetime.now().year
+    candidate_years = [str(current_year), str(current_year - 1)]
+
     tool_trace: List[JsonDict] = []
     funds: List[PortfolioFundData] = []
     failed_codes: List[str] = []
+
+    def optional_call(function_name: str, args: JsonDict, fund_code: str) -> Any:
+        """可选工具调用：失败记 trace 返回空，不打断组合分析。"""
+        try:
+            data = tool_client.call(function_name, args, timeout_seconds=optional_timeout_seconds)
+            size = len(data) if isinstance(data, list) else (1 if data else 0)
+            tool_trace.append(
+                {"function": function_name, "fund_code": fund_code, "status": "success", "records": size}
+            )
+            return data
+        except Exception as exc:
+            tool_trace.append(
+                {
+                    "function": function_name,
+                    "fund_code": fund_code,
+                    "status": "error",
+                    "error": str(exc)[:240],
+                }
+            )
+            return []
+
+    def fetch_top_holdings(fund_code: str) -> List[JsonDict]:
+        stock_holdings_tool = (
+            "get_fund_portfolio_hold_stock"
+            if "get_fund_portfolio_hold_stock" in tool_client.functions
+            else "get_fund_portfolio_holds"
+        )
+        if stock_holdings_tool not in tool_client.functions:
+            return []
+        for year in candidate_years:
+            records = optional_call(stock_holdings_tool, {"code": fund_code, "year": year}, fund_code)
+            if records:
+                latest = _select_latest_quarter(records)
+                ranked = sorted(latest, key=lambda row: _holding_weight(row) or 0.0, reverse=True)
+                return [dict(row) for row in ranked[:top_holdings_n]]
+            if tool_trace and tool_trace[-1].get("status") == "error":
+                break
+        return []
+
+    def fetch_industry_exposure(fund_code: str) -> Dict[str, float]:
+        if "get_fund_portfolio_industry_allocation" not in tool_client.functions:
+            return {}
+        for year in candidate_years:
+            records = optional_call(
+                "get_fund_portfolio_industry_allocation", {"code": fund_code, "year": year}, fund_code
+            )
+            exposure = _build_industry_exposure(records or [])
+            if exposure:
+                return exposure
+            if tool_trace and tool_trace[-1].get("status") == "error":
+                break
+        return {}
+
+    def fetch_asset_allocation(fund_code: str) -> Dict[str, float]:
+        if "get_fund_individual_detail_hold" not in tool_client.functions:
+            return {}
+        records = optional_call("get_fund_individual_detail_hold", {"code": fund_code}, fund_code)
+        return _build_asset_allocation(records or [])
 
     for position in normalized_positions:
         hist_args = {"platform": "efinance", "symbol": "open_fund", "code": position.code}
@@ -774,12 +858,24 @@ def build_portfolio_input_from_backend_functions(
             category=str(basic_info.get("fund_type") or "unknown"),
             manager=basic_info.get("fund_manager"),
         )
+
+        top_holdings: List[JsonDict] = []
+        industry_exposure: Dict[str, float] = {}
+        asset_allocation: Dict[str, float] = {}
+        if include_lookthrough:
+            top_holdings = fetch_top_holdings(position.code)
+            industry_exposure = fetch_industry_exposure(position.code)
+            asset_allocation = fetch_asset_allocation(position.code)
+
         funds.append(
             PortfolioFundData(
                 fund_info=fund_info,
                 nav_series=nav_series,
                 weight=position.weight,
                 requested_weight=requested_weight_by_code.get(position.code, position.weight),
+                top_holdings=top_holdings,
+                industry_exposure=industry_exposure,
+                asset_allocation=asset_allocation,
             )
         )
 
@@ -818,9 +914,109 @@ def build_portfolio_input_from_backend_functions(
             "client_risk_profile": client_risk_profile,
             "weights_rescaled": str(weights_rescaled).lower(),
             "fund_count": str(len(funds)),
+            "lookthrough_enabled": str(include_lookthrough).lower(),
             "available_backend_tools": ",".join(sorted(tool_client.functions)),
             "successful_backend_tools": ",".join(successful_tools),
             "errored_backend_tools": ",".join(errored_tools),
             "tool_trace": _json_preview(tool_trace),
         },
     )
+
+
+def build_sector_view_funds_from_backend_functions(
+    codes: List[str],
+    *,
+    client: Optional[BackendFunctionClient] = None,
+) -> tuple:
+    """Fetch per-fund basic info and industry allocation for the sector view.
+
+    行业层视图不需要 NAV：每只基金只调基本信息（判断基金类型）和行业配置。
+    两类数据都是可降级项：基本信息失败按 unknown 类型处理，行业配置缺失
+    由 sector_view 输出 insufficient_data / not_applicable 状态。
+
+    Returns `(funds, context)`：funds 是 `sector_view.SectorViewFund` 列表，
+    context 携带 tool_trace 等排障信息。
+    """
+    from fund_llm.sector_view import SectorViewFund
+
+    normalized_codes = []
+    for code in codes:
+        text = str(code or "").strip()
+        if not text:
+            raise ValueError("Every sector-view item needs a fund code.")
+        if text in normalized_codes:
+            raise ValueError(f"Fund code {text!r} appears more than once in the sector view request.")
+        normalized_codes.append(text)
+    if not normalized_codes:
+        raise ValueError("codes is required. Provide a list of fund codes.")
+
+    tool_client = client or BackendFunctionClient()
+    tool_client.discover_fund_tools()
+
+    optional_timeout_seconds = int(
+        os.getenv("BACKEND_OPTIONAL_FUNCTION_TIMEOUT_SECONDS", str(tool_client.timeout_seconds))
+    )
+    current_year = datetime.now().year
+    candidate_years = [str(current_year), str(current_year - 1)]
+    tool_trace: List[JsonDict] = []
+
+    def optional_call(function_name: str, args: JsonDict, fund_code: str) -> Any:
+        try:
+            data = tool_client.call(function_name, args, timeout_seconds=optional_timeout_seconds)
+            size = len(data) if isinstance(data, list) else (1 if data else 0)
+            tool_trace.append(
+                {"function": function_name, "fund_code": fund_code, "status": "success", "records": size}
+            )
+            return data
+        except Exception as exc:
+            tool_trace.append(
+                {
+                    "function": function_name,
+                    "fund_code": fund_code,
+                    "status": "error",
+                    "error": str(exc)[:240],
+                }
+            )
+            return []
+
+    funds: List[SectorViewFund] = []
+    for code in normalized_codes:
+        basic_info = _first_record(
+            optional_call("get_fund_individual_basic_info", {"code": code}, code)
+        )
+        fund_info = FundInfo(
+            code=code,
+            name=str(basic_info.get("fund_name") or basic_info.get("fund_full_name") or code),
+            asset_type="fund_open",
+            category=str(basic_info.get("fund_type") or "unknown"),
+            manager=basic_info.get("fund_manager"),
+        )
+
+        industry_exposure: Dict[str, float] = {}
+        if "get_fund_portfolio_industry_allocation" in tool_client.functions:
+            for year in candidate_years:
+                records = optional_call(
+                    "get_fund_portfolio_industry_allocation", {"code": code, "year": year}, code
+                )
+                industry_exposure = _build_industry_exposure(records or [])
+                if industry_exposure:
+                    break
+                if tool_trace and tool_trace[-1].get("status") == "error":
+                    break
+
+        funds.append(SectorViewFund(fund_info=fund_info, industry_exposure=industry_exposure))
+
+    successful_tools = sorted(
+        {item["function"] for item in tool_trace if item["status"] == "success"}
+    )
+    errored_tools = sorted(
+        {item["function"] for item in tool_trace if item["status"] == "error"}
+    )
+    context = {
+        "data_source": "backend_function_registry",
+        "available_backend_tools": ",".join(sorted(tool_client.functions)),
+        "successful_backend_tools": ",".join(successful_tools),
+        "errored_backend_tools": ",".join(errored_tools),
+        "tool_trace": tool_trace,
+    }
+    return funds, context

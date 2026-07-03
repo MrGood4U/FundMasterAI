@@ -14,7 +14,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 DEFAULT_AGENT_URL = "http://127.0.0.1:5003/api/ai/fund/analyze"
 DEFAULT_FUNDS = ["000001", "512100", "003358"]
 STABLE_AGENTS = {"PerformanceAgent", "RiskAgent", "SentimentAgent"}
-DATA_SENSITIVE_AGENTS = {"ExposureAgent", "BondExposureAgent", "SectorAgent"}
+DATA_SENSITIVE_AGENTS = {"ExposureAgent", "BondExposureAgent", "SectorAgent", "MarketAgent"}
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:

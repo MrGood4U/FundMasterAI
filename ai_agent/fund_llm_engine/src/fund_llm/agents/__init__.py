@@ -1,6 +1,7 @@
 from fund_llm.agents.bond_exposure_agent import BondExposureAgent
 from fund_llm.agents.chief_agent import ChiefAgent
 from fund_llm.agents.exposure_agent import ExposureAgent
+from fund_llm.agents.market_agent import MarketAgent
 from fund_llm.agents.performance_agent import PerformanceAgent
 from fund_llm.agents.portfolio_chief_agent import PortfolioChiefAgent
 from fund_llm.agents.risk_agent import RiskAgent
@@ -11,6 +12,7 @@ __all__ = [
     "BondExposureAgent",
     "ChiefAgent",
     "ExposureAgent",
+    "MarketAgent",
     "PerformanceAgent",
     "PortfolioChiefAgent",
     "RiskAgent",

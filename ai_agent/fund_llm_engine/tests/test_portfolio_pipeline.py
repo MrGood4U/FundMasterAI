@@ -136,6 +136,44 @@ class PortfolioPipelineTest(unittest.TestCase):
         self.assertTrue(result.summary)
         self.assertIn("portfolio", result.summary.lower())
 
+    def test_lookthrough_fields_flow_into_result(self):
+        payload = build_portfolio_input()
+        payload.funds[0].top_holdings = [
+            {"stock_code": "600519", "stock_name": "贵州茅台", "net_value_pct": "10.0", "quarter": "2026Q1"},
+        ]
+        payload.funds[1].top_holdings = [
+            {"stock_code": "600519", "stock_name": "贵州茅台", "net_value_pct": "5.0", "quarter": "2026Q1"},
+        ]
+        payload.funds[0].industry_exposure = {"食品饮料": 0.40}
+        payload.funds[0].asset_allocation = {"股票": 0.90, "现金": 0.10}
+
+        result = run_mock_portfolio_analysis_for_input(payload)
+
+        self.assertEqual(result.holdings_lookthrough["status"], "available")
+        overlap = result.holdings_lookthrough["overlapping_holdings"][0]
+        self.assertEqual(overlap["stock_code"], "600519")
+        # 0.6*10% + 0.4*5% = 8%
+        self.assertAlmostEqual(overlap["portfolio_weight"], 0.08)
+        self.assertEqual(result.industry_lookthrough["status"], "partial")
+        self.assertEqual(result.asset_allocation_lookthrough["status"], "partial")
+        self.assertEqual(result.metadata["holdings_lookthrough_status"], "available")
+        # 重叠暴露必须进入 chief 的风险陈述
+        self.assertTrue(
+            any("贵州茅台" in risk and "overlap" in risk for risk in result.main_risks),
+            result.main_risks,
+        )
+        trace_titles = [event.title for event in result.analysis_trace]
+        self.assertIn("Merged constituent holdings look-through", trace_titles)
+
+    def test_lookthrough_degrades_to_missing_without_data(self):
+        result = run_mock_portfolio_analysis_for_input(build_portfolio_input())
+
+        self.assertEqual(result.holdings_lookthrough["status"], "missing")
+        self.assertEqual(result.industry_lookthrough["status"], "missing")
+        self.assertEqual(result.asset_allocation_lookthrough["status"], "missing")
+        # 缺数据时不应出现编造的穿透陈述
+        self.assertFalse(any("Look-through" in item for item in result.key_thesis))
+
     def test_weights_rescaled_flag_reaches_action_plan(self):
         payload = build_portfolio_input()
         payload.extra_context["weights_rescaled"] = "true"

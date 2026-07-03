@@ -31,6 +31,10 @@ AGENT_TRACE_COPY = {
         "Checked sector context",
         "Assessed sector concentration only when sector exposure data was available for this fund type.",
     ),
+    "MarketAgent": (
+        "Checked peer and market context",
+        "Compared the fund against peer-category percentiles and holding-period profit probabilities when available.",
+    ),
 }
 
 
