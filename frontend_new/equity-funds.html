@@ -102,6 +102,19 @@
               <button type="button" class="btn-outline">Rebalance</button>
             </div>
           </header>
+          <section class="glass-panel ranking-panel" data-ranking-type="equity">
+            <div class="section-head">
+              <div>
+                <h3 class="section-head__title section-head__title--compact">Equity Fund Return Ranking</h3>
+                <p class="muted sm">Click any fund to review its latest profile below.</p>
+              </div>
+              <span class="chip chip--live">Equity</span>
+            </div>
+            <div class="ranking-layout">
+              <div class="ranking-list" data-ranking-list aria-label="Equity fund return ranking"></div>
+              <article class="ranking-detail" data-ranking-detail aria-live="polite"></article>
+            </div>
+          </section>
           <div class="kpi-row eq-kpis">
             <div class="kpi-card"><p class="kpi-card__label">Total Equity Value</p><p class="kpi-card__value">$1,420,582.40</p><p class="kpi-card__hint">+12.4% MTD</p></div>
             <div class="kpi-card"><p class="kpi-card__label">Annualized Yield</p><p class="kpi-card__value">18.2%</p><p class="kpi-card__hint">Top 5% performance</p></div>
@@ -109,9 +122,9 @@
             <div class="kpi-card"><p class="kpi-card__label">AI Strategy Score</p><p class="kpi-card__value">94/100</p><p class="kpi-card__hint">Highly optimized</p></div>
           </div>
           <section class="glass-panel">
-            <h3 class="section-head__title section-head__title--compact">High-Growth Trajectory</h3>
+            <h3 class="section-head__title section-head__title--compact">Return Curve</h3>
             <div class="pill-group" style="margin-bottom:12px"><button class="pill pill--ghost">1M</button><button class="pill pill--ghost">3M</button><button class="pill pill--ghost">YTD</button><button class="pill pill--ghost">MAX</button></div>
-            <div class="eq-chart" role="presentation"></div>
+            <div class="eq-chart return-chart" data-return-chart role="img" aria-label="Fund return curve"></div>
             <div class="fd-stats eq-mini">
               <div><span class="fd-stats__k">Oct 24, 2023</span><span class="fd-stats__v">$1,142,000 (+8.2%)</span></div>
               <div><span class="fd-stats__k">Std Dev</span><span class="fd-stats__v">14.22%</span></div>
@@ -136,24 +149,14 @@
               <p class="muted">Tilt toward quality growth and reduce cyclical beta before CPI print.</p>
             </section>
           </div>
-          <section class="glass-panel">
-            <h3 class="section-head__title section-head__title--compact">Holdings Analysis</h3>
-            <p class="muted" style="margin-top:0">Core 70% · Satellite 30%</p>
-            <div class="data-table-wrap">
-              <table class="data-table">
-                <thead><tr><th>Symbol</th><th>Name</th><th>Value</th><th>1Y</th></tr></thead>
-                <tbody>
-                  <tr><td>VTS</td><td>Vanguard Total Stock · 25% weight</td><td>$355,145.00</td><td class="pos">+8.4%</td></tr>
-                  <tr><td>SPY</td><td>SPDR S&amp;P 500 · 20% weight</td><td>$284,116.00</td><td class="pos">+7.1%</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
         </main>
 
       </div>
     </div>
-    <script src="scripts/api.js?v=20260701-6"></script>
-    <script src="scripts/dashboard-data.js?v=20260701-6"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/api.js"></script>
+    <script src="scripts/search.js"></script>
+    <script src="scripts/fund-rankings.js"></script>
+    <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>

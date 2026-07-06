@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="css/shell.css" />
     <link rel="stylesheet" href="css/dashboard-widgets.css" />
     <link rel="stylesheet" href="css/page-market-flow.css" />
+    <link rel="stylesheet" href="css/page-portfolio-family.css" />
     <link rel="stylesheet" href="css/page-global-investment.css" />
   </head>
   <body>
@@ -105,36 +106,27 @@
             <div class="gi-months" aria-hidden="true">JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC</div>
             <div class="gi-matrix" role="img" aria-label="热力矩阵占位"></div>
           </section>
-          <div class="two-col">
-            <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">AI Allocation Engine</h3>
-              <ul class="gi-ai">
-                <li><strong class="pos">BUY SIGNAL: EMERGING MARKETS</strong><p class="muted sm">Risk-on rotation confirmed by flow + carry.</p></li>
-                <li><strong class="neg">RISK ALERT: USD/CNY</strong><p class="muted sm">Hedge 10% CN exposure via liquid proxies.</p></li>
-              </ul>
-              <button type="button" class="btn-outline">Generate Custom Strategy</button>
-            </section>
-            <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Market Sentiment</h3>
-              <div class="mh-greed gi-sent"><span class="mh-greed__n">72</span><p class="muted">Fear ↔ Greed</p></div>
-            </section>
-          </div>
-          <section class="glass-panel">
-            <h3 class="section-head__title section-head__title--compact">Active Asset Allocation</h3>
-            <div class="data-table-wrap">
-              <table class="data-table">
-                <thead><tr><th>Asset</th><th>Region</th><th>Value</th><th>Perf</th><th>Strategy</th></tr></thead>
-                <tbody>
-                  <tr><td>Vanguard Total World</td><td>Global</td><td>$1,245,600</td><td class="pos">+5.2%</td><td>HODL</td></tr>
-                </tbody>
-              </table>
+          <section class="glass-panel ranking-panel global-ranking-panel" data-global-index-ranking>
+            <div class="section-head">
+              <div>
+                <h3 class="section-head__title section-head__title--compact">Global Index Fund Ranking</h3>
+                <p class="muted sm">Ranked by return. Backend-ready for global index fund data.</p>
+              </div>
+              <span class="chip chip--live">Global</span>
+            </div>
+            <div class="ranking-layout">
+              <div class="ranking-list" data-global-ranking-list aria-label="Global index fund ranking"></div>
+              <article class="ranking-detail" data-global-ranking-detail aria-live="polite"></article>
             </div>
           </section>
         </main>
 
       </div>
     </div>
-    <script src="scripts/api.js?v=20260701-7"></script>
-    <script src="scripts/dashboard-data.js?v=20260701-7"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/api.js"></script>
+    <script src="scripts/search.js"></script>
+    <script src="scripts/global-index-ranking.js"></script>
+    <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>

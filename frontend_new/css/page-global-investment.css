@@ -4,20 +4,21 @@
   color: var(--accent-red);
 }
 
-.gi-matrix:has(span) {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(20px, 1fr));
-  gap: 6px;
-  padding: 10px;
+.global-ranking-panel {
+  margin-top: 24px;
 }
 
-.gi-matrix span {
-  min-height: 64px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 242, 164, 0.24);
+.global-ranking-panel .ranking-layout {
+  grid-template-columns: minmax(360px, 1fr) minmax(360px, 0.9fr);
 }
 
-.gi-matrix span.neg {
-  background: rgba(255, 91, 91, 0.24);
+.global-ranking-panel .ranking-row__return {
+  min-width: 76px;
+  text-align: right;
+}
+
+@media (max-width: 980px) {
+  .global-ranking-panel .ranking-layout {
+    grid-template-columns: 1fr;
+  }
 }

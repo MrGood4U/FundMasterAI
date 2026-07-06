@@ -89,171 +89,75 @@
         <main class="content">
           <header class="page-head">
             <div>
-              <h2 class="page-head__title">AI Fund Analysis</h2>
-              <p class="page-head__sub">Real backend data · deterministic metrics · multi-agent reasoning</p>
+              <h2 class="page-head__title">AI Strategy Analysis</h2>
+              <p class="page-head__sub">Neural-Mean Reversion v4.2 · live execution telemetry</p>
             </div>
-            <div class="ai-head-actions">
-              <label class="ai-dev-switch" title="Show technical evidence and raw metadata">
-                <input type="checkbox" data-dev-toggle />
-                <span>Developer view</span>
-              </label>
-              <span class="chip chip--live" data-analysis-status>Ready</span>
-            </div>
+            <span class="chip chip--live">Active Algorithm</span>
           </header>
-
-          <!-- 1 · Control bar -->
-          <section class="glass-panel ai-controls">
-            <form class="ai-form" data-analysis-form>
-              <label>
-                <span>Fund code</span>
-                <input data-fund-code value="000001" autocomplete="off" />
-              </label>
-              <label>
-                <span>Start date</span>
-                <input data-start-date type="date" value="2025-01-01" />
-              </label>
-              <label>
-                <span>Risk profile</span>
-                <select data-risk-profile>
-                  <option value="balanced">Balanced</option>
-                  <option value="conservative">Conservative</option>
-                  <option value="aggressive">Aggressive</option>
-                </select>
-              </label>
-              <button class="ai-submit" type="submit" data-submit-btn>Analyze</button>
-              <details class="ai-runsettings">
-                <summary>Run settings</summary>
-                <div class="ai-runsettings__body">
-                  <label class="ai-toggle">
-                    <input data-real-llm type="checkbox" />
-                    <span>Use real LLM (mock is free and uses the same real backend data)</span>
-                  </label>
-                  <label>
-                    <span>LLM model</span>
-                    <select data-llm-model disabled>
-                      <option value="">Loading models...</option>
-                    </select>
-                  </label>
-                </div>
-              </details>
-            </form>
-          </section>
-
-          <!-- 2 · Verdict: the answer -->
-          <section class="glass-panel ai-verdict">
-            <div class="ai-verdict__grid">
-              <div class="ai-verdict__left">
-                <span class="ai-caption">Overall rating</span>
-                <strong class="ai-rating-badge" data-overall-rating>--</strong>
-                <div class="ai-scorebar" role="img" aria-label="Overall score">
-                  <div class="ai-scorebar__fill" data-score-fill></div>
-                </div>
-                <p class="ai-verdict__score"><strong data-overall-score>--</strong><span>/100</span></p>
-                <div class="ai-verdict__badges">
-                  <span class="ai-badge" data-reliability-badge hidden></span>
-                  <span class="ai-badge" data-confidence-badge hidden></span>
-                </div>
-                <p class="ai-verdict__fund" data-fund-name>Run an analysis to load fund data</p>
-                <p class="ai-verdict__meta muted sm" data-fund-meta></p>
-              </div>
-              <div class="ai-verdict__right">
-                <h3 class="section-head__title section-head__title--compact">
-                  Chief Summary
-                  <span class="ai-caption">AI explanation of computed evidence</span>
-                </h3>
-                <p class="ai-summary" data-summary>Run analysis to generate a grounded multi-agent summary.</p>
-                <details class="ai-why">
-                  <summary>Why this rating</summary>
-                  <p data-score-explanation>Run analysis to see how specialist scores shaped the final rating.</p>
-                </details>
-              </div>
-            </div>
-            <div class="ai-lists">
+          <section class="glass-panel ai-hero">
+            <div class="ai-hero__grid">
               <div>
-                <h4>Key Thesis</h4>
-                <ul class="ai-steps" data-key-thesis><li>No output yet.</li></ul>
+                <p class="muted">Predictive Alpha Curve</p>
+                <p class="ai-alpha">+14.82%</p>
+                <p class="muted sm">Alpha vs benchmark</p>
               </div>
-              <div>
-                <h4>Main Risks</h4>
-                <ul class="ai-steps" data-main-risks><li>No output yet.</li></ul>
-              </div>
-              <div>
-                <h4>Action Plan</h4>
-                <ul class="ai-steps" data-action-plan><li>No output yet.</li></ul>
+              <div class="ai-dials">
+                <div><span>Win rate</span><strong>68.4%</strong></div>
+                <div><span>Sharpe</span><strong>2.84</strong></div>
+                <div><span>Max drawdown</span><strong class="neg">-4.1%</strong></div>
+                <div><span>Volatility</span><strong>12.2%</strong></div>
               </div>
             </div>
+            <div class="ai-confbox"><p>Current Confidence</p><p class="ai-confbox__n">85%</p><span>High conviction</span></div>
           </section>
-
-          <!-- 3 · Deterministic metrics strip -->
-          <section class="glass-panel ai-metrics">
-            <div class="section-head">
-              <h3 class="section-head__title section-head__title--compact">Computed Metrics</h3>
-              <span class="muted sm" data-metrics-note>Metrics are computed deterministically from NAV data — the LLM only explains them.</span>
-            </div>
-            <div class="ai-metric-grid" data-quant-metrics>
-              <p class="ai-placeholder">Run an analysis to compute return and risk metrics from real NAV history.</p>
-            </div>
-          </section>
-
-          <!-- 4 · Pipeline: how it was produced -->
-          <section class="glass-panel ai-pipeline">
-            <div class="section-head">
-              <h3 class="section-head__title section-head__title--compact">How This Analysis Was Produced</h3>
-              <span class="muted sm">Skipped checks are honest refusals — the model never guesses when data is missing.</span>
-            </div>
-            <ol class="ai-stages" data-pipeline-stages>
-              <li class="ai-stage ai-stage--idle"><div class="ai-stage__inner"><span class="ai-stage__step">1</span><div class="ai-stage__body"><strong>Real Data</strong><span class="ai-stage__stat">waiting</span></div></div></li>
-              <li class="ai-stage ai-stage--idle"><div class="ai-stage__inner"><span class="ai-stage__step">2</span><div class="ai-stage__body"><strong>Computed Metrics</strong><span class="ai-stage__stat">waiting</span></div></div></li>
-              <li class="ai-stage ai-stage--idle"><div class="ai-stage__inner"><span class="ai-stage__step">3</span><div class="ai-stage__body"><strong>Specialist Checks</strong><span class="ai-stage__stat">waiting</span></div></div></li>
-              <li class="ai-stage ai-stage--idle"><div class="ai-stage__inner"><span class="ai-stage__step">4</span><div class="ai-stage__body"><strong>Aggregation</strong><span class="ai-stage__stat">waiting</span></div></div></li>
-            </ol>
-            <div class="ai-drawer" data-stage-drawer hidden></div>
-          </section>
-
-          <!-- 5 · Specialist agent cards -->
-          <section class="glass-panel ai-agents">
-            <div class="section-head">
-              <h3 class="section-head__title section-head__title--compact">Specialist Checks</h3>
-              <span class="muted sm" data-agent-count>idle</span>
-            </div>
-            <div class="ai-agent-grid" data-agent-grid>
-              <p class="ai-placeholder">Each specialist agent audits one perspective (performance, risk, exposure, news, sector, peers) and can refuse when its data is missing.</p>
-            </div>
-            <div class="ai-drawer" data-agent-drawer hidden></div>
-          </section>
-
-          <!-- 6 · Developer layer (hidden by default) -->
-          <section class="glass-panel ai-devpanel" data-dev-panel hidden>
-            <div class="section-head">
-              <h3 class="section-head__title section-head__title--compact">Developer View</h3>
-              <span class="muted sm" data-run-id>no run yet</span>
-            </div>
-            <div class="ai-dev-grid">
-              <div class="ai-dev-block">
-                <h4>Backend data coverage</h4>
-                <div class="coverage-grid" data-dev-coverage>
-                  <div><span>Status</span><strong>Run an analysis first.</strong></div>
-                </div>
-              </div>
-              <div class="ai-dev-block">
-                <h4>Run metadata</h4>
-                <ul class="ai-dev-meta" data-dev-metadata>
-                  <li>Run an analysis first.</li>
-                </ul>
-              </div>
-            </div>
-            <details class="technical-evidence">
-              <summary>Full analysis trace (technical)</summary>
-              <ul data-technical-evidence>
-                <li>No backend or agent trace has been recorded yet.</li>
+          <div class="two-col">
+            <section class="glass-panel">
+              <h3 class="section-head__title section-head__title--compact">AI Execution Logic</h3>
+              <ul class="ai-steps">
+                <li><strong>Pattern Synthesis</strong><span class="chip chip--live">Completed</span><p class="muted sm">Multi-timeframe feature fusion.</p></li>
+                <li><strong>Correlated Hedging</strong><span class="chip chip--live">Optimized</span><p class="muted sm">Dynamic beta neutralization.</p></li>
+                <li><strong>Risk Parity Adjustment</strong><span class="chip chip--warn">Watch</span><p class="muted sm">Liquidity-aware sizing.</p></li>
               </ul>
-            </details>
+            </section>
+            <section class="glass-panel">
+              <h3 class="section-head__title section-head__title--compact">Liquidity Warning</h3>
+              <p class="muted">Tape velocity elevated on small-cap sleeve — reduce participation rate by 15% until spread normalizes.</p>
+            </section>
+          </div>
+          <section class="glass-panel">
+            <h3 class="section-head__title section-head__title--compact">Backtest Matrix</h3>
+            <div class="data-table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Period</th><th>Scenario</th><th>Model</th><th>Net</th></tr></thead>
+                <tbody>
+                  <tr><td>DEC 23</td><td>Bearish Macro Spike</td><td>Omega</td><td class="pos">+4.2%</td></tr>
+                  <tr><td>NOV 15</td><td>Sustained Bull Run</td><td>Alpha</td><td class="pos">+11.8%</td></tr>
+                  <tr><td>OCT 02</td><td>Liquidity Flash Crash</td><td>Zeta</td><td class="neg">-1.2%</td></tr>
+                  <tr><td>SEP 18</td><td>Interest Rate Shock</td><td>Omega</td><td class="pos">+2.1%</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section class="glass-panel">
+            <div class="section-head"><h3 class="section-head__title">Recent Algorithmic Trade Log</h3><div><span class="chip chip--live">Live Engine</span><span class="muted sm">14ms latency</span></div></div>
+            <div class="data-table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Pair</th><th>Action</th><th>Price</th><th>AI Conf.</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr><td>BTC/USDT</td><td>LONG_MARKET</td><td>$64,281.42</td><td>92.4%</td><td>EXECUTED</td></tr>
+                  <tr><td>ETH/USDT</td><td>LONG_LIMIT</td><td>$3,482.11</td><td>88.1%</td><td>EXECUTED</td></tr>
+                </tbody>
+              </table>
+            </div>
           </section>
         </main>
 
         <button type="button" class="fab" aria-label="快捷操作"><span class="fab__plus" aria-hidden="true">+</span></button>
       </div>
     </div>
-    <script src="js/ai-insights.js?v=20260703-1"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/api.js"></script>
+    <script src="scripts/search.js"></script>
+    <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>
