@@ -289,6 +289,7 @@ _CACHE_KEY_CONFIG_MAP: Dict[str, str] = {
     "fund:cat:ths:all":     "CACHE_FUND_THS_SPOT_ENABLED",
     "fund:value:est:all":   "CACHE_FUND_VALUE_EST_ENABLED",
     "fund:info:index:all":  "CACHE_FUND_INFO_INDEX_ENABLED",
+    "global:index:rank":    "CACHE_GLOBAL_INDEX_RANK_ENABLED",
 }
 
 
