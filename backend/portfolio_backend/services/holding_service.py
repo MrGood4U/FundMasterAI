@@ -39,7 +39,12 @@ class HoldingService:
                     total_qty += float(t["quantity"])
                     total_cost += float(t["quantity"]) * float(t["price"]) + float(t["fee"] or 0)
                 elif t["trans_type"] == "sell":
-                    total_qty -= float(t["quantity"])
+                    sell_qty = float(t["quantity"])
+                    if total_qty > 0:
+                        # 按平均成本法等比例扣减成本
+                        avg_cost_before_sell = total_cost / total_qty
+                        total_cost -= avg_cost_before_sell * sell_qty
+                    total_qty -= sell_qty
 
             if total_qty <= 0:
                 continue
