@@ -39,7 +39,6 @@
 
   async function getFundUniverse() {
     if (remoteFunds) return remoteFunds;
-
     if (api && api.market && api.market.getFundNameList) {
       try {
         const rows = await api.market.getFundNameList();
@@ -48,10 +47,9 @@
           return remoteFunds;
         }
       } catch (error) {
-        // Keep the search usable during static preview or before backend proxy is configured.
+        // Keep fallback functional
       }
     }
-
     remoteFunds = FALLBACK_FUNDS;
     return remoteFunds;
   }
@@ -64,19 +62,23 @@
     return `fund-deep-dive.html?${params.toString()}`;
   }
 
+  // 💡 新增：兜底的直接强行跳转函数
+  function forceRedirect(query) {
+    if (!query) return;
+    window.location.href = `fund-deep-dive.html?code=${encodeURIComponent(query)}&name=${encodeURIComponent(query)}`;
+  }
+
   function renderResults(container, items, query) {
     if (!query) {
       container.hidden = true;
       container.innerHTML = "";
       return;
     }
-
     if (!items.length) {
       container.hidden = false;
       container.innerHTML = `<div class="search-results__empty">No fund matched "${escapeHtml(query)}"</div>`;
       return;
     }
-
     container.hidden = false;
     container.innerHTML = items
       .slice(0, 8)
@@ -95,19 +97,16 @@
   }
 
   function escapeHtml(value) {
-    return String(value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+    return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
   function attachSearch(input) {
-    const field = input.closest(".search-field");
+    const field = input.closest(".search-field") || input.parentElement;
     if (!field || field.dataset.searchReady === "true") return;
     field.dataset.searchReady = "true";
     field.classList.add("search-field--active");
 
+    // 创建下拉框
     const results = document.createElement("div");
     results.className = "search-results";
     results.hidden = true;
@@ -118,36 +117,47 @@
     input.addEventListener("input", async () => {
       const query = input.value.trim();
       activeQuery = query;
-
       if (!query) {
         renderResults(results, [], "");
         return;
       }
-
-      results.hidden = false;
-      results.innerHTML = `<div class="search-results__empty">Searching funds...</div>`;
 
       const universe = await getFundUniverse();
       if (activeQuery !== query) return;
 
       const q = normalize(query);
       const matches = universe.filter((item) => {
-        const code = normalize(item.code);
-        const name = normalize(item.name);
-        return code.includes(q) || name.includes(q);
+        return normalize(item.code).includes(q) || normalize(item.name).includes(q);
       });
-
       renderResults(results, matches, query);
     });
 
+    // 💡 升级：监听键盘回车
     input.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
+      event.preventDefault();
       const firstResult = results.querySelector(".search-result");
-      if (firstResult) {
-        event.preventDefault();
+      if (firstResult && !results.hidden) {
         window.location.href = firstResult.getAttribute("href");
+      } else {
+        // 如果没有下拉菜单，直接强行带着当前的输入框文本跳转
+        forceRedirect(input.value.trim());
       }
     });
+
+    // 💡 升级：监听旁边的放大镜图标/按钮点击
+    const searchIcon = field.querySelector("svg") || field.querySelector("i") || field.querySelector(".search-icon");
+    if (searchIcon) {
+      searchIcon.style.cursor = "pointer";
+      searchIcon.addEventListener("click", () => {
+        const firstResult = results.querySelector(".search-result");
+        if (firstResult && !results.hidden) {
+          window.location.href = firstResult.getAttribute("href");
+        } else {
+          forceRedirect(input.value.trim());
+        }
+      });
+    }
 
     document.addEventListener("click", (event) => {
       if (!field.contains(event.target)) {
@@ -170,7 +180,7 @@
     if (!code && !name) return;
 
     const title = document.querySelector(".page-head__title");
-    const ticker = document.querySelector(".kpi-row .kpi-card:first-child .kpi-card__value");
+    const ticker = document.querySelector(".kpi-row .kpi-card:first-child .kpi-card__value") || document.querySelector(".ticker-value");
     const breadcrumbCurrent = document.querySelector(".breadcrumb span:last-child");
 
     if (title && name) title.textContent = name;
@@ -178,8 +188,17 @@
     if (breadcrumbCurrent && name) breadcrumbCurrent.textContent = name;
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll(".search-field__input").forEach(attachSearch);
+  // 💡 全局初始化（多重选择器支持）
+  function init() {
+    // 兼容可能存在的不同 class
+    const inputs = document.querySelectorAll(".search-field__input, .search-box input, header input[type='text']");
+    inputs.forEach(attachSearch);
     hydrateAnalyticsPage();
-  });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })(window, document);
