@@ -949,6 +949,11 @@ FUNCTIONS = [
                     "description": "基金类型。all=全部, stock=股票型, mixed=混合型, bond=债券型, index=指数型, qdii=QDII, fof=FOF",
                     "enum": ["all", "stock", "mixed", "bond", "index", "qdii", "fof"],
                 },
+                "order_by": {
+                    "type" : "string",
+                    "description": "排序字段。change_1w=近1周收益, change_1m=近1月收益, change_3m=近3月收益, change_6m=近6月收益, change_1y=近1年收益, change_2y=近2年收益, change_3y=近3年收益, change_ytd=今年以来收益, change_since_inception=成立以来收益",
+                    "enum": ["change_1w", "change_1m", "change_3m", "change_6m", "change_1y", "change_2y", "change_3y", "change_ytd", "change_since_inception"],
+                }
             },
             "required": [],
         },

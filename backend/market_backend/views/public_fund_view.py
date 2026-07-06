@@ -172,6 +172,7 @@ def get_fund_rank():
     service = PublicFundService()
     result = service.fund_open_fund_rank(
         fund_type=data.get("fund_type", "all"),
+        order_by=data.get("order_by", "change_1y"),
     )
     return jsonify({"code": 200, "data": result, "message": "success"}), 200
 

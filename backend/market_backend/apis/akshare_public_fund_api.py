@@ -192,7 +192,7 @@ class AksharePublicFund:
         df = ak.fund_value_estimation_em(symbol=symbol)
         return apply_mapping(df, FUND_VALUE_ESTIMATION_EM_MAP)
 
-    def fund_open_fund_rank(self, fund_type: str):
+    def fund_open_fund_rank(self, fund_type: str, order_by: str):
         fund_type_set = ["all", "stock", "mixed", "stock", "index", "QDII", "FOF"]
         if fund_type not in fund_type_set:
             fund_type = "all"
@@ -209,7 +209,16 @@ class AksharePublicFund:
         df = ak.fund_open_fund_rank_em(symbol=fund_type)
         df = df.replace([np.nan, np.inf, -np.inf, pd.NaT], None)
         df = df.replace([float('inf'), float('-inf')], None)
-        return apply_mapping(df, FUND_OPEN_FUND_RANK_EM_MAP)
+        df = apply_mapping(df, FUND_OPEN_FUND_RANK_EM_MAP)
+        # df里面有个 基金简称 的字段，我想额外生成一个fund_short_name字段，内容是基金简称的内容
+        if "基金简称" in df.columns:
+            df["fund_short_name"] = df["基金简称"].str.strip().str.replace("\n", "")
+
+        # Sort by order_by column if it exists, otherwise default to "change_1y"
+        if order_by not in df.columns:
+            order_by = "change_1y"
+        df = df.sort_values(by=order_by, ascending=False)
+        return df
     
     # 指数基金信息(全部/沪深指数/行业主题/大盘指数/中盘指数/小盘指数/股票指数/债券指数) -- 东方财富
     def get_fund_info_index(self, symbol: str, indicator: str):
