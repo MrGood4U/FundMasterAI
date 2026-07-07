@@ -12,8 +12,9 @@
 ## 兼容规则
 
 - 当前公开 AI 分析接口是 `POST /api/ai/fund/analyze`（单基金）、
-  `POST /api/ai/portfolio/analyze`（组合层，见「组合层分析接口」一节）和
-  `POST /api/ai/sector/analyze`（行业层，见「行业层比较接口」一节）。
+  `POST /api/ai/portfolio/analyze`（组合层，见「组合层分析接口」一节）、
+  `POST /api/ai/sector/analyze`（行业层，见「行业层比较接口」一节）和
+  `POST /api/ai/news/summary`（新闻摘要，见「新闻摘要接口」一节）。
 - 成功响应的顶层结构固定为 `code`、`data`、`coverage`、`message`。
 - 前端可以长期依赖本文档列出的稳定字段。
 - 后续可以新增字段、新增 `metadata` key、新增 `analysis_trace` 事件，或在
@@ -258,6 +259,71 @@ Content-Type: application/json
 | `400` | 缺少 `codes` 或列表为空。 |
 | `422` | 基金代码重复或为空字符串。 |
 | `500` | 未预期异常。 |
+
+## 新闻摘要接口
+
+```text
+POST /api/ai/news/summary
+Content-Type: application/json
+```
+
+给 News 页 AI Summary 组件用：前端把从 news backend 拿到的新闻行**原样转发**
+即可（`news_title` / `news_content` / `publish_time` / `文章来源` 等中英文字段
+都能识别），AI 服务不重复取数。
+
+防幻觉分工与其他接口一致：逐条情绪标签由确定性关键词规则打出（复用
+`SentimentAgent` 分类器），整体 label / 计数 / 置信度全部代码计算；LLM 只把
+已分类的新闻写成摘要，失败时回退确定性摘要；**`related_symbols` 只回传请求里
+给的 `symbol`，不会让模型从文本里编造股票代码**。
+
+### 请求字段
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|---|---:|---:|---|---|
+| `items` | array | 是 | - | 新闻行列表，每行至少要有标题或正文。兼容 `news` 别名。 |
+| `symbol` | string | 否 | 空 | 查询这些新闻用的标的代码，会原样回传到 `related_symbols`。兼容 `code` 别名。 |
+| `max_items` | integer | 否 | `10` | 最多纳入多少条（硬上限 20，超出截断）。 |
+| `mock` | boolean/string | 否 | `LLM_MOCK_MODE` 或 `false` | 为真时跑 mock LLM 模式。 |
+| `llm_timeout_seconds` / `llm_model` | - | 否 | 同其他接口 | 真实模式超时与单次模型覆盖。 |
+
+请求示例（`items` 就是 `get_recent_news` 的原始返回行）：
+
+```json
+{
+  "symbol": "300059",
+  "items": [
+    {"news_title": "...", "news_content": "...", "publish_time": "...", "文章来源": "..."}
+  ],
+  "mock": true
+}
+```
+
+### 成功响应
+
+顶层结构同样是 `code`、`data`、`coverage`、`message`。`data` 稳定字段：
+
+| 字段 | 类型 | 说明 |
+|---|---:|---|
+| `request_id` | string | `news-summary-<symbol>-<n>`。 |
+| `status` | string | 当前恒为 `success`（无可用新闻会直接 `422`）。 |
+| `summary` | string | 新闻摘要（真实模式 LLM 生成，失败回退确定性摘要，英文）。 |
+| `sentiment` | object | `label`（`positive`/`negative`/`neutral`/`mixed`）+ `positive_count` / `negative_count` / `neutral_count` / `risk_event_count`，全部确定性计算。 |
+| `confidence` | number | 0.4-0.9，按条数、正文长度、时间与来源齐全度计算。 |
+| `related_symbols` | string[] | 只包含请求传入的 `symbol`，未传则为空数组。 |
+| `items_analyzed` | integer | 实际纳入的条数。 |
+| `item_signals` | array | 逐条 `{title, sentiment, risk_event}`，前端可直接做每条新闻的情绪角标。 |
+| `metadata` | object | `analysis_level=news`、`llm_mode`、`summary_source`、`prompt_version` 等。 |
+| `analysis_trace` | array | 两个事件：确定性分类、摘要生成。 |
+
+`coverage`：`items_received` / `items_used` / `has_symbol` / `data_source`。
+
+### 错误语义
+
+| HTTP | 触发条件 |
+|---|---|
+| `400` | 缺少 `items` 或不是非空数组。 |
+| `422` | `items` 里没有任何一行有标题或正文。 |
+| `500` | 未预期异常（对外通用文案，详情看服务日志）。 |
 
 ## 模型目录接口
 

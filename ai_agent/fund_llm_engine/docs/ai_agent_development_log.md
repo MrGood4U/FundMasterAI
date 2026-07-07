@@ -965,6 +965,46 @@ cd ai_agent/fund_llm_engine
 .venv/bin/python scripts/run_golden_suite.py --mode mock
 ```
 
+### 2026-07-07 - Add news summary endpoint for the News page
+
+Goal:
+
+- Close the integration blocker "AI 服务没有新闻摘要接口" from the 2026-07-07
+  frontend integration issue list: the News page AI Summary widget needs
+  `POST /api/ai/news/summary`.
+
+Actual changes:
+
+- Added `src/fund_llm/news_summary.py`: normalizes raw news-backend rows
+  (Chinese/English field names accepted as-is), classifies each item with the
+  deterministic `SentimentAgent` keyword rules, computes aggregate
+  label/counts/risk-event count and data-quality confidence (0.4-0.9) in
+  code, and lets the LLM only write the digest (English-only prompt,
+  quality-gate fallback to a deterministic summary).
+- `related_symbols` echoes the request `symbol` only; the model is never
+  asked to infer ticker symbols from text.
+- Added `POST /api/ai/news/summary` to `app.py` with the standard
+  `code/data/coverage/message` envelope, `items`/`news` aliases,
+  `max_items` cap (default 10, hard cap 20), mock/real modes, structured
+  `400`/`422`, and sanitized `500`.
+- Tests: `tests/test_news_summary.py` (13 unit cases) and
+  `tests/test_news_api.py` (6 endpoint contract cases).
+
+Impact:
+
+- New additive endpoint; existing fund/portfolio/sector APIs unchanged.
+- No backend or frontend code changes; the frontend can forward
+  `get_recent_news` rows unmodified.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest tests.test_news_summary tests.test_news_api
+.venv/bin/python -m unittest discover tests
+.venv/bin/python scripts/run_golden_suite.py --mode mock
+```
+
 ## Handoff Notes For Future AI
 
 - Do not infer implemented status from proposal, plan, or report wording alone.

@@ -35,6 +35,10 @@ from fund_llm.portfolio_pipeline import (  # noqa: E402
     run_mock_portfolio_analysis_for_input,
     run_real_portfolio_analysis_for_input,
 )
+from fund_llm.news_summary import (  # noqa: E402
+    run_mock_news_summary,
+    run_real_news_summary,
+)
 from fund_llm.real_pipeline import run_real_analysis_for_input  # noqa: E402
 from fund_llm.sector_pipeline import (  # noqa: E402
     run_mock_sector_view_for_funds,
@@ -495,6 +499,59 @@ def create_app() -> Flask:
                     "code": 500,
                     "data": None,
                     "message": "Internal error while running sector view. Check the Agent service log for details.",
+                }
+            ), 500
+
+    @app.route("/api/ai/news/summary", methods=["POST", "OPTIONS"])
+    def summarize_news():
+        if request.method == "OPTIONS":
+            return jsonify({"code": 200, "message": "ok"}), 200
+
+        body = request.get_json(silent=True) or {}
+        raw_items = body.get("items") or body.get("news") or []
+        if not isinstance(raw_items, list) or not raw_items:
+            return jsonify(
+                {
+                    "code": 400,
+                    "data": None,
+                    "message": "items is required. Provide a list of news rows (title/content/publish_time/source).",
+                }
+            ), 400
+
+        symbol = str(body.get("symbol") or body.get("code") or "").strip()
+        try:
+            max_items = int(body.get("max_items") or 10)
+            use_mock = _truthy(body.get("mock", os.getenv("LLM_MOCK_MODE", "false")))
+            if use_mock:
+                result = run_mock_news_summary(raw_items, symbol=symbol, max_items=max_items)
+            else:
+                result = run_real_news_summary(
+                    raw_items,
+                    symbol=symbol,
+                    max_items=max_items,
+                    model=_optional_text(body.get("llm_model") or body.get("model")),
+                    timeout_seconds=int(body.get("llm_timeout_seconds") or os.getenv("LLM_TIMEOUT_SECONDS", "60")),
+                )
+
+            coverage = {
+                "items_received": len(raw_items),
+                "items_used": result["items_analyzed"],
+                "has_symbol": bool(symbol),
+                "data_source": "frontend_provided_news_rows",
+            }
+            return jsonify(
+                {"code": 200, "data": result, "coverage": coverage, "message": "success"}
+            ), 200
+        except ValueError as exc:
+            app.logger.warning("News summary rejected for symbol=%s: %s", symbol, exc)
+            return jsonify({"code": 422, "data": None, "message": str(exc)}), 422
+        except Exception:
+            app.logger.exception("News summary failed for symbol=%s", symbol)
+            return jsonify(
+                {
+                    "code": 500,
+                    "data": None,
+                    "message": "Internal error while summarizing news. Check the Agent service log for details.",
                 }
             ), 500
 
