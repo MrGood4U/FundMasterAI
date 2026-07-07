@@ -193,7 +193,7 @@ class AksharePublicFund:
         return apply_mapping(df, FUND_VALUE_ESTIMATION_EM_MAP)
 
     def fund_open_fund_rank(self, fund_type: str, order_by: str):
-        fund_type_set = ["all", "stock", "mixed", "stock", "index", "QDII", "FOF"]
+        fund_type_set = ["all", "stock", "mixed", "bond", "index", "QDII", "FOF"]
         if fund_type not in fund_type_set:
             fund_type = "all"
         fund_type_set_map = {
@@ -210,7 +210,6 @@ class AksharePublicFund:
         df = df.replace([np.nan, np.inf, -np.inf, pd.NaT], None)
         df = df.replace([float('inf'), float('-inf')], None)
         df = apply_mapping(df, FUND_OPEN_FUND_RANK_EM_MAP)
-        # df里面有个 基金简称 的字段，我想额外生成一个fund_short_name字段，内容是基金简称的内容
         if "基金简称" in df.columns:
             df["fund_short_name"] = df["基金简称"].str.strip().str.replace("\n", "")
 

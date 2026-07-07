@@ -266,14 +266,19 @@ class PublicFundService:
     # -- ranking (cached) --------------------------------------------------
 
     def fund_open_fund_rank(self, fund_type: str, order_by: str):
-        cache_key = "fund:rank:all"
+        cache_key = "fund:rank:" + fund_type
         df = self.cache.get_df(cache_key)
         if df is None or df.empty:
+            # order_by doesn't matter for caching — we always sort
+            # after retrieval so the cache is reusable across sort orders.
             df = self.akapi.fund_open_fund_rank(fund_type, order_by)
             if df is not None and not df.empty:
                 self.cache.set_df(cache_key, df)
         if df is None or df.empty:
             return []
+        # sort by the requested order_by column (descending)
+        if order_by in df.columns:
+            df = df.sort_values(by=order_by, ascending=False)
         df = df.where(pd.notna(df), None)
         return df.to_dict(orient="records")
 

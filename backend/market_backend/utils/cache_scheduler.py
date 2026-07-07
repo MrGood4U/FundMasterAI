@@ -57,6 +57,16 @@ def _fetch_fund_rank_all():
     return AksharePublicFund().fund_open_fund_rank("all")
 
 
+def _fetch_fund_rank_stock():
+    from apis.akshare_public_fund_api import AksharePublicFund
+    return AksharePublicFund().fund_open_fund_rank("stock")
+
+
+def _fetch_fund_rank_bond():
+    from apis.akshare_public_fund_api import AksharePublicFund
+    return AksharePublicFund().fund_open_fund_rank("bond")
+
+
 def _fetch_fund_category_ths_all():
     from apis.akshare_public_fund_api import AksharePublicFund
     return AksharePublicFund().tonghuashun_real_time("all")
@@ -91,6 +101,8 @@ _DEFAULT_REGISTRY: Dict[str, Callable] = {
     "fund:lof:spot":            _fetch_fund_lof_spot,
     "fund:name:list":           _fetch_fund_name_list,
     "fund:rank:all":            _fetch_fund_rank_all,
+    "fund:rank:stock":          _fetch_fund_rank_stock,
+    "fund:rank:bond":           _fetch_fund_rank_bond,
     "fund:cat:ths:all":         _fetch_fund_category_ths_all,
     "fund:value:est:all":       _fetch_fund_value_est_all,
     "fund:info:index:all":      _fetch_fund_info_index_all,
@@ -105,6 +117,8 @@ _KEY_CONFIG: Dict[str, tuple] = {
     "fund:lof:spot":       ("CACHE_FUND_LOF_SPOT_EM_ENABLED",    "CACHE_FUND_LOF_SPOT_EM_INTERVAL"),
     "fund:name:list":      ("CACHE_FUND_NAME_LIST_ENABLED",      "CACHE_FUND_NAME_LIST_INTERVAL"),
     "fund:rank:all":       ("CACHE_FUND_RANK_ENABLED",           "CACHE_FUND_RANK_INTERVAL"),
+    "fund:rank:stock":     ("CACHE_FUND_RANK_ENABLED",           "CACHE_FUND_RANK_INTERVAL"),
+    "fund:rank:bond":      ("CACHE_FUND_RANK_ENABLED",           "CACHE_FUND_RANK_INTERVAL"),
     "fund:cat:ths:all":    ("CACHE_FUND_THS_SPOT_ENABLED",   "CACHE_FUND_THS_SPOT_INTERVAL"),
     "fund:value:est:all":  ("CACHE_FUND_VALUE_EST_ENABLED",      "CACHE_FUND_VALUE_EST_INTERVAL"),
     "fund:info:index:all": ("CACHE_FUND_INFO_INDEX_ENABLED",     "CACHE_FUND_INFO_INDEX_INTERVAL"),

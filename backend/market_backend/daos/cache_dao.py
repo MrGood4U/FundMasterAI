@@ -286,6 +286,8 @@ _CACHE_KEY_CONFIG_MAP: Dict[str, str] = {
     "fund:lof:spot":        "CACHE_FUND_LOF_SPOT_EM_ENABLED",
     "fund:name:list":       "CACHE_FUND_NAME_LIST_ENABLED",
     "fund:rank:all":        "CACHE_FUND_RANK_ENABLED",
+    "fund:rank:stock":      "CACHE_FUND_RANK_ENABLED",
+    "fund:rank:bond":       "CACHE_FUND_RANK_ENABLED",
     "fund:cat:ths:all":     "CACHE_FUND_THS_SPOT_ENABLED",
     "fund:value:est:all":   "CACHE_FUND_VALUE_EST_ENABLED",
     "fund:info:index:all":  "CACHE_FUND_INFO_INDEX_ENABLED",
