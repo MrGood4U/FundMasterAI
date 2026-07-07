@@ -330,6 +330,7 @@
   }
 
   function formatPercent(value) {
+    if (value === null || value === undefined || value === "" || value === "--") return "--";
     const n = numberValue(value);
     const sign = n > 0 ? "+" : "";
     return `${sign}${n.toFixed(1)}%`;
@@ -356,9 +357,9 @@
   function normalizeRankRecord(record, type, index) {
     const code = String(pick(record, ["基金代码", "fund_code", "code", "symbol"], `FUND-${index + 1}`));
     const name = String(pick(record, ["基金简称", "基金名称", "name", "fund_name", "short_name"], code));
-    const return1y = formatPercent(pick(record, ["近1年", "近一年", "1年", "return1y", "year_return", "收益率"], 10 - index));
-    const returnYtd = formatPercent(pick(record, ["今年来", "近今年", "returnYtd", "ytd_return"], 4 - index * 0.2));
-    const curve = Array.isArray(record.curve) ? record.curve : fallbackCurve(index + 1);
+    const return1y = formatPercent(pick(record, ["change_1y", "近1年", "近一年", "1年", "return1y", "year_return", "收益率"], "--"));
+    const returnYtd = formatPercent(pick(record, ["change_ytd", "今年来", "近今年", "returnYtd", "ytd_return"], "--"));
+    const curve = Array.isArray(record.curve) ? record.curve : [];
 
     if (type === "debt") {
       return {
@@ -366,18 +367,18 @@
         name,
         return1y,
         returnYtd,
-        duration: String(pick(record, ["duration", "久期"], "4.2 yrs")),
-        rating: String(pick(record, ["rating", "评级"], "AA")),
-        totalValue: String(pick(record, ["totalValue", "规模", "aum"], "$1,000,000")),
-        averageYield: formatPercent(pick(record, ["averageYield", "收益率", "近1年"], 4.2)),
-        weightedMaturity: String(pick(record, ["weightedMaturity", "duration", "久期"], "4.2 yrs")),
-        risk: String(pick(record, ["risk", "rating", "评级"], "AA")),
-        aum: String(pick(record, ["aum", "规模"], "$1.00B")),
-        riskMix: record.riskMix || [["AAA / Government", "42%"], ["AA / Corporate", "28%"], ["BBB / IG", "18%"], ["Cash", "12%"]],
-        stableYield: formatPercent(pick(record, ["stableYield"], 3.8)),
-        highYield: formatPercent(pick(record, ["highYield"], 5.6)),
-        focus: String(pick(record, ["focus", "投资类型"], "Bond income and duration-managed allocation.")),
-        signal: String(pick(record, ["signal", "AI建议"], "Monitor rate sensitivity and credit spread movement.")),
+        duration: String(pick(record, ["duration", "久期"], "--")),
+        rating: String(pick(record, ["rating", "评级"], "--")),
+        totalValue: String(pick(record, ["totalValue", "规模", "aum"], "--")),
+        averageYield: return1y,
+        weightedMaturity: String(pick(record, ["weightedMaturity", "duration", "久期"], "--")),
+        risk: String(pick(record, ["risk", "rating", "评级"], "--")),
+        aum: String(pick(record, ["aum", "规模"], "--")),
+        riskMix: [],
+        stableYield: "--",
+        highYield: "--",
+        focus: "Backend ranking data",
+        signal: "No AI recommendation returned by the backend.",
         curve,
       };
     }
@@ -387,53 +388,51 @@
       name,
       return1y,
       returnYtd,
-      mtd: `${formatPercent(pick(record, ["近1月", "近一月", "mtd"], 2.5))} MTD`,
-      totalValue: String(pick(record, ["totalValue", "规模", "aum"], "$1,000,000.00")),
-      annualizedYield: formatPercent(pick(record, ["annualizedYield", "年化收益", "近1年"], 12.5)),
-      volatility: String(pick(record, ["volatility", "波动"], "Medium")),
-      risk: String(pick(record, ["risk", "风险等级"], "Medium")),
-      score: String(pick(record, ["score"], `${80 - index}/100`)),
-      scoreHint: String(pick(record, ["scoreHint"], "Backend linked")),
-      aum: String(pick(record, ["aum", "规模"], "$1.00B")),
-      latestDate: String(pick(record, ["latestDate", "净值日期"], "Latest")),
-      latestValue: String(pick(record, ["latestValue", "单位净值"], "$1,000,000")),
-      stdDev: formatPercent(pick(record, ["stdDev"], 12.5)),
-      sharpe: String(pick(record, ["sharpe"], "1.86")),
-      beta: String(pick(record, ["beta"], "1.00")),
-      alpha: formatPercent(pick(record, ["alpha"], 2.1)),
-      sectors: record.sectors || [["Technology", "36%"], ["Financials", "22%"], ["Healthcare", "16%"], ["Consumer", "14%"], ["Cash", "12%"]],
-      focus: String(pick(record, ["focus", "投资类型"], "Equity fund exposure sourced from backend ranking.")),
-      signal: String(pick(record, ["signal", "AI建议"], "Review momentum, drawdown, and concentration before allocation.")),
+      mtd: `${formatPercent(pick(record, ["change_1m", "近1月", "近一月", "mtd"], "--"))} MTD`,
+      totalValue: String(pick(record, ["totalValue", "规模", "aum"], "--")),
+      annualizedYield: return1y,
+      volatility: String(pick(record, ["volatility", "波动"], "--")),
+      risk: String(pick(record, ["risk", "风险等级"], "--")),
+      score: String(pick(record, ["score"], "--")),
+      scoreHint: "Not supplied by backend",
+      aum: String(pick(record, ["aum", "规模"], "--")),
+      latestDate: String(pick(record, ["date", "latestDate", "净值日期"], "--")),
+      latestValue: String(pick(record, ["unit_net_value", "latestValue", "单位净值"], "--")),
+      stdDev: "--",
+      sharpe: "--",
+      beta: "--",
+      alpha: "--",
+      sectors: [],
+      focus: "Backend ranking data",
+      signal: "No AI recommendation returned by the backend.",
       curve,
     };
   }
 
   async function loadRankRows(type) {
-    if (!api?.market?.getFundRank) return DATA[type] || [];
+    if (!api?.market?.getFundRank) throw new Error("Fund ranking API is not configured");
     try {
-      const fundType = type === "debt" ? "债券型" : "股票型";
-      const rows = await api.market.getFundRank(fundType);
-      if (Array.isArray(rows) && rows.length) {
-        return rows.map((record, index) => normalizeRankRecord(record, type, index));
-      }
+      const fundType = type === "debt" ? "bond" : "stock";
+      const rows = await api.market.getFundRank(fundType, "change_1y");
+      if (Array.isArray(rows) && rows.length) return rows.map((record, index) => normalizeRankRecord(record, type, index));
+      throw new Error("Fund ranking API returned no data");
     } catch (error) {
-      // Static preview and early backend integration should keep rendering.
+      throw new Error(`Fund ranking unavailable: ${error.message}`);
     }
-    return DATA[type] || [];
   }
 
   async function loadCurve(item) {
-    const fallback = item.curve || fallbackCurve((numberValue(item.code) % 7) + 1);
-    if (!api?.market?.getFundHist || !item.code) return fallback;
+    if (!api?.market?.getFundHist || !item.code) return [];
     try {
       const rows = await api.market.getFundHist(item.code);
-      if (!Array.isArray(rows) || rows.length < 2) return fallback;
+      if (!Array.isArray(rows) || rows.length < 2) return [];
       return rows
-        .map((record) => numberValue(pick(record, ["单位净值", "累计净值", "收盘", "close", "净值"])))
+        .map((record) => numberValue(pick(record, ["unit_net_value", "accumulated_net_value", "单位净值", "累计净值", "收盘", "close", "净值"])))
         .filter((value) => Number.isFinite(value) && value > 0)
         .slice(-32);
     } catch (error) {
-      return fallback;
+      console.warn(`Return curve unavailable for ${item.code}:`, error.message);
+      return [];
     }
   }
 
@@ -477,7 +476,11 @@
   }
 
   function renderCurve(container, values, label) {
-    if (!container || !Array.isArray(values) || values.length < 2) return;
+    if (!container) return;
+    if (!Array.isArray(values) || values.length < 2) {
+      container.innerHTML = '<p class="muted">Return curve unavailable from backend.</p>';
+      return;
+    }
     const width = 760;
     const height = 180;
     const padding = 18;
@@ -544,7 +547,19 @@
     const allocation = Array.from(page.querySelectorAll(".glass-panel")).find((panel) =>
       /Sector Allocation/.test(panel.textContent || "")
     );
-    setBarList(allocation?.querySelector(".fd-alloc"), item.sectors);
+    let sectors = [];
+    try {
+      const rows = await api.publicFund.getIndustryAllocation(item.code);
+      if (Array.isArray(rows) && rows.length) {
+        sectors = rows.slice(0, 6).map((row) => [
+          pick(row, ["industry_category", "industry", "行业类别"], "Other"),
+          numberValue(pick(row, ["pct", "percentage", "占净值比例"], 0)),
+        ]);
+      }
+    } catch (error) {
+      console.warn(`Industry allocation unavailable for ${item.code}:`, error.message);
+    }
+    setBarList(allocation?.querySelector(".fd-alloc"), sectors);
 
     const alert = Array.from(page.querySelectorAll(".glass-panel")).find((panel) =>
       /AI Rebalancing Alert/.test(panel.textContent || "")
@@ -572,7 +587,19 @@
     const risk = Array.from(page.querySelectorAll(".glass-panel")).find((panel) =>
       /Risk Composition/.test(panel.textContent || "")
     );
-    setBarList(risk?.querySelector(".fd-alloc"), item.riskMix);
+    let riskMix = [];
+    try {
+      const rows = await api.publicFund.getDetailHold(item.code);
+      if (Array.isArray(rows) && rows.length) {
+        riskMix = rows.slice(0, 6).map((row) => [
+          pick(row, ["asset_type", "asset", "资产类型"], "Other"),
+          numberValue(pick(row, ["pct", "percentage", "占净值比例"], 0)),
+        ]);
+      }
+    } catch (error) {
+      console.warn(`Asset allocation unavailable for ${item.code}:`, error.message);
+    }
+    setBarList(risk?.querySelector(".fd-alloc"), riskMix);
     updateText(risk?.querySelector("p"), item.signal);
   }
 
@@ -587,8 +614,15 @@
     const type = section.dataset.rankingType;
     const list = section.querySelector("[data-ranking-list]");
     const detail = section.querySelector("[data-ranking-detail]");
-    const rows = await loadRankRows(type);
-    if (!list || !detail || !rows.length) return;
+    if (!list || !detail) return;
+    let rows;
+    try {
+      rows = await loadRankRows(type);
+    } catch (error) {
+      list.innerHTML = `<p class="muted">${error.message}</p>`;
+      detail.innerHTML = "";
+      return;
+    }
 
     let page = 0;
     let activeIndex = 0;
@@ -665,4 +699,4 @@
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[data-ranking-type]").forEach(initRanking);
   });
-})(document);
+})(window, document);

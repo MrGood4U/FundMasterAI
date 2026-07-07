@@ -25,7 +25,17 @@
       init.body = JSON.stringify(options.body);
     }
 
-    const response = await fetch(joinUrl(baseUrl, path), init);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), options.timeout || 30000);
+    init.signal = controller.signal;
+    let response;
+    try {
+      response = await fetch(joinUrl(baseUrl, path), init);
+    } catch (error) {
+      throw new Error(error.name === "AbortError" ? `Request timed out: ${path}` : error.message);
+    } finally {
+      clearTimeout(timeout);
+    }
     let payload = null;
 
     try {
@@ -41,14 +51,24 @@
     return payload && Object.prototype.hasOwnProperty.call(payload, "data") ? payload.data : payload;
   }
 
+  const postMarket = (path, body = {}) => request(config.marketBaseUrl, path, { method: "POST", body });
+  const publicFund = {
+    getRank: (body = {}) => postMarket("/api/market/fund_public/rank", { order_by: "change_1y", ...body }),
+    getHist: (body = {}) => postMarket("/api/market/fund_public/hist", body),
+    getDetailHold: (code, date) => postMarket("/api/market/fund_public/individual_detail_hold", { code, ...(date ? { date } : {}) }),
+    getIndustryAllocation: (code, year) => postMarket("/api/market/fund_public/portfolio_industry_allocation", { code, ...(year ? { year } : {}) }),
+    getStockHolds: (code, year) => postMarket("/api/market/fund_public/portfolio_hold_stock", { code, ...(year ? { year } : {}) }),
+    getBondHolds: (code, year) => postMarket("/api/market/fund_public/portfolio_hold_bond", { code, ...(year ? { year } : {}) }),
+  };
+
   window.FundMasterAPI = {
     config,
     market: {
       getFundNameList: () => request(config.marketBaseUrl, "/api/market/fund_public/fund_name_list"),
-      getFundRank: (fundType = "all") =>
+      getFundRank: (fundType = "all", orderBy = "change_1y") =>
         request(config.marketBaseUrl, "/api/market/fund_public/rank", {
           method: "POST",
-          body: { fund_type: fundType },
+          body: { fund_type: fundType, order_by: orderBy },
         }),
       getFundHist: (code, options = {}) =>
         request(config.marketBaseUrl, "/api/market/fund_public/hist", {
@@ -64,32 +84,21 @@
           },
         }),
 
-      async getGlobalIndices() {
-        try {
-          return await request(config.marketBaseUrl, "/api/market/global/indices", {
-            method: "GET",
-          });
-        } catch (err) {
-          console.warn("🔔 后端指数接口未就绪，启动前端无缝数据兜底:", err.message);
-          return {
-            nasdaq: { val: "16,428.52", change: "+1.24%", isNeg: false },
-            dax: { val: "18,175.10", change: "-0.15%", isNeg: true },
-            hangseng: { val: "17,139.17", change: "+0.88%", isNeg: false },
-            usdcny: { val: "7.2345", change: "Steady", isNeg: false }
-          };
-        }
-      },
+      getGlobalIndices: () => postMarket("/api/market/global/index/quotes", { tickers: ["^IXIC", "^GDAXI", "^HSI"] }),
 
-      async getGlobalMatrixData(period = "DAY") {
-        try {
-          return await request(config.marketBaseUrl, `/api/market/global/matrix?period=${period}`, {
-            method: "GET",
-          });
-        } catch (err) {
-          console.warn("🔔 后端矩阵接口未就绪，将由前端渲染网格兜底:", err.message);
-          return null;
-        }
-      }
+      getGlobalMatrixData: () => postMarket("/api/market/global/index/rank", {}),
+    },
+    publicFund,
+    global: {
+      getIndexQuotesFromList: (tickers) => postMarket("/api/market/global/index/quotes", { tickers }),
+      getIndexInfo: (ticker) => postMarket("/api/market/global/index/info", { ticker }),
+      getIndexHist: (ticker, options = {}) => postMarket("/api/market/global/index/hist", { ticker, ...options }),
+      getIndexList: () => postMarket("/api/market/global/index/list", {}),
+      getExchangeRate: (fromCurrency, toCurrency) => postMarket("/api/market/global/exchange_rate/rate", { from_currency: fromCurrency, to_currency: toCurrency }),
+      getExchangeRateHistory: (fromCurrency, toCurrency, queryDate) => postMarket("/api/market/global/exchange_rate/history", { from_currency: fromCurrency, to_currency: toCurrency, query_date: queryDate }),
+    },
+    news: {
+      getStockRecentNews: (body) => request(config.marketBaseUrl, "/api/news/stock/get_recent_news", { method: "POST", body }),
     },
     
     portfolio: {
