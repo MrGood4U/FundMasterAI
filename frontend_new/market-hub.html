@@ -94,6 +94,7 @@
             </div>
             <div class="mh-clock"><span class="mh-clock__label">NASDAQ OPEN</span><span class="mh-clock__time">14:23:05 EST</span></div>
           </header>
+          <p class="muted" data-api-status="market" role="status"></p>
           <section class="mh-indices">
             <article class="mh-index"><h4>S&amp;P 500</h4><p class="mh-index__v">5,147.22</p><p class="mh-index__p pos">+0.82%</p></article>
             <article class="mh-index"><h4>NASDAQ 100</h4><p class="mh-index__v">18,103.44</p><p class="mh-index__p pos">+1.45%</p></article>
@@ -108,7 +109,7 @@
             <section class="glass-panel">
               <h3 class="section-head__title section-head__title--compact">Global Market Heatmap</h3>
               <div class="mh-legend"><span>U.S. Tech</span><span>A-Shares</span><span>EU Broad</span><span class="mh-legend__vol">Volatility: Low</span></div>
-              <div class="mh-heat">
+              <div class="mh-heat" data-market-heat>
                 <div class="mh-cell pos"><span>AAPL</span><em>+2.84%</em><small>Apple Inc.</small></div>
                 <div class="mh-cell pos"><span>MSFT</span><em>+1.15%</em><small>MICROSOFT</small></div>
                 <div class="mh-cell pos"><span>GOOGL</span><em>+0.42%</em></div>
@@ -130,7 +131,7 @@
           </section>
           <section class="glass-panel">
             <div class="section-head"><h3 class="section-head__title">Top Gaining / Declining</h3><button type="button" class="btn-outline">View all 18 sectors</button></div>
-            <div class="mh-movers">
+            <div class="mh-movers" data-market-movers>
               <ul><li class="pos">Semiconductors +5.82%</li><li class="pos">Cloud Computing +3.44%</li><li class="pos">Clean Energy +1.20%</li></ul>
               <ul><li class="neg">Real Estate -2.15%</li><li class="neg">Consumer Staples -4.88%</li></ul>
             </div>
@@ -142,6 +143,7 @@
     </div>
     <script src="scripts/config.js"></script>
     <script src="scripts/api.js"></script>
+    <script src="scripts/live-data.js"></script>
     <script src="scripts/search.js"></script>
     <script src="scripts/pro-upgrade.js"></script>
   </body>
