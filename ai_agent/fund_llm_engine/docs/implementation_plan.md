@@ -89,6 +89,90 @@ the current implemented state, read
 
 ## 推荐实施顺序
 
+> 本节在 2026-06 做过一次重排。下方新增的「执行优先级（答辩交付视角）」是**当前实际执行顺序**；
+> 其后保留的 Phase 1.5–5 仍是有用的技术细节与长期演进参考，但优先级以本节为准。
+
+### 执行优先级（答辩交付视角，2026-06 重排）
+
+**重排原因**：原 Phase 1.5–5 是「工程演进视角」（先打磨现有 agent，再扩展新 agent / 新输入），
+与毕设答辩的交付优先级倒挂——proposal 在 Aim / Methodology / Milestone 多处强承诺
+「multi-level analysis at the portfolio, individual fund, and sector levels」，而组合层分析在原计划
+被排到最后（Phase 5）。本节按「兑现 proposal 承诺 + 答辩价值」重新排序。
+
+**职责边界（重要）**：AI Agent 模块只负责「计算 + 结构化输出（API 能力）」，**不负责把所有结果都堆到
+AI Insights 单一页面**。每个能力以稳定 JSON 返回，由前端在合适界面按需拼接：
+
+- 组合层分析 → 前端在 portfolio / overview 页消费；
+- 行业层分析 → 前端在行业 / sector 页消费；
+- 单基金深度分析 → 维持现有 AI Insights 页；
+- 一律「先提供 API 字段，前端需要时再接」，避免 AI Insights 页过载；
+- 公开 API 保持向后兼容：只增可选字段 / 新增端点，不破坏前端现有读取。
+
+#### Phase A：组合层分析（最高优先，补 proposal 最硬缺口）
+
+对齐 proposal：`portfolio ... level`。
+
+- **A1 · Level 1（MVP，必做）—— 已完成（2026-07-02，见 development log）**
+  - 新增端点 `POST /api/ai/portfolio/analyze`，输入 `[{code, weight}, ...]`；
+  - 取各成分基金 NAV → 按日期对齐 + 按权重合成「组合净值序列」；
+  - 在合成净值上复用现有 `feature_builder`（Sharpe / 回撤 / 波动 / 年化）算组合层指标
+    （合成净值天然包含分散化效应，无需显式协方差矩阵）；
+  - 组合层聚合（组合版 Chief 总评）：基于组合指标 + 各成分基金生成解读；
+  - 解耦：输入直接传 `code + weight`，先不依赖 portfolio_backend / 前端，AI 侧独立可跑通；
+  - 交付：mock 测试 + golden case + contracts / docs 更新；
+  - 展示：前端在 portfolio / overview 页接入，不堆 AI Insights。
+- **A2 · Level 2（加分）—— 已完成（2026-07-02，见 development log）**
+  - 持仓穿透：合并各基金 top holdings，算组合真实重仓 / 行业集中度（发现重叠暴露）；
+  - 整体股 / 债 / 现金资产配置合并；依赖结构化 `top_holdings`（原 Phase 1.5 第 2 项已同日完成）。
+
+#### Phase B：行业层 + 市场 / 资金流（次优先，proposal 也点名）
+
+对齐 proposal：`sector level`、`market trends`、`capital flow`。
+
+- **B1 · 行业层视图 —— 已完成（2026-07-02，`POST /api/ai/sector/analyze`，见 development log）**：
+  复用 `SectorAgent` 的状态语义，将多基金行业暴露聚合为「行业层」横向比较；前端在行业页展示。
+- **B2 · MarketAgent / CapitalFlowAgent（看数据二选一）—— MarketAgent 已完成（2026-07-03）**：
+  - 同类排名数据已就绪（`get_fund_individual_analysis` 同类百分位 + `get_fund_profit_probability` 持有期盈利概率），
+    据此实现了轻量版 `MarketAgent`；
+  - CapitalFlowAgent 上游无资金流数据源，按计划不接入，在 contracts 中说明为「依赖上游数据的扩展」。
+
+#### Phase C：动态置信度（穿插做，小而高价值）—— 已完成（2026-07-02）
+
+- 已将 `PerformanceAgent`（原写死 `0.78`）、`RiskAgent`（原写死 `0.80`）的 confidence 改为按数据质量动态计算，
+  口径对齐已有的 sentiment / sector / exposure / bond agent；
+- 信号：NAV 点数、可用回报窗口数、是否有 benchmark、所需字段齐全度；输出约束在 0.4–0.9；
+- 实现为 `agents/base.py` 的 `data_driven_confidence()` 统一 helper；golden suite 未断言固定置信度，8 个 case 全部保持通过；
+  `examples/mock_output.json` 已重新生成（5 点稀疏样本的 `average_confidence` 由 0.78 变为 0.68，属预期内变化）。
+
+#### Phase D：工程加固剩余 + Evidence（有余力再做）—— 主体已完成（2026-07-02/03）
+
+- 结构化字段（7/2）、`is_mock` 显式化（7/3）、LLM `timeout / 429 / 5xx` 一次退避 retry（7/3）、
+  HTTP `500` 对外脱敏（7/3）、`prompt_version` 运行元数据（7/3）均已完成，见 development log；
+- 剩余可选项：把统一动态置信度 helper 推广到其余 agent、按 `prompt_version` 留档更多真实模型样例。
+
+#### 不做（答辩不需要，风险 / 成本高）
+
+- Level 3 组合优化（Markowitz 均值方差 / 有效前沿 / 最优权重）：依赖不可靠的预期收益估计，结果不稳、
+  答辩软肋多、偏离 AI 主线；最多用风险平价做轻量演示，否则仅在报告中列为未来扩展。
+- 完整的 `SectorAnalysisInput` 重契约、债券久期 / 信用评级深度分析：依赖后端补数据。
+
+#### 建议时间线
+
+```text
+现在 → 7/6 ：Phase A1（组合 Level 1）+ Phase C（动态置信度）   [已于 7/2 完成]
+7/6  → 7/13：Phase A2（持仓穿透）+ Phase B（行业层 / 市场）+ 前端联调
+             [A2、B1 于 7/2 完成；B2 MarketAgent 于 7/3 完成；剩余：前端联调（队友）]
+7/13 → 7/16：Phase D 力所能及 + golden case + 文档 + 答辩材料
+             [Phase D 主体已于 7/2-7/3 提前完成；剩余：答辩材料]
+```
+
+A1 交付说明：`POST /api/ai/portfolio/analyze` 已上线（合成净值 + 组合指标 +
+`diversification_benefit` 分散化证据 + PortfolioChiefAgent 总评 + trace），
+契约见 `docs/contracts.md`「组合层分析接口」，状态台账见 development log
+2026-07-02 两条任务记录。
+
+---
+
 ### Phase 1.5: AI Agent Engineering Hardening
 
 范围说明：

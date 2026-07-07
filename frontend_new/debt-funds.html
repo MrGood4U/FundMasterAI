@@ -103,48 +103,41 @@
               <button type="button" class="btn-outline">Rebalance Assets</button>
             </div>
           </header>
+          <section class="glass-panel ranking-panel" data-ranking-type="debt">
+            <div class="section-head">
+              <div>
+                <h3 class="section-head__title section-head__title--compact">Debt Fund Yield Ranking</h3>
+                <p class="muted sm">Click any fund to review duration, rating and income profile below.</p>
+              </div>
+              <span class="chip chip--warn">Debt</span>
+            </div>
+            <div class="ranking-layout">
+              <div class="ranking-list" data-ranking-list aria-label="Debt fund yield ranking"></div>
+              <article class="ranking-detail" data-ranking-detail aria-live="polite"></article>
+            </div>
+          </section>
           <div class="kpi-row">
             <div class="kpi-card"><p class="kpi-card__label">Total Value</p><p class="kpi-card__value">$2,482,900</p><p class="kpi-card__hint">+4.2% YoY</p></div>
             <div class="kpi-card"><p class="kpi-card__label">Average Yield</p><p class="kpi-card__value">5.82%</p><p class="muted sm">Target 6.00%</p></div>
             <div class="kpi-card"><p class="kpi-card__label">Weighted Maturity</p><p class="kpi-card__value">4.2 yrs</p><p class="muted sm">Short-term focus</p></div>
             <div class="kpi-card"><p class="kpi-card__label">Risk Rating</p><p class="kpi-card__value">AA-</p><p class="muted sm">Investment grade</p></div>
           </div>
-          <div class="two-col">
+          <div>
             <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Yield Comparison</h3>
-              <p class="muted sm">Stable vs High-Yield</p>
-              <div class="debt-chart" role="presentation"></div>
+              <h3 class="section-head__title section-head__title--compact">Return Curve</h3>
+              <p class="muted sm">Historical net value / return trend</p>
+              <div class="debt-chart return-chart" data-return-chart role="img" aria-label="Fund return curve"></div>
               <div class="debt-legend"><span>Stable Income</span><span>High-Yield</span></div>
             </section>
-            <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Risk Composition</h3>
-              <ul class="fd-alloc">
-                <li><span>AAA / Government</span><span>42%</span><div class="bar-track"><div class="bar-fill" style="width:42%"></div></div></li>
-                <li><span>AA / Corporate HG</span><span>28%</span><div class="bar-track"><div class="bar-fill" style="width:28%"></div></div></li>
-                <li><span>BBB / IG</span><span>15%</span><div class="bar-track"><div class="bar-fill" style="width:15%"></div></div></li>
-                <li><span>BB / High Yield</span><span>10%</span><div class="bar-track"><div class="bar-fill" style="width:10%"></div></div></li>
-                <li><span>Unrated / Private</span><span>5%</span><div class="bar-track"><div class="bar-fill" style="width:5%"></div></div></li>
-              </ul>
-              <p class="muted sm" style="margin-top:12px"><strong>AI Strategy Shift</strong> — barbell US Treasuries with selective HY energy paper.</p>
-            </section>
           </div>
-          <section class="glass-panel">
-            <div class="section-head"><h3 class="section-head__title">Active Debt Holdings</h3><div class="pill-group"><button class="pill pill--ghost">Stable (5)</button><button class="pill pill--ghost">High-Yield (3)</button></div></div>
-            <div class="data-table-wrap">
-              <table class="data-table">
-                <thead><tr><th>Fund</th><th>Yield</th><th>Maturity</th><th>Risk</th><th>Allocation</th></tr></thead>
-                <tbody>
-                  <tr><td>Vanguard Total Bond · BND</td><td>4.12%</td><td>Dec 2028</td><td>AAA</td><td>$520,000</td></tr>
-                  <tr><td>BlackRock Strategic Bond</td><td>5.45%</td><td>Jun 2027</td><td>AA</td><td>$310,000</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
         </main>
 
       </div>
     </div>
-    <script src="scripts/api.js?v=20260701-6"></script>
-    <script src="scripts/dashboard-data.js?v=20260701-6"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/api.js"></script>
+    <script src="scripts/search.js"></script>
+    <script src="scripts/fund-rankings.js"></script>
+    <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>

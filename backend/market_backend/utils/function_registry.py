@@ -949,6 +949,11 @@ FUNCTIONS = [
                     "description": "基金类型。all=全部, stock=股票型, mixed=混合型, bond=债券型, index=指数型, qdii=QDII, fof=FOF",
                     "enum": ["all", "stock", "mixed", "bond", "index", "qdii", "fof"],
                 },
+                "order_by": {
+                    "type" : "string",
+                    "description": "排序字段。change_1w=近1周收益, change_1m=近1月收益, change_3m=近3月收益, change_6m=近6月收益, change_1y=近1年收益, change_2y=近2年收益, change_3y=近3年收益, change_ytd=今年以来收益, change_since_inception=成立以来收益",
+                    "enum": ["change_1w", "change_1m", "change_3m", "change_6m", "change_1y", "change_2y", "change_3y", "change_ytd", "change_since_inception"],
+                }
             },
             "required": [],
         },
@@ -1718,6 +1723,31 @@ FUNCTIONS = [
                 },
             },
             "required": ["tickers"],
+        },
+        "returns": {
+            "ticker": "指数代码",
+            "name": "指数名称",
+            "price": "最新价",
+            "previous_close": "前收盘价",
+            "open": "今日开盘价",
+            "day_high": "今日最高价",
+            "day_low": "今日最低价",
+            "volume": "成交量",
+            "change": "涨跌额",
+            "change_pct": "涨跌幅(%)",
+            "currency": "计价货币",
+            "region": "所属国家/地区",
+        },
+    },
+    {
+        "name": "get_global_index_rank",
+        "description": "获取所有全球指数的涨跌幅排行。一次返回全部14个全球指数的最新行情，按涨跌幅(change_pct)从大到小排序。包含最新价、涨跌额、涨跌幅、开盘价、最高价、最低价、成交量等字段。适合快速一览全球市场当日表现、发现领涨/领跌市场。",
+        "path": "/api/market/global/index/rank",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
         },
         "returns": {
             "ticker": "指数代码",

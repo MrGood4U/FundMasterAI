@@ -18,7 +18,11 @@ systemctl restart fundmaster-market fundmaster-news fundmaster-portfolio fundmas
 sleep 6
 
 echo "服务状态:"
+# 注意：systemctl is-active 在服务未处于 active 时返回非零码；配合顶部 set -e，
+# 曾经导致某个服务刚好还在 activating/failed 时脚本直接中断，后面的服务状态
+# 就不会被打印出来，容易误判"部署失败"或掩盖真正失败的服务。这里用 `|| true`
+# 保证每个服务的状态都能完整打印，方便一眼看出到底是哪个服务没起来。
 for s in market news portfolio agent frontend; do
   echo -n "  fundmaster-$s: "
-  systemctl is-active "fundmaster-$s"
+  systemctl is-active "fundmaster-$s" || true
 done

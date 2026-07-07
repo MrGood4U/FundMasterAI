@@ -171,6 +171,29 @@ class YFinanceAPI:
     # 全球指数 — 列表
     # ------------------------------------------------------------------
 
+    def get_all_indices_ranked(self) -> List[Dict[str, Any]]:
+        """获取所有全球指数的行情，按涨跌幅 (change_pct) 从高到低排序"""
+        results = []
+        for ticker, meta in GLOBAL_INDICES.items():
+            quote = self.get_index_quote(ticker)
+            if quote is None:
+                # 降级：用 get_index_info 作为备选
+                quote = self.get_index_info(ticker)
+            if quote is None:
+                continue
+            # 用元数据补充名称和地区
+            quote["name"] = quote.get("name") or meta["name"]
+            quote["region"] = meta.get("region", "")
+            quote["currency"] = quote.get("currency") or meta.get("currency", "")
+            results.append(quote)
+
+        # 按 change_pct 从大到小排序 (None 排到最后)
+        results.sort(
+            key=lambda x: x.get("change_pct") if x.get("change_pct") is not None else float("-inf"),
+            reverse=True,
+        )
+        return results
+
     def get_supported_indices(self) -> List[Dict[str, str]]:
         """返回支持的全球指数列表"""
         return [

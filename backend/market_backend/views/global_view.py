@@ -219,3 +219,14 @@ def get_index_hist():
         interval=data.get("interval", "1d"),
     )
     return jsonify({"code": 200, "data": result, "message": "success"}), 200
+
+
+@global_bp.post("/index/rank")
+def get_index_rank():
+    """获取所有全球指数的涨跌幅排行（按 change_pct 从大到小排序）
+
+    无 Body 参数，直接返回 14 个全球指数按涨跌幅排序后的完整行情列表。
+    """
+    service = GlobalService()
+    result = service.get_index_rank()
+    return jsonify({"code": 200, "data": result, "message": "success"}), 200

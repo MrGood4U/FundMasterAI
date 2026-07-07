@@ -15,7 +15,8 @@
           "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
-          "SectorAgent"
+          "SectorAgent",
+          "MarketAgent"
         ],
         "expected_metadata": {
           "has_benchmark": "true",
@@ -39,7 +40,8 @@
           "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
-          "SectorAgent"
+          "SectorAgent",
+          "MarketAgent"
         ],
         "expected_metadata": {
           "has_benchmark": "false",
@@ -63,7 +65,8 @@
           "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
-          "SectorAgent"
+          "SectorAgent",
+          "MarketAgent"
         ],
         "expected_metadata": {
           "has_benchmark": "false",
@@ -87,7 +90,8 @@
           "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
-          "SectorAgent"
+          "SectorAgent",
+          "MarketAgent"
         ],
         "expected_metadata": {
           "has_benchmark": "false",
@@ -120,7 +124,8 @@
           "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
-          "SectorAgent"
+          "SectorAgent",
+          "MarketAgent"
         ],
         "expected_metadata": {
           "has_benchmark": "false",
@@ -157,7 +162,8 @@
           "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
-          "SectorAgent"
+          "SectorAgent",
+          "MarketAgent"
         ],
         "expected_metadata": {
           "has_benchmark": "true",
@@ -184,7 +190,8 @@
           "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
-          "SectorAgent"
+          "SectorAgent",
+          "MarketAgent"
         ],
         "expected_metadata": {
           "has_benchmark": "false",
@@ -211,7 +218,8 @@
           "BondExposureAgent",
           "RiskAgent",
           "SentimentAgent",
-          "SectorAgent"
+          "SectorAgent",
+          "MarketAgent"
         ],
         "expected_metadata": {
           "has_benchmark": "true",

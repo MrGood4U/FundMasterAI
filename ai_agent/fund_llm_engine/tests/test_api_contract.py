@@ -304,11 +304,11 @@ class ApiContractTest(unittest.TestCase):
         body = response.get_json()
         self.assertEqual(body["data"]["metadata"]["llm_model"], "deepseek-v4-pro")
 
-    def test_unexpected_error_response_matches_public_contract(self):
+    def test_unexpected_error_response_is_sanitized(self):
         with patch.object(
             agent_app,
             "build_fund_input_from_backend_functions",
-            side_effect=RuntimeError("backend unavailable"),
+            side_effect=RuntimeError("backend unavailable: secret internal detail"),
         ):
             response = self.client.post("/api/ai/fund/analyze", json={"code": "000001", "mock": True})
 
@@ -316,7 +316,9 @@ class ApiContractTest(unittest.TestCase):
         self.assertEqual(response.status_code, 500)
         self.assertEqual(body["code"], 500)
         self.assertIsNone(body["data"])
-        self.assertEqual(body["message"], "backend unavailable")
+        # 对外只返回通用错误信息，raw exception 只进服务端日志
+        self.assertNotIn("secret internal detail", body["message"])
+        self.assertIn("Internal error", body["message"])
 
 
 if __name__ == "__main__":

@@ -265,11 +265,11 @@ class PublicFundService:
 
     # -- ranking (cached) --------------------------------------------------
 
-    def fund_open_fund_rank(self, fund_type: str):
+    def fund_open_fund_rank(self, fund_type: str, order_by: str):
         cache_key = "fund:rank:all"
         df = self.cache.get_df(cache_key)
         if df is None or df.empty:
-            df = self.akapi.fund_open_fund_rank(fund_type)
+            df = self.akapi.fund_open_fund_rank(fund_type, order_by)
             if df is not None and not df.empty:
                 self.cache.set_df(cache_key, df)
         if df is None or df.empty:

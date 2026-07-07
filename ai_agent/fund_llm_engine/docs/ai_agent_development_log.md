@@ -10,7 +10,7 @@ It records verified implementation state only. Future plans stay in
 
 ## Current Snapshot
 
-Date: 2026-06-24
+Date: 2026-07-02
 
 Branch:
 
@@ -37,8 +37,28 @@ BondExposureAgent
 RiskAgent
 SentimentAgent
 SectorAgent
+MarketAgent (peer percentile + holding-period profit probability evidence)
 ChiefAgent
+PortfolioChiefAgent (portfolio-level aggregation)
 ```
+
+Implemented analysis levels:
+
+- Fund level: `POST /api/ai/fund/analyze` (multi-agent pipeline above).
+- Portfolio level (Phase A1 MVP + A2 look-through):
+  `POST /api/ai/portfolio/analyze` composes a fixed-weight, daily-rebalanced
+  portfolio NAV from constituent funds (date intersection, then compound the
+  weighted average of daily returns), reuses the fund-level metric functions
+  on the composed series, adds `weighted_average_volatility` /
+  `diversification_benefit` evidence (guaranteed non-negative under daily
+  rebalancing), merges disclosed top holdings / industry allocation / asset
+  allocation into `holdings_lookthrough` / `industry_lookthrough` /
+  `asset_allocation_lookthrough` (overlap detection included), and aggregates
+  through `PortfolioChiefAgent`.
+- Sector level (Phase B1): `POST /api/ai/sector/analyze` builds a
+  deterministic cross-fund sector comparison matrix with per-fund
+  `available` / `insufficient_data` / `not_applicable` statuses and an
+  LLM-explained (mock/real) summary with deterministic fallback.
 
 Frontend-facing AI output status:
 
@@ -94,11 +114,16 @@ Known gaps:
 
 ## Todo
 
-- Complete the narrowed Phase 1.5 engineering hardening plan before broader
-  Phase 2 evidence work: clean up Agent-side backend data handling, add
-  structured `top_holdings` / `profit_probability` / `individual_analysis`
-  fields, unify dynamic confidence, add explicit `is_mock`, add timeout /
-  `429` / `5xx` LLM retry, sanitize Agent HTTP `500`, and update tests/docs.
+- CapitalFlowAgent remains a data-dependent future extension: no upstream
+  fund-flow data source exists yet, so it is intentionally not registered
+  (documented in `contracts.md` instead of shipping a permanently-skipped
+  agent).
+- Optional follow-ups: extend the shared dynamic-confidence helper to the
+  exposure/sentiment/sector/bond agents, and archive more real-model outputs
+  against `prompt_version` for the evaluation records.
+- Consider a dedicated ProfitabilityAgent only if the team wants
+  `get_fund_profit_probability` as a first-class view separate from
+  `MarketAgent`.
 - Add deeper bond analytics after backend data includes duration, maturity structure, issuer classification, and credit-rating fields.
 - Consider a future `ProfitabilityAgent` only if the team decides to make `get_fund_profit_probability` a first-class specialist view.
 - Add or expand regression cases after new bond, asset allocation, market, or capital-flow data becomes available.
@@ -610,6 +635,335 @@ Known unfinished work:
 
 - Models that require `/v1/messages` instead of chat/completions remain excluded
   until `LLMClient` grows a second transport path.
+
+### 2026-07-02 - Make Performance/Risk confidence data-driven (Phase C)
+
+Goal:
+
+- Replace the hard-coded `PerformanceAgent` (`0.78`) and `RiskAgent` (`0.80`)
+  confidence values with a data-quality-driven calculation, aligned with the
+  dynamic-confidence style already used by exposure/sentiment/sector/bond
+  agents.
+
+Actual changes:
+
+- Added `data_driven_confidence()` to `agents/base.py`: signals are NAV point
+  count (up to +0.20 at 252 points), available rolling return window count
+  (+0.04 each, up to 4), benchmark presence (+0.06), and required-flag
+  completeness (up to +0.08); output clamped to `0.4-0.9`.
+- `PerformanceAgent` and `RiskAgent` now call the helper instead of returning
+  fixed values. Other agents keep their existing dynamic confidence logic.
+- Added `DataDrivenConfidenceTest` regression tests (rich data high, sparse
+  data low, required-flag sensitivity).
+- Regenerated `examples/mock_output.json`; `average_confidence` for the 5-point
+  mock payload moved from `0.78` to `0.68` as expected.
+
+Impact:
+
+- AI Agent layer only; no backend/frontend changes.
+- Public API shape unchanged; only `confidence` values and derived
+  `average_confidence` metadata move with data quality.
+- Golden suite expectations did not assert fixed confidence values, so all 8
+  cases still pass unchanged.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest discover tests
+.venv/bin/python scripts/run_golden_suite.py --mode mock
+```
+
+### 2026-07-02 - Add portfolio-level analysis MVP (Phase A1)
+
+Goal:
+
+- Deliver the proposal-promised portfolio-level analysis as a stable JSON API
+  without depending on portfolio_backend or frontend changes.
+
+Actual changes:
+
+- Added `POST /api/ai/portfolio/analyze` to `app.py` with the same
+  `code/data/coverage/message` envelope and `mock` / `llm_model` /
+  `llm_timeout_seconds` request options as the fund endpoint.
+- Added `src/fund_llm/portfolio_analysis.py`: weight validation and
+  normalization (positive weights, no duplicate codes, auto rescale),
+  NAV date intersection with a 30-point minimum overlap, fixed-weight
+  daily-rebalanced composition (portfolio daily return = weighted average of
+  constituent daily returns, compounded), per-constituent metrics on the
+  shared window, and portfolio quant metrics including
+  `weighted_average_volatility` and `diversification_benefit` (non-negative
+  by construction).
+- Added portfolio contracts to `contracts.py`: `PortfolioPosition`,
+  `PortfolioFundData`, `PortfolioAnalysisInput`,
+  `PortfolioConstituentMetrics`, `PortfolioAnalysisResult`.
+- Added `build_portfolio_input_from_backend_functions()` to
+  `adapters/backend_function_client.py`: light per-fund fetch
+  (`get_fund_hist` + `get_fund_individual_basic_info` only); any missing NAV
+  raises `ValueError` listing the failing codes (HTTP `422`), basic-info
+  failure degrades to code/unknown labels. The input `analysis_window` and
+  `request_id` date use the shared NAV-date intersection (same
+  `intersect_nav_dates()` helper the composition uses), not the union of all
+  fund date ranges, so the input window always matches the actually analyzed
+  window; an empty intersection leaves the window unset with a
+  `no-shared-window` request-id placeholder and lets the pipeline raise the
+  structured `422`.
+- Added `agents/portfolio_chief_agent.py` (deterministic score/rating plus
+  LLM explanation with deterministic fallback) and
+  `portfolio_pipeline.py` (mock/real orchestration with alignment,
+  composition, and aggregation trace events).
+- Added tests: `test_portfolio_analysis.py` (15 math/validation cases),
+  `test_portfolio_pipeline.py` (8 pipeline cases),
+  `test_portfolio_api.py` (6 endpoint contract cases), plus 3 adapter cases in
+  `test_backend_function_client.py`.
+- Added `examples/portfolio_input_demo.json` and the portfolio section in
+  `docs/contracts.md`.
+
+Impact:
+
+- New additive endpoint; existing fund-level API is unchanged (covered by a
+  regression test).
+- No backend or frontend code changes; frontend can adopt the endpoint on the
+  portfolio/overview page when ready.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest discover tests
+.venv/bin/python scripts/run_golden_suite.py --mode mock
+curl -s -X POST http://127.0.0.1:5003/api/ai/portfolio/analyze \
+  -H 'Content-Type: application/json' \
+  -d @examples/portfolio_input_demo.json
+```
+
+Known unfinished work:
+
+- Phase A2 holdings look-through and sector-level aggregation remain planned.
+- Real-LLM portfolio summary quality review should be added to the manual
+  acceptance checklist when real-mode smoke tests run.
+
+### 2026-07-02 - Promote backend tool results to structured input fields
+
+Goal:
+
+- Stop treating `top_holdings`, `profit_probability`, and
+  `individual_analysis` as `extra_context` JSON-preview strings so downstream
+  logic (starting with the A2 look-through) can read them reliably.
+
+Actual changes:
+
+- Added `top_holdings`, `profit_probability`, `individual_analysis` list
+  fields to `FundAnalysisInput` with `from_dict` support (single dict results
+  are wrapped into one-element lists via `_records_from_payload`).
+- `FundFeaturePack` passes the three fields through; `data_quality_flags`
+  gained `has_top_holdings` / `has_profit_probability` /
+  `has_individual_analysis`, and `data_quality_metrics` gained the matching
+  counts.
+- `build_fund_input_from_backend_functions` now fills the structured fields;
+  the `extra_context` `_json_preview` entries remain for trace display only.
+- `/api/ai/fund/analyze` `coverage` gained `has_top_holdings`,
+  `has_profit_probability`, `has_individual_analysis`.
+
+Impact:
+
+- Additive only: no existing field changed shape; golden suite unchanged.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest tests.test_contracts tests.test_backend_function_client tests.test_feature_builder tests.test_api_contract
+```
+
+### 2026-07-02 - Add portfolio holdings look-through (Phase A2)
+
+Goal:
+
+- Turn the portfolio endpoint from NAV-level composition into real exposure
+  analysis: merged top holdings, overlapping positions across funds,
+  portfolio-weighted industry exposure, and merged stock/bond/cash allocation.
+
+Actual changes:
+
+- `PortfolioFundData` gained optional `top_holdings` / `industry_exposure` /
+  `asset_allocation`; `build_portfolio_input_from_backend_functions` fetches
+  them per fund as degradable optional calls (`include_lookthrough` request
+  flag, default true; `top_holdings_n` default 10) with the current-year /
+  previous-year fallback used by the fund path.
+- Added `build_holdings_lookthrough` / `build_industry_lookthrough` /
+  `build_asset_allocation_lookthrough` to `portfolio_analysis.py`: per-holding
+  portfolio contribution = fund weight x weight in fund; overlap detection
+  for stocks held by 2+ funds; unified `available` / `partial` / `missing`
+  statuses with `funds_without_data` lists (bond funds without stock holdings
+  are listed, not faked).
+- `PortfolioAnalysisResult` and the HTTP response gained
+  `holdings_lookthrough`, `industry_lookthrough`,
+  `asset_allocation_lookthrough` plus matching metadata statuses and a
+  `Merged constituent holdings look-through` trace event.
+- `PortfolioChiefAgent` states look-through evidence (top combined holding,
+  overlap warning, top sector concentration, asset mix) only when statuses
+  allow, and feeds the same evidence into the LLM prompt.
+- `disclosure_basis=quarterly_top10_holdings` marks the partial-disclosure
+  limitation explicitly.
+
+Impact:
+
+- Additive fields on the portfolio contract; NAV-level metrics unchanged.
+- No backend or frontend code changes.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest tests.test_portfolio_analysis tests.test_portfolio_pipeline tests.test_portfolio_api tests.test_backend_function_client
+```
+
+### 2026-07-02 - Add sector-level comparison endpoint (Phase B1)
+
+Goal:
+
+- Deliver the proposal-promised sector-level view as a stable JSON API:
+  compare multiple funds' industry exposure side by side without requiring
+  NAV data or portfolio weights.
+
+Actual changes:
+
+- Added `sector_view.py` (deterministic matrix: per-fund sector status
+  aligned with `SectorAgent` semantics, sectors ranked by equal-weight
+  average across funds with data, `common_sectors` for 2+ fund overlaps) and
+  `sector_pipeline.py` (mock/real LLM summary with deterministic fallback and
+  trace events).
+- Added `build_sector_view_funds_from_backend_functions` light fetch (basic
+  info + industry allocation only, both degradable).
+- Added `POST /api/ai/sector/analyze` with the standard
+  `code/data/coverage/message` envelope; duplicate or empty codes return
+  structured `422`/`400`.
+
+Impact:
+
+- New additive endpoint; existing fund and portfolio APIs unchanged.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest tests.test_sector_view tests.test_sector_api
+.venv/bin/python -m unittest discover tests
+.venv/bin/python scripts/run_golden_suite.py --mode mock
+```
+
+### 2026-07-03 - Phase D hardening: is_mock, LLM transport retry, sanitized 500
+
+Goal:
+
+- Close the remaining engineering-hardening items so provider hiccups and
+  internal errors behave predictably in demos.
+
+Actual changes:
+
+- Added explicit `is_mock` class attributes to `LLMClient` (False) and
+  `MockLLMClient` (True); `chief_agent`, `portfolio_chief_agent`, and
+  `sector_pipeline` now use `getattr(client, "is_mock", False)` instead of
+  class-name string comparison.
+- `LLMClient._post_json` retries once with a 1.5s backoff for timeout /
+  `429` / `500` / `502` / `503` / `504`; `400` / `401` / `403` and
+  non-timeout transport errors are raised immediately. `LLMHTTPError` carries
+  `status_code`, `LLMTransportError` carries `is_timeout`, and response
+  metadata gains `transport_retry_count`.
+- All three Agent HTTP endpoints return a generic `500` message; the full
+  exception goes to the service log only.
+
+Impact:
+
+- No public success-path contract changes; `500` body text changed from raw
+  exception text to a fixed generic message (documented in `contracts.md`).
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest tests.test_llm_client tests.test_api_contract tests.test_portfolio_api tests.test_sector_api
+```
+
+### 2026-07-03 - Add MarketAgent peer/market context (Phase B2 lightweight)
+
+Goal:
+
+- Fulfil the proposal's broader market-context view using data the backend
+  already serves, without letting the LLM invent macro narratives.
+
+Actual changes:
+
+- Added `agents/market_agent.py`: evidence is the structured
+  `individual_analysis` peer percentiles (`risk_return_ratio_vs_peers`,
+  `risk_robustness_vs_peers` per period) and `profit_probability`
+  holding-period win rates; deterministic score starts at 55 and moves with
+  peer percentile and win-rate distance from 50; confidence uses the shared
+  `data_driven_confidence` helper; both datasets missing yields
+  `skipped + insufficient_data`.
+- Registered the agent in mock/real pipelines (7 specialist agents now),
+  `AGENT_TRACE_COPY`, chief display names, `evaluation.CORE_AGENT_NAMES`,
+  and `score_guardrails` `DATA_SENSITIVE_AGENTS`.
+- `build_mock_input` now carries sample peer/probability rows so the mock
+  baseline demonstrates MarketAgent success; golden manifest requires
+  `MarketAgent` in all 8 cases (static legacy inputs exercise the skipped
+  path).
+- CapitalFlowAgent is intentionally not registered: no upstream fund-flow
+  data source exists, documented as a future extension.
+- Added `PROMPT_VERSION` (`config.py`) surfaced as `prompt_version` metadata
+  in fund, portfolio, and sector results for evaluation traceability.
+
+Impact:
+
+- `agent_outputs` gains one additional item (additive, matches the existing
+  `AgentOutput` shape); fund analyses of funds without peer data show
+  `MarketAgent` as `skipped + insufficient_data` rather than failing.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest discover tests
+.venv/bin/python scripts/run_golden_suite.py --mode mock
+.venv/bin/python scripts/run_mock_demo.py --output examples/mock_output.json
+```
+
+### 2026-07-03 - Stabilize real-LLM chief summaries and degrade news-registry outages
+
+Goal:
+
+- Stop the chief summary from silently falling back to deterministic text in
+  real-LLM demos, and stop a news-backend outage from failing whole analyses.
+
+Actual changes:
+
+- Root cause of frequent `summary_source=deterministic_fallback`: the model
+  sometimes answered in Chinese; `_summary_looks_incomplete()` counts
+  whitespace-separated words, so Chinese text scored ~2 "words" and was
+  rejected. Added an explicit "Respond in English only" instruction to the
+  fund chief, portfolio chief, and sector summary system prompts
+  (`PROMPT_VERSION` bumped to `2026-07-03.2`); verified 3/3 real
+  `deepseek-v4-pro` runs now keep `summary_source=llm`.
+- Widened summary output budgets: fund chief `max_tokens` 700 -> 1100,
+  portfolio chief 700 -> 1000, sector summary 600 -> 900.
+- `discover_fund_tools()` now treats the news (and optional portfolio)
+  registry as degradable: discovery failure logs a warning and continues, so
+  a dead news backend yields `SentimentAgent skipped + insufficient_data`
+  instead of an HTTP 500 (regression test added).
+
+Impact:
+
+- AI Agent layer only; English-output requirement is unchanged, now enforced
+  harder for mixed-language inputs.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest discover tests
+.venv/bin/python scripts/run_golden_suite.py --mode mock
+```
 
 ## Handoff Notes For Future AI
 

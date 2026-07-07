@@ -13,7 +13,7 @@ def _read_ini_config():
         "STOCK_SPOT_EM_ENABLED": "false",
         "STOCK_SPOT_EM_INTERVAL": "120",
         "STOCK_SPOT_SINA_ENABLED": "false",
-        "STOCK_SPOT_SINA_INTERVAL": "60",
+        "STOCK_SPOT_SINA_INTERVAL": "600",
         "FUND_ETF_SPOT_EM_ENABLED": "false",
         "FUND_ETF_SPOT_EM_INTERVAL": "30",
         "FUND_LOF_SPOT_EM_ENABLED": "false",
@@ -28,6 +28,8 @@ def _read_ini_config():
         "FUND_VALUE_EST_INTERVAL": "30",
         "FUND_INFO_INDEX_ENABLED": "false",
         "FUND_INFO_INDEX_INTERVAL": "60",
+        "GLOBAL_INDEX_RANK_ENABLED": "false",
+        "GLOBAL_INDEX_RANK_INTERVAL": "600",
         "COMPRESSION_THRESHOLD": "1048576",
         "COMPRESSION": "false",
         # -- [redis] section --
@@ -97,5 +99,7 @@ class Config:
     CACHE_FUND_VALUE_EST_INTERVAL = int(_ini["FUND_VALUE_EST_INTERVAL"])
     CACHE_FUND_INFO_INDEX_ENABLED = _bool(_ini["FUND_INFO_INDEX_ENABLED"])
     CACHE_FUND_INFO_INDEX_INTERVAL = int(_ini["FUND_INFO_INDEX_INTERVAL"])
+    CACHE_GLOBAL_INDEX_RANK_ENABLED = _bool(_ini["GLOBAL_INDEX_RANK_ENABLED"])
+    CACHE_GLOBAL_INDEX_RANK_INTERVAL = int(_ini["GLOBAL_INDEX_RANK_INTERVAL"])
     CACHE_COMPRESSION_THRESHOLD = int(_ini["COMPRESSION_THRESHOLD"])
     CACHE_COMPRESSION = _bool(_ini["COMPRESSION"])

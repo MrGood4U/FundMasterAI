@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FundMaster — Figma Demo Flow</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/shell.css" />
+    <link rel="stylesheet" href="css/dashboard-widgets.css" />
+    <link rel="stylesheet" href="css/page-figma-demo.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="sidebar__brand">
+          <img class="sidebar__logo" src="assets/icons/logo.png" width="32" height="32" alt="" />
+          <div class="sidebar__titles">
+            <h1 class="sidebar__name">FundMaster</h1>
+            <p class="sidebar__tagline">STRATEGIC CAPITAL</p>
+          </div>
+        </div>
+        <nav class="sidebar__nav" aria-label="功能菜单">
+          <a class="nav-link nav-link--active" href="figma-demo.html" aria-current="page">
+            <img class="nav-link__icon" src="assets/icons/nav-overview.png" width="20" height="20" alt="" />
+            Demo Flow
+          </a>
+          <a class="nav-link" href="portfolio-overview.html">
+            <img class="nav-link__icon" src="assets/icons/nav-overview.png" width="20" height="20" alt="" />
+            Overview
+          </a>
+          <details class="nav-group">
+            <summary class="nav-link nav-parent">
+              <img class="nav-link__icon" src="assets/icons/nav-portfolio.png" width="20" height="20" alt="" />
+              Portfolio
+              <span class="nav-caret" aria-hidden="true"></span>
+            </summary>
+            <div class="nav-submenu">
+              <a class="nav-sublink" href="equity-funds.html">Equity Funds</a>
+              <a class="nav-sublink" href="debt-funds.html">Debt Funds</a>
+              <a class="nav-sublink" href="global-investment.html">Global Investment</a>
+            </div>
+          </details>
+          <a class="nav-link" href="fund-deep-dive.html">
+            <img class="nav-link__icon" src="assets/icons/nav-analytics.png" width="20" height="20" alt="" />
+            Analytics
+          </a>
+          <details class="nav-group">
+            <summary class="nav-link nav-parent">
+              <img class="nav-link__icon" src="assets/icons/nav-markets.png" width="20" height="20" alt="" />
+              Markets
+              <span class="nav-caret" aria-hidden="true"></span>
+            </summary>
+            <div class="nav-submenu">
+              <a class="nav-sublink" href="market-hub.html">Market Hub</a>
+              <a class="nav-sublink" href="market-flow.html">Market Flow</a>
+            </div>
+          </details>
+          <a class="nav-link" href="index.html">
+            <img class="nav-link__icon" src="assets/icons/nav-news.png" width="20" height="20" alt="" />
+            News
+          </a>
+          <a class="nav-link" href="ai-insights.html">
+            <img class="nav-link__icon" src="assets/icons/nav-ai-insights.png" width="20" height="20" alt="" />
+            AI Insights
+          </a>
+          <a class="nav-link" href="settings.html">
+            <img class="nav-link__icon" src="assets/icons/nav-settings.png" width="20" height="20" alt="" />
+            Settings
+          </a>
+        </nav>
+        <div class="sidebar__footer">
+          <button type="button" class="btn-upgrade">
+            <span class="btn-upgrade__icon" aria-hidden="true">◇</span>
+            Figma Prototype
+          </button>
+        </div>
+      </aside>
+
+      <div class="main-shell">
+        <header class="top-bar">
+          <div class="search-field" role="search">
+            <img class="search-field__icon-img" src="assets/icons/header-search.png" width="16" height="16" alt="" />
+            <label class="visually-hidden" for="demo-q">搜索</label>
+            <input id="demo-q" class="search-field__input" type="search" placeholder="Search demo pages..." autocomplete="off" />
+          </div>
+          <div class="top-bar__actions">
+            <button type="button" class="icon-btn" aria-label="通知"><img class="icon-btn__img" src="assets/icons/header-bell.png" width="18" height="18" alt="" /></button>
+            <button type="button" class="icon-btn" aria-label="帮助"><img class="icon-btn__img" src="assets/icons/header-help.png" width="18" height="18" alt="" /></button>
+            <button type="button" class="avatar-btn" aria-label="用户资料"><img class="avatar-btn__img" src="assets/icons/header-avatar.png" width="32" height="32" alt="" /></button>
+          </div>
+        </header>
+
+        <main class="content demo-content">
+          <section class="demo-hero">
+            <p class="demo-kicker">Frontend Demo Start</p>
+            <h2 class="demo-title">FundMaster Frontend Demo</h2>
+            <p class="demo-copy">
+              按你给的 Figma 演示入口重新组合：默认从 Portfolio Overview 开始，再进入基金分析、市场行情、新闻和 AI Insights。
+            </p>
+            <div class="demo-actions">
+              <a class="btn-primary-demo" href="portfolio-overview.html">Start Demo</a>
+              <a class="btn-secondary-demo" href="https://www.figma.com/proto/B1cuHJoXlJTr7e1ADVhH2P/Untitled?node-id=42-2&p=f&t=eEFRyIJMiJ0AhOgD-0&scaling=scale-down&content-scaling=fixed&page-id=0%3A1&starting-point-node-id=11%3A2408" target="_blank" rel="noreferrer">Open Figma</a>
+            </div>
+          </section>
+
+          <section class="demo-flow" aria-label="演示顺序">
+            <a class="demo-step demo-step--featured" href="portfolio-overview.html">
+              <span class="demo-step__num">01</span>
+              <span class="demo-step__eyebrow">Prototype Start</span>
+              <strong>Portfolio Overview</strong>
+              <small>Total Account Assets / holdings / AI portfolio analysis</small>
+            </a>
+            <a class="demo-step" href="fund-deep-dive.html">
+              <span class="demo-step__num">02</span>
+              <span class="demo-step__eyebrow">Analytics</span>
+              <strong>Fund Deep Dive</strong>
+              <small>NAV performance, risk, allocation and holdings</small>
+            </a>
+            <a class="demo-step" href="market-hub.html">
+              <span class="demo-step__num">03</span>
+              <span class="demo-step__eyebrow">Markets</span>
+              <strong>Market Hub</strong>
+              <small>Global indices, heatmap and capital flow</small>
+            </a>
+            <a class="demo-step" href="market-flow.html">
+              <span class="demo-step__num">04</span>
+              <span class="demo-step__eyebrow">Liquidity</span>
+              <strong>Market Flow</strong>
+              <small>Liquidity, breadth and institutional flow view</small>
+            </a>
+            <a class="demo-step" href="index.html">
+              <span class="demo-step__num">05</span>
+              <span class="demo-step__eyebrow">News</span>
+              <strong>Market Intelligence</strong>
+              <small>Flash feed, sector sentiment and macro calendar</small>
+            </a>
+            <a class="demo-step" href="ai-insights.html">
+              <span class="demo-step__num">06</span>
+              <span class="demo-step__eyebrow">AI</span>
+              <strong>AI Insights</strong>
+              <small>Agent-style investment insight workspace</small>
+            </a>
+            <a class="demo-step" href="global-investment.html">
+              <span class="demo-step__num">07</span>
+              <span class="demo-step__eyebrow">Overview</span>
+              <strong>Global Investment</strong>
+              <small>Cross-market allocation overview</small>
+            </a>
+            <a class="demo-step" href="settings.html">
+              <span class="demo-step__num">08</span>
+              <span class="demo-step__eyebrow">Account</span>
+              <strong>Settings</strong>
+              <small>User preferences and account configuration</small>
+            </a>
+          </section>
+        </main>
+      </div>
+    </div>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/api.js"></script>
+    <script src="scripts/search.js"></script>
+    <script src="scripts/pro-upgrade.js"></script>
+  </body>
+</html>

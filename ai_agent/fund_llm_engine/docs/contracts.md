@@ -11,7 +11,9 @@
 
 ## 兼容规则
 
-- 当前公开 AI 分析接口是 `POST /api/ai/fund/analyze`。
+- 当前公开 AI 分析接口是 `POST /api/ai/fund/analyze`（单基金）、
+  `POST /api/ai/portfolio/analyze`（组合层，见「组合层分析接口」一节）和
+  `POST /api/ai/sector/analyze`（行业层，见「行业层比较接口」一节）。
 - 成功响应的顶层结构固定为 `code`、`data`、`coverage`、`message`。
 - 前端可以长期依赖本文档列出的稳定字段。
 - 后续可以新增字段、新增 `metadata` key、新增 `analysis_trace` 事件，或在
@@ -70,6 +72,192 @@ Content-Type: application/json
   "max_parallel_agents": 3
 }
 ```
+
+## 组合层分析接口
+
+```text
+POST /api/ai/portfolio/analyze
+Content-Type: application/json
+```
+
+组合层分析：AI 服务为每只成分基金拉取 NAV 和基本信息，
+按「日期交集对齐 + 固定权重每日再平衡」合成组合净值（组合每日收益 =
+各成分当日收益的加权平均，逐日复利），在合成净值上计算组合层量化指标，
+再做持仓穿透（Level 2：合并各基金披露的前十大持仓 / 行业配置 / 资产配置，
+发现重叠暴露和组合级集中度），最后由组合版 Chief 生成总评。
+设计给前端 portfolio / overview 页消费，不要求堆进 AI Insights 单基金页。
+
+### 请求字段
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|---|---:|---:|---|---|
+| `positions` | array | 是 | - | 成分基金列表，每项 `{code, weight}`。`weight` 必须为正数，权重和不为 1 时会按比例归一化（`60/40` 与 `0.6/0.4` 等价）。也兼容 `funds` 作为别名。 |
+| `start_date` | string | 否 | 后端或默认窗口 | 分析开始日期，会传给每只基金的 NAV 加载。 |
+| `end_date` | string | 否 | 后端或默认窗口 | 分析结束日期。 |
+| `client_risk_profile` | string | 否 | `balanced` | 用户风险偏好。 |
+| `mock` | boolean/string | 否 | `LLM_MOCK_MODE` 或 `false` | 为真时跑 mock LLM 模式。 |
+| `max_nav_points` | integer | 否 | `520` | 每只基金最多使用多少个净值点（无显式 `start_date` 时截尾）。 |
+| `include_lookthrough` | boolean/string | 否 | `true` | 是否拉取并计算持仓穿透（Level 2）。设为 `false` 时只做净值层分析，减少后端调用。 |
+| `top_holdings_n` | integer | 否 | `10` | 穿透时每只基金纳入的持仓条数上限。 |
+| `llm_timeout_seconds` | integer | 否 | `LLM_TIMEOUT_SECONDS` 或 `60` | 真实 LLM 模式的超时时间。 |
+| `llm_model` | string | 否 | `.env` 中的 `LLM_MODEL` | 真实 LLM 模式下单次覆盖默认模型。也兼容 `model` 别名。 |
+
+最小请求示例（另见 `examples/portfolio_input_demo.json`）：
+
+```json
+{
+  "positions": [
+    {"code": "000001", "weight": 60},
+    {"code": "003358", "weight": 40}
+  ],
+  "start_date": "2025/01/01",
+  "mock": true
+}
+```
+
+### 成功响应
+
+顶层结构与单基金接口一致：`code`、`data`、`coverage`、`message`。
+
+`data` 的稳定字段（与 `FinalAnalysisResult` 同名字段语义一致，前端可复用渲染逻辑）：
+
+| 字段 | 类型 | 说明 |
+|---|---:|---|
+| `request_id` | string | 本次组合分析请求 id。 |
+| `overall_rating` | string | `buy` / `hold` / `watch` / `avoid`。 |
+| `overall_score` | number | 0-100 组合层确定性评分。 |
+| `summary` | string | 组合总评（真实模式为 LLM 解释，失败时回退确定性摘要）。 |
+| `score_explanation` | string | 评分如何由合成净值指标算出的确定性解释。 |
+| `key_thesis` / `main_risks` / `action_plan` | string[] | 组合层要点、风险、建议。 |
+| `quant_metrics` | object | 组合层量化指标，见下。 |
+| `constituents` | array | 每只成分基金在共同窗口上的对比指标，见下。 |
+| `holdings_lookthrough` | object | 持仓穿透（Level 2），见「持仓穿透字段」。 |
+| `industry_lookthrough` | object | 行业穿透（组合加权行业暴露），见「持仓穿透字段」。 |
+| `asset_allocation_lookthrough` | object | 股/债/现金资产配置合并，见「持仓穿透字段」。 |
+| `missing_fields` | string[] | 组合路径当前恒为空数组（NAV 缺失会直接 `422`；穿透数据缺失以各 lookthrough 的 `status` 表达，不静默降级）。 |
+| `metadata` | object | 执行元数据，含 `analysis_level=portfolio`、`fund_count`、`shared_nav_points`、`weights_rescaled`、`llm_mode`、`quant_metrics_reliability` 等。 |
+| `analysis_trace` | `AnalysisTraceEvent[]` | 证据链：取数、日期对齐、净值合成、组合汇总。 |
+
+`data.quant_metrics` 在单基金 A 类指标（`total_return`、`annualized_return`、
+`annualized_volatility`、`max_drawdown`、`sharpe_ratio`、`sortino_ratio`、
+`calmar_ratio`、`positive_period_ratio`、`sample_size`，另含可用窗口的
+`return_1m/3m/6m/1y` 等滚动指标）之外，新增两个组合特有字段：
+
+| 字段 | 类型 | 说明 |
+|---|---:|---|
+| `weighted_average_volatility` | number | 成分基金年化波动率按权重的线性平均。 |
+| `diversification_benefit` | number | 线性平均波动率减组合实际波动率。固定权重每日再平衡下恒 ≥ 0：成分相关性越低数值越大，完全同涨同跌时为 0，即分散化收益。 |
+
+`constituents` 每项字段：`code`、`name`、`fund_type`、`normalized_fund_type`、
+`weight`（归一化后）、`nav_points`、`total_return`、`annualized_return`、
+`annualized_volatility`、`max_drawdown`、`sharpe_ratio`。所有成分指标都在
+同一个共同日期窗口上计算，可直接横向比较。
+
+### 持仓穿透字段（Level 2）
+
+三个 lookthrough 对象都有统一的状态语义：
+
+| `status` | 含义 |
+|---|---|
+| `available` | 所有成分基金都提供了该类数据。 |
+| `partial` | 部分基金有数据；`funds_without_data` 列出缺数据的基金（债券基金没有股票持仓属于正常情况）。 |
+| `missing` | 没有任何基金提供该类数据；数值字段为空或 0，不伪造。 |
+
+`holdings_lookthrough`（每条持仓对组合的贡献 = 基金权重 × 持仓占基金净值比例）：
+
+| 字段 | 说明 |
+|---|---|
+| `disclosure_basis` | 固定为 `quarterly_top10_holdings`：公募季报只披露前十大持仓，这是部分穿透。 |
+| `top_holdings` | 合并后的组合真实重仓，按组合权重排序；每项含 `stock_code`、`stock_name`、`portfolio_weight`、`held_by`（哪些基金持有及占各自净值比例）。 |
+| `overlapping_holdings` | 被 2 只及以上成分基金同时持有的股票，用于发现隐性重叠集中。 |
+| `combined_top_weight` | 穿透后前十大合计占组合比例。 |
+| `disclosed_weight_total` | 全部已披露持仓合计占组合比例，其余仓位不可见。 |
+
+`industry_lookthrough`：`aggregate_exposure`（组合加权行业暴露）、
+`top_sectors`、`top_sector_weight`、`per_fund_exposure`（per-fund 明细，
+供前端做横向比较）。
+
+`asset_allocation_lookthrough`：`aggregate_allocation`（原始资产类别合并）与
+`buckets`（`stock` / `bond` / `cash` / `other` 四桶归类）。
+
+对应的 `metadata` 新增 `holdings_lookthrough_status`、
+`industry_lookthrough_status`、`asset_allocation_lookthrough_status`；
+`analysis_trace` 新增 `Merged constituent holdings look-through` 事件。
+组合请求可传 `include_lookthrough: false` 跳过穿透取数（默认 `true`），
+`top_holdings_n`（默认 `10`）控制每只基金纳入的持仓条数。
+
+组合接口的 `coverage` 字段：
+
+| 字段 | 类型 | 说明 |
+|---|---:|---|
+| `fund_count` | integer | 成分基金数量。 |
+| `funds` | array | 每只基金的 `code`、`fund_name`、`fund_type`、`normalized_fund_type`、`weight`、`nav_points`。 |
+| `weights_rescaled` | string | `"true"` 表示输入权重和不为 1，已按比例归一化。 |
+| `data_source` / `available_backend_tools` / `successful_backend_tools` / `errored_backend_tools` | string | 与单基金接口同语义。 |
+
+### 组合接口错误语义
+
+| HTTP | 触发条件 |
+|---|---|
+| `400` | 缺少 `positions` 或列表为空。 |
+| `422` | 权重非正数、基金代码重复、任一成分基金拉不到 NAV（报错信息会列出失败代码）、共同交易日不足 30 个。 |
+| `500` | 未预期异常。 |
+
+防幻觉原则与单基金一致：任何成分基金数据缺失都会显式失败并说明原因，
+不会静默丢弃基金或让 LLM 编造缺失部分。
+
+## 行业层比较接口
+
+```text
+POST /api/ai/sector/analyze
+Content-Type: application/json
+```
+
+行业层视图（Phase B1）：把多只基金的行业暴露聚合成横向比较矩阵，回答
+"这几只基金在行业上怎么分布、哪里撞车"。不需要 NAV，每只基金只取
+基本信息（判断基金类型）和行业配置。设计给前端行业 / sector 页消费。
+
+行业状态语义与单基金 `SectorAgent` 一致：债券/货币基金为
+`not_applicable`，权益基金缺行业数据为 `insufficient_data`，
+都不会被编造行业结论。
+
+### 请求字段
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|---|---:|---:|---|---|
+| `codes` | array | 是 | - | 基金代码列表，例如 `["161725", "000001"]`。也兼容 `funds`（可以是代码或 `{code}` 对象数组）。代码不能重复。 |
+| `mock` | boolean/string | 否 | `LLM_MOCK_MODE` 或 `false` | 为真时跑 mock LLM 模式。 |
+| `llm_timeout_seconds` | integer | 否 | `LLM_TIMEOUT_SECONDS` 或 `60` | 真实 LLM 模式超时。 |
+| `llm_model` | string | 否 | `.env` 中的 `LLM_MODEL` | 真实模式单次覆盖模型。也兼容 `model` 别名。 |
+
+### 成功响应
+
+顶层结构同样是 `code`、`data`、`coverage`、`message`。`data` 稳定字段：
+
+| 字段 | 类型 | 说明 |
+|---|---:|---|
+| `request_id` | string | `sector-view-<codes>`。 |
+| `status` | string | `available` / `partial` / `missing`，语义同组合穿透。 |
+| `funds` | array | 每只基金一行：`code`、`name`、`fund_type`、`normalized_fund_type`、`sector_status`（`available` / `insufficient_data` / `not_applicable`）、`sector_count`、`top_sector`、`top_sector_weight`、`top_sectors`（前 3）。 |
+| `sector_matrix` | array | 行业比较矩阵，按平均暴露降序；每行含 `sector`、`exposures`（fund_code → 占比）、`funds_holding`、`average_weight`（对有数据的基金等权平均）、`max_weight`、`max_fund`。 |
+| `sector_total_count` | integer | 全部行业数（矩阵默认只返回前 15 行）。 |
+| `common_sectors` | string[] | 被 2 只及以上基金共同持有的行业。 |
+| `funds_with_data` / `funds_without_data` | string[] | 有 / 无可用行业数据的基金代码。 |
+| `summary` | string | 行业比较总评（真实模式 LLM 解释，失败回退确定性摘要）。 |
+| `metadata` | object | 含 `analysis_level=sector`、`sector_view_status`、`summary_source`、`llm_mode` 等。 |
+| `analysis_trace` | array | 矩阵构建与总评两个事件。 |
+
+注意：`sector_matrix.average_weight` 是对提供了行业数据的基金做**等权**平均
+（横向比较口径）；如果要按用户组合权重加权的行业暴露，用组合接口的
+`industry_lookthrough`。
+
+### 错误语义
+
+| HTTP | 触发条件 |
+|---|---|
+| `400` | 缺少 `codes` 或列表为空。 |
+| `422` | 基金代码重复或为空字符串。 |
+| `500` | 未预期异常。 |
 
 ## 模型目录接口
 
@@ -209,6 +397,13 @@ GET /api/ai/llm/models
 | `RiskAgent` | Risk Check / 风险检查 |
 | `SentimentAgent` | News / Sentiment Check / 新闻情绪检查 |
 | `SectorAgent` | Sector Check / 行业配置检查 |
+| `MarketAgent` | Peer / Market Context / 同类与市场对比 |
+
+`MarketAgent` 的证据是后端的同类比较（`get_fund_individual_analysis`，
+percentile 表示优于百分之多少的同类基金）和持有期盈利概率
+（`get_fund_profit_probability`）。两类数据都缺失时输出
+`skipped + insufficient_data`。资金流视角（CapitalFlowAgent）因上游暂无
+数据源未接入，属于依赖上游数据的未来扩展。
 
 `ChiefAgent` 当前负责把各 Agent 结果汇总到 `data` 的最终字段里，不要求作为
 普通 `agent_outputs` 项出现。
@@ -336,9 +531,12 @@ HTTP `500`：
 {
   "code": 500,
   "data": null,
-  "message": "error details"
+  "message": "Internal error while running fund analysis. Check the Agent service log for details."
 }
 ```
+
+`500` 对外只返回通用错误说明，不回传 raw exception 文本；完整堆栈只写入
+Agent 服务日志（`app.log`），排查时看日志而不是接口响应。
 
 ## 内部输入对象
 

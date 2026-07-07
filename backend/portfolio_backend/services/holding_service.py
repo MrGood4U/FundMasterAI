@@ -39,7 +39,12 @@ class HoldingService:
                     total_qty += float(t["quantity"])
                     total_cost += float(t["quantity"]) * float(t["price"]) + float(t["fee"] or 0)
                 elif t["trans_type"] == "sell":
-                    total_qty -= float(t["quantity"])
+                    sell_qty = float(t["quantity"])
+                    if total_qty > 0:
+                        # 按平均成本法等比例扣减成本
+                        avg_cost_before_sell = total_cost / total_qty
+                        total_cost -= avg_cost_before_sell * sell_qty
+                    total_qty -= sell_qty
 
             if total_qty <= 0:
                 continue
@@ -106,3 +111,28 @@ class HoldingService:
                         t["batch_pnl"] = round((float(current_price) - cost) * qty, 2)
                 return h
         return None
+
+    def create_holding(self, asset_type: str, asset_code: str,
+                       asset_name: str, trans_type: str, price: float,
+                       quantity: float, fee: float, trans_date: str,
+                       portfolio_tag: str = None, notes: str = None) -> int:
+        return self.dao.create(
+            asset_type=asset_type,
+            asset_code=asset_code,
+            asset_name=asset_name,
+            trans_type=trans_type,
+            price=price,
+            quantity=quantity,
+            fee=fee,
+            trans_date=trans_date,
+            portfolio_tag=portfolio_tag,
+            notes=notes,
+        )
+
+    def delete_holding(self, asset_type: str = None,
+                       asset_code: str = None, trans_id: int = None) -> int:
+        if trans_id is not None:
+            return 1 if self.dao.delete(trans_id) else 0
+        if asset_type and asset_code:
+            return self.dao.delete_by_asset(asset_type, asset_code)
+        return 0

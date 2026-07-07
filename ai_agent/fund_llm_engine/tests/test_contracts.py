@@ -98,6 +98,32 @@ class ContractsTest(unittest.TestCase):
             ],
         )
 
+    def test_fund_analysis_input_supports_structured_backend_fields(self):
+        payload = FundAnalysisInput.from_dict(
+            {
+                "request_id": "req-002",
+                "fund_info": {"code": "000001", "name": "示例", "asset_type": "fund_open"},
+                "nav_series": [{"date": "2026-01-01", "nav": 1.0}],
+                "top_holdings": [
+                    {"stock_name": "贵州茅台", "net_value_pct": "9.5", "quarter": "2026Q1"},
+                    "not-a-dict-should-be-dropped",
+                ],
+                "profit_probability": [{"holding_period": "1y", "profit_probability": "78.5%"}],
+                "individual_analysis": {"rank": "top 20%"},
+            }
+        )
+
+        self.assertEqual(len(payload.top_holdings), 1)
+        self.assertEqual(payload.top_holdings[0]["stock_name"], "贵州茅台")
+        self.assertEqual(len(payload.profit_probability), 1)
+        # 单个对象会被包装成单元素列表
+        self.assertEqual(payload.individual_analysis, [{"rank": "top 20%"}])
+
+        round_tripped = FundAnalysisInput.from_dict(payload.to_dict())
+        self.assertEqual(round_tripped.top_holdings, payload.top_holdings)
+        self.assertEqual(round_tripped.profit_probability, payload.profit_probability)
+        self.assertEqual(round_tripped.individual_analysis, payload.individual_analysis)
+
     def test_final_analysis_result_round_trip(self):
         result = run_mock_analysis()
         result.analysis_trace.append(

@@ -124,6 +124,14 @@ class TransactionDao:
                 cur.execute(sql, params)
                 return cur.fetchall()
 
+    def delete_by_asset(self, asset_type: str, asset_code: str) -> int:
+        sql = "DELETE FROM transactions WHERE asset_type = %s AND asset_code = %s"
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, (asset_type, asset_code))
+                conn.commit()
+                return cur.rowcount
+
     def get_all_for_holding(self) -> list:
         sql = "SELECT * FROM transactions ORDER BY trans_date ASC, id ASC"
         with get_connection() as conn:

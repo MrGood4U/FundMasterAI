@@ -8,7 +8,14 @@ from urllib import error
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from fund_llm.llm_client import LLMClient, LLMEmptyResponseError, LLMHTTPError, _extract_text_content
+from fund_llm.llm_client import (
+    LLMClient,
+    LLMEmptyResponseError,
+    LLMHTTPError,
+    LLMTransportError,
+    MockLLMClient,
+    _extract_text_content,
+)
 
 
 class FakeHTTPResponse:
@@ -248,6 +255,124 @@ class LLMClientTest(unittest.TestCase):
         self.assertEqual(call_count, 1)
         self.assertEqual(client.last_response_metadata["retry_count"], 0)
 
+    def test_is_mock_flags_are_explicit(self):
+        real_client = LLMClient(
+            api_key="demo-key",
+            base_url="https://api.openai.com/v1",
+            model="demo-model",
+        )
+        self.assertFalse(real_client.is_mock)
+        self.assertTrue(MockLLMClient("narrative").is_mock)
+
+    def test_retryable_http_error_is_retried_once(self):
+        call_count = 0
+
+        def fake_urlopen(http_request, timeout):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise error.HTTPError(
+                    url=http_request.full_url,
+                    code=429,
+                    msg="Too Many Requests",
+                    hdrs=None,
+                    fp=BytesIO(b"rate limited"),
+                )
+            return FakeHTTPResponse({"choices": [{"message": {"content": "recovered"}}]})
+
+        client = LLMClient(
+            api_key="demo-key",
+            base_url="https://api.openai.com/v1",
+            model="demo-model",
+        )
+
+        with patch("fund_llm.llm_client.request.urlopen", side_effect=fake_urlopen), patch(
+            "fund_llm.llm_client.time.sleep"
+        ) as fake_sleep:
+            response = client.chat("system", "user")
+
+        self.assertEqual(response, "recovered")
+        self.assertEqual(call_count, 2)
+        fake_sleep.assert_called_once()
+        self.assertEqual(client.last_response_metadata["transport_retry_count"], 1)
+
+    def test_timeout_is_retried_once_then_raised(self):
+        call_count = 0
+
+        def fake_urlopen(http_request, timeout):
+            nonlocal call_count
+            call_count += 1
+            raise error.URLError(TimeoutError("timed out"))
+
+        client = LLMClient(
+            api_key="demo-key",
+            base_url="https://api.openai.com/v1",
+            model="demo-model",
+        )
+
+        with patch("fund_llm.llm_client.request.urlopen", side_effect=fake_urlopen), patch(
+            "fund_llm.llm_client.time.sleep"
+        ):
+            with self.assertRaises(LLMTransportError) as context:
+                client.chat("system", "user")
+
+        self.assertEqual(call_count, 2)
+        self.assertTrue(context.exception.is_timeout)
+
+    def test_config_errors_are_not_retried(self):
+        call_count = 0
+
+        def fake_urlopen(http_request, timeout):
+            nonlocal call_count
+            call_count += 1
+            raise error.HTTPError(
+                url=http_request.full_url,
+                code=401,
+                msg="Unauthorized",
+                hdrs=None,
+                fp=BytesIO(b"bad key"),
+            )
+
+        client = LLMClient(
+            api_key="demo-key",
+            base_url="https://api.openai.com/v1",
+            model="demo-model",
+        )
+
+        with patch("fund_llm.llm_client.request.urlopen", side_effect=fake_urlopen), patch(
+            "fund_llm.llm_client.time.sleep"
+        ) as fake_sleep:
+            with self.assertRaises(LLMHTTPError) as context:
+                client.chat("system", "user")
+
+        self.assertEqual(call_count, 1)
+        fake_sleep.assert_not_called()
+        self.assertEqual(context.exception.status_code, 401)
+
+    def test_non_timeout_transport_error_is_not_retried(self):
+        call_count = 0
+
+        def fake_urlopen(http_request, timeout):
+            nonlocal call_count
+            call_count += 1
+            raise error.URLError(ConnectionRefusedError("refused"))
+
+        client = LLMClient(
+            api_key="demo-key",
+            base_url="https://api.openai.com/v1",
+            model="demo-model",
+        )
+
+        with patch("fund_llm.llm_client.request.urlopen", side_effect=fake_urlopen), patch(
+            "fund_llm.llm_client.time.sleep"
+        ) as fake_sleep:
+            with self.assertRaises(LLMTransportError) as context:
+                client.chat("system", "user")
+
+        self.assertEqual(call_count, 1)
+        fake_sleep.assert_not_called()
+        self.assertFalse(context.exception.is_timeout)
+
     def test_http_errors_are_sanitized(self):
         def fake_urlopen(http_request, timeout):
             raise error.HTTPError(
@@ -264,7 +389,10 @@ class LLMClientTest(unittest.TestCase):
             model="demo-model",
         )
 
-        with patch("fund_llm.llm_client.request.urlopen", side_effect=fake_urlopen):
+        # 500 属于可重试错误，这里两次都失败后应抛出脱敏后的异常。
+        with patch("fund_llm.llm_client.request.urlopen", side_effect=fake_urlopen), patch(
+            "fund_llm.llm_client.time.sleep"
+        ):
             with self.assertRaises(LLMHTTPError) as context:
                 client.chat("system", "user")
 

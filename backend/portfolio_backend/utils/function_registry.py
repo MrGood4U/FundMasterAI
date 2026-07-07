@@ -289,6 +289,91 @@ FUNCTIONS = [
             "transactions": "该资产的全部交易记录数组，每笔买入含 batch_pnl（批次盈亏金额）和 batch_pnl_pct（批次盈亏百分比）",
         },
     },
+    {
+        "name": "create_holding",
+        "description": "创建一条持仓交易记录（买入或卖出），会自动影响对应资产的持仓数量和成本。创建后可通过 get_holdings 查看更新后的持仓汇总。",
+        "path": "/api/portfolio/holding/create",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "asset_type": {
+                    "type": "string",
+                    "description": "资产类型",
+                    "enum": ["stock", "fund", "bond", "crypto"],
+                },
+                "asset_code": {
+                    "type": "string",
+                    "description": "资产代码，如 600519（股票）、000001（基金）、BTCUSDT（加密货币）",
+                },
+                "asset_name": {
+                    "type": "string",
+                    "description": "资产名称（冗余字段，便于展示），如 贵州茅台",
+                },
+                "trans_type": {
+                    "type": "string",
+                    "description": "交易方向",
+                    "enum": ["buy", "sell"],
+                },
+                "price": {
+                    "type": "number",
+                    "description": "成交单价",
+                },
+                "quantity": {
+                    "type": "number",
+                    "description": "成交数量（股/份/币）",
+                },
+                "fee": {
+                    "type": "number",
+                    "description": "手续费，默认为 0",
+                },
+                "trans_date": {
+                    "type": "string",
+                    "description": "交易日期，格式 YYYY-MM-DD",
+                },
+                "portfolio_tag": {
+                    "type": "string",
+                    "description": "投资组合标签，如 long-term / short-term / grid / DCA",
+                },
+                "notes": {
+                    "type": "string",
+                    "description": "备注信息",
+                },
+            },
+            "required": ["asset_type", "asset_code", "asset_name", "trans_type", "price", "quantity", "fee", "trans_date"],
+        },
+        "returns": {
+            "id": "交易记录ID",
+        },
+    },
+    {
+        "name": "delete_holding",
+        "description": "删除持仓记录。支持两种方式：按交易ID删除单条记录（传 id），或按资产类型+代码清空该资产的全部交易记录（传 asset_type + asset_code）。操作不可撤销。",
+        "path": "/api/portfolio/holding/delete",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "description": "交易记录ID，删除单条交易记录",
+                },
+                "asset_type": {
+                    "type": "string",
+                    "description": "资产类型（与 asset_code 配合使用，清空该资产的全部交易记录）",
+                    "enum": ["stock", "fund", "bond", "crypto"],
+                },
+                "asset_code": {
+                    "type": "string",
+                    "description": "资产代码（与 asset_type 配合使用，清空该资产的全部交易记录）",
+                },
+            },
+            "required": [],
+        },
+        "returns": {
+            "deleted": "实际删除的记录条数",
+        },
+    },
 
     # =====================================================================
     # Alert 价格告警
@@ -1017,7 +1102,8 @@ def get_functions_by_tag(tag: str):
     tag_names = {
         "transaction": ["create_transaction", "get_transaction", "update_transaction",
                         "delete_transaction", "list_transactions"],
-        "holding": ["get_holdings", "get_holding_detail"],
+        "holding": ["get_holdings", "get_holding_detail",
+                   "create_holding", "delete_holding"],
         "alert": ["create_alert", "get_alert", "update_alert",
                   "delete_alert", "list_alerts"],
         "watchlist": ["add_to_watchlist", "remove_from_watchlist", "list_watchlist"],

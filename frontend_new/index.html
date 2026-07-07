@@ -121,7 +121,7 @@
             </div>
             <div class="live-badge" role="status">
               <span class="live-badge__dot" aria-hidden="true"></span>
-              <span class="live-badge__label api-status" data-api-status="news">LIVE TERMINAL</span>
+              <span class="live-badge__label">LIVE TERMINAL</span>
             </div>
           </section>
 
@@ -141,9 +141,8 @@
                 </div>
               </div>
 
-              <div class="column column--feed" data-news-feed>
-                <!-- 新闻卡片 1：Breaking / Bearish -->
-                <article class="news-card news-card--flash">
+              <!-- 新闻卡片 1：Breaking / Bearish -->
+              <article class="news-card news-card--flash">
                 <div class="news-card__meta">
                   <div class="news-card__tags">
                     <span class="tag tag--breaking">BREAKING</span>
@@ -165,10 +164,10 @@
                   </span>
                   <span class="news-card__related">Related: SPY, TLT, DXY</span>
                 </div>
-                </article>
+              </article>
 
-                <!-- 新闻卡片 2：Earnings / Bullish -->
-                <article class="news-card">
+              <!-- 新闻卡片 2：Earnings / Bullish -->
+              <article class="news-card">
                 <div class="news-card__meta">
                   <div class="news-card__tags">
                     <span class="tag tag--earnings">EARNINGS</span>
@@ -190,10 +189,10 @@
                   </span>
                   <span class="news-card__related">Related: NVDA, AMD, TSM</span>
                 </div>
-                </article>
+              </article>
 
-                <!-- 新闻卡片 3：Tech / Neutral -->
-                <article class="news-card">
+              <!-- 新闻卡片 3：Tech / Neutral -->
+              <article class="news-card">
                 <div class="news-card__meta">
                   <div class="news-card__tags">
                     <span class="tag tag--tech">TECH</span>
@@ -213,8 +212,7 @@
                   </span>
                   <span class="news-card__related">Related: AAPL, IRBT</span>
                 </div>
-                </article>
-              </div>
+              </article>
             </section>
 
             <!-- 右栏：板块情绪、宏观日历、AI 摘要 -->
@@ -348,7 +346,9 @@
         </button>
       </div>
     </div>
-    <script src="scripts/api.js?v=20260630-1"></script>
-    <script src="scripts/live-data.js?v=20260630-1"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/api.js"></script>
+    <script src="scripts/search.js"></script>
+    <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>

@@ -72,6 +72,15 @@ def _fetch_fund_info_index_all():
     return AksharePublicFund().get_fund_info_index("all", "all")
 
 
+def _fetch_global_index_rank():
+    import pandas as pd
+    from apis.yfinance_api import YFinanceAPI
+    data = YFinanceAPI().get_all_indices_ranked()
+    if not data:
+        return None
+    return pd.DataFrame(data)
+
+
 # -- registry --------------------------------------------------------------
 # Each entry maps a cache key to the callable that fetches fresh data.
 
@@ -85,6 +94,7 @@ _DEFAULT_REGISTRY: Dict[str, Callable] = {
     "fund:cat:ths:all":         _fetch_fund_category_ths_all,
     "fund:value:est:all":       _fetch_fund_value_est_all,
     "fund:info:index:all":      _fetch_fund_info_index_all,
+    "global:index:rank":        _fetch_global_index_rank,
 }
 
 # mapping from cache key → (enabled_attr, interval_attr)
@@ -98,6 +108,7 @@ _KEY_CONFIG: Dict[str, tuple] = {
     "fund:cat:ths:all":    ("CACHE_FUND_THS_SPOT_ENABLED",   "CACHE_FUND_THS_SPOT_INTERVAL"),
     "fund:value:est:all":  ("CACHE_FUND_VALUE_EST_ENABLED",      "CACHE_FUND_VALUE_EST_INTERVAL"),
     "fund:info:index:all": ("CACHE_FUND_INFO_INDEX_ENABLED",     "CACHE_FUND_INFO_INDEX_INTERVAL"),
+    "global:index:rank":   ("CACHE_GLOBAL_INDEX_RANK_ENABLED",   "CACHE_GLOBAL_INDEX_RANK_INTERVAL"),
 }
 
 

@@ -2,8 +2,11 @@ import logging
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
+import pandas as pd
+
 from apis.forex_api import ForexAPI
 from apis.yfinance_api import YFinanceAPI
+from daos.cache_dao import CacheDao
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +17,7 @@ class GlobalService:
     def __init__(self):
         self.forex = ForexAPI()
         self.yf = YFinanceAPI()
+        self.cache = CacheDao.from_config()
 
     # ==================================================================
     # 外汇 — 汇率查询
@@ -107,6 +111,28 @@ class GlobalService:
             return df.to_dict(orient="records")
         except Exception as e:
             logger.warning("GlobalService.get_index_hist(%s) failed: %s", ticker, e)
+            return []
+
+    def get_index_rank(self) -> List[Dict[str, Any]]:
+        """获取所有全球指数的涨跌幅排行（change_pct 从高到低，优先读缓存）"""
+        cache_key = "global:index:rank"
+        try:
+            df = self.cache.get_df(cache_key)
+            if df is not None and not df.empty:
+                return df.to_dict(orient="records")
+        except Exception as e:
+            logger.warning("GlobalService.get_index_rank() cache read failed: %s", e)
+
+        try:
+            data = self.yf.get_all_indices_ranked()
+            if data:
+                try:
+                    self.cache.set_df(cache_key, pd.DataFrame(data))
+                except Exception:
+                    pass
+            return data
+        except Exception as e:
+            logger.warning("GlobalService.get_index_rank() API call failed: %s", e)
             return []
 
     def get_supported_indices(self) -> List[Dict[str, str]]:

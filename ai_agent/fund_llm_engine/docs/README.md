@@ -20,6 +20,7 @@ start with [`ai_agent_development_log.md`](./ai_agent_development_log.md).
 ## Setup And Provider Configuration
 
 - [`environment_setup.md`](./environment_setup.md): local environment setup and validation order.
+- [`windows_startup.md`](./windows_startup.md): Windows CMD startup steps for the Agent HTTP service, complementing the frontend integration guide.
 - [`provider_setup.md`](./provider_setup.md): Gemini, DeepSeek, and OpenAI-compatible provider settings.
 - [`dev_backend_integration_handoff.md`](./dev_backend_integration_handoff.md): historical 2026-05-30 dev-backend integration snapshot. Keep for traceability, but verify current behavior from the development log, code, and tests.
 

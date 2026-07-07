@@ -32,7 +32,7 @@ class DemoScriptsTest(unittest.TestCase):
         self.assertEqual(stderr_buffer.getvalue(), "")
         payload = json.loads(stdout_buffer.getvalue())
         self.assertEqual(payload["request_id"], "mock-demo-001")
-        self.assertEqual(len(payload["agent_outputs"]), 6)
+        self.assertEqual(len(payload["agent_outputs"]), 7)
 
     def test_run_mock_demo_supports_output_file(self):
         module = load_script_module("run_mock_demo.py")
@@ -52,7 +52,7 @@ class DemoScriptsTest(unittest.TestCase):
             with open(output_path, "r", encoding="utf-8") as file:
                 payload = json.load(file)
             self.assertEqual(payload["request_id"], "mock-demo-001")
-            self.assertEqual(len(payload["agent_outputs"]), 6)
+            self.assertEqual(len(payload["agent_outputs"]), 7)
 
     def test_run_real_demo_supports_output_file(self):
         module = load_script_module("run_real_demo.py")

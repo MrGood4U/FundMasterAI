@@ -90,10 +90,9 @@
           <header class="page-head">
             <div>
               <h2 class="page-head__title">Market Hub</h2>
-              <p class="page-head__sub">Live indices, sentiment, heatmap and capital flow — Figma 11:626.</p>
-              <p class="muted sm" style="margin:8px 0 0"><a href="market-flow.html" style="color:var(--accent-cyan)">Market liquidity &amp; flow 视图（Figma 11:1391）→</a></p>
+              <p class="page-head__sub">Live indices, sentiment, heatmap and capital flow.</p>
             </div>
-            <div class="mh-clock"><span class="mh-clock__label">MARKET API</span><span class="mh-clock__time api-status" data-api-status="market">Static preview</span></div>
+            <div class="mh-clock"><span class="mh-clock__label">NASDAQ OPEN</span><span class="mh-clock__time">14:23:05 EST</span></div>
           </header>
           <section class="mh-indices">
             <article class="mh-index"><h4>S&amp;P 500</h4><p class="mh-index__v">5,147.22</p><p class="mh-index__p pos">+0.82%</p></article>
@@ -109,7 +108,7 @@
             <section class="glass-panel">
               <h3 class="section-head__title section-head__title--compact">Global Market Heatmap</h3>
               <div class="mh-legend"><span>U.S. Tech</span><span>A-Shares</span><span>EU Broad</span><span class="mh-legend__vol">Volatility: Low</span></div>
-              <div class="mh-heat" data-market-heat>
+              <div class="mh-heat">
                 <div class="mh-cell pos"><span>AAPL</span><em>+2.84%</em><small>Apple Inc.</small></div>
                 <div class="mh-cell pos"><span>MSFT</span><em>+1.15%</em><small>MICROSOFT</small></div>
                 <div class="mh-cell pos"><span>GOOGL</span><em>+0.42%</em></div>
@@ -131,7 +130,7 @@
           </section>
           <section class="glass-panel">
             <div class="section-head"><h3 class="section-head__title">Top Gaining / Declining</h3><button type="button" class="btn-outline">View all 18 sectors</button></div>
-            <div class="mh-movers" data-market-movers>
+            <div class="mh-movers">
               <ul><li class="pos">Semiconductors +5.82%</li><li class="pos">Cloud Computing +3.44%</li><li class="pos">Clean Energy +1.20%</li></ul>
               <ul><li class="neg">Real Estate -2.15%</li><li class="neg">Consumer Staples -4.88%</li></ul>
             </div>
@@ -141,7 +140,9 @@
         <button type="button" class="fab" aria-label="快捷操作"><span class="fab__plus" aria-hidden="true">+</span></button>
       </div>
     </div>
-    <script src="scripts/api.js?v=20260701-2"></script>
-    <script src="scripts/live-data.js?v=20260701-2"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/api.js"></script>
+    <script src="scripts/search.js"></script>
+    <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>

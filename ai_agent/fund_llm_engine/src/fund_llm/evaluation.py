@@ -13,6 +13,7 @@ CORE_AGENT_NAMES = [
     "RiskAgent",
     "SentimentAgent",
     "SectorAgent",
+    "MarketAgent",
 ]
 
 
