@@ -107,8 +107,29 @@
 
     setStatus("[data-api-status='market']", "Connecting to market backend...");
     try {
-      const rows = await api.global.getIndexQuotesFromList(["^GSPC", "^IXIC", "^FTSE", "^N225"], 4);
-      const quotes = Array.isArray(rows) ? rows : [];
+      const tickers = ["^GSPC", "^IXIC", "^FTSE", "^N225"];
+      const rows = await api.global.getIndexQuotesFromList(tickers);
+      const batchQuotes = Array.isArray(rows) ? rows : [];
+      const details = await Promise.allSettled(tickers.map((ticker) => api.global.getIndexInfo(ticker)));
+      const quotes = tickers.map((ticker, index) => {
+        const batch = batchQuotes.find((item) => pick(item, ["ticker"], "") === ticker) || batchQuotes[index];
+        const detail = details[index]?.status === "fulfilled" ? details[index].value : null;
+        return batch || detail || null;
+      }).filter(Boolean);
+      if (!quotes.length) {
+        document.querySelectorAll(".mh-indices .mh-index").forEach((card) => {
+          const price = card.querySelector(".mh-index__v");
+          const percent = card.querySelector(".mh-index__p");
+          if (price) price.textContent = "--";
+          if (percent) percent.textContent = "--";
+        });
+        const heat = document.querySelector("[data-market-heat]");
+        const movers = document.querySelector("[data-market-movers]");
+        if (heat) heat.innerHTML = '<p class="muted">No global index data returned.</p>';
+        if (movers) movers.innerHTML = '<p class="muted">No mover data returned.</p>';
+        setStatus("[data-api-status='market']", "Global index APIs returned no data", true);
+        return;
+      }
       document.querySelectorAll(".mh-indices .mh-index").forEach((card, index) => {
         const quote = quotes[index];
         if (!quote) return;
@@ -137,21 +158,25 @@
       })));
       setStatus(
         "[data-api-status='market']",
-        quotes.length ? `Global index API live · ${quotes.length} quotes` : "Global index API returned no quotes; showing preview values",
-        quotes.length === 0
+        `Global index API live · ${quotes.length} quotes`,
+        false
       );
     } catch (error) {
       setStatus("[data-api-status='market']", `Market backend unavailable: ${error.message}`, true);
     }
   }
 
-  function newsCard(item, index) {
+  function newsCard(item, index, signal = {}, relatedSymbols = []) {
     const title = pick(item, ["news_title", "新闻标题", "标题", "title"], "Untitled market update");
     const body = pick(item, ["news_content", "新闻内容", "内容", "摘要", "summary"], "");
     const source = pick(item, ["文章来源", "来源", "source"], "MARKET NEWS");
     const time = pick(item, ["publish_time", "发布时间", "时间", "date"], "");
     const url = pick(item, ["新闻链接", "链接", "url"], "#");
     const hot = index === 0;
+    const sentiment = text(signal.sentiment, "neutral").toLowerCase();
+    const sentimentClass = sentiment === "positive" ? "bull" : sentiment === "negative" ? "bear" : "neutral";
+    const sentimentLabel = sentiment === "positive" ? "BULLISH" : sentiment === "negative" ? "BEARISH" : "NEUTRAL";
+    const related = Array.isArray(relatedSymbols) && relatedSymbols.length ? relatedSymbols.join(", ") : DEFAULT_STOCK_SYMBOL;
 
     return `<article class="news-card ${hot ? "news-card--flash" : ""}">
       <div class="news-card__meta">
@@ -164,8 +189,8 @@
       <h4 class="news-card__headline">${escapeHtml(title)}</h4>
       <p class="news-card__body">${escapeHtml(body || title)}</p>
       <div class="news-card__footer">
-        <span class="sentiment-pill sentiment-pill--neutral"><span class="sentiment-pill__dot"></span>LIVE FEED</span>
-        <span class="news-card__related">Symbol: ${DEFAULT_STOCK_SYMBOL}</span>
+        <span class="sentiment-pill sentiment-pill--${sentimentClass}"><span class="sentiment-pill__dot"></span>${sentimentLabel}${signal.risk_event ? " · RISK EVENT" : ""}</span>
+        <span class="news-card__related">Related: ${escapeHtml(related)}</span>
       </div>
     </article>`;
   }
@@ -178,10 +203,37 @@
     try {
       const rows = await api.news.getStockRecentNews({ symbol: DEFAULT_STOCK_SYMBOL });
       const list = Array.isArray(rows) ? rows.slice(0, 6) : [];
-      if (list.length) {
-        feed.innerHTML = list.map(newsCard).join("");
+      let analysis = null;
+      if (list.length && api.ai?.summarizeNews) {
+        try {
+          analysis = await api.ai.summarizeNews({
+            symbol: DEFAULT_STOCK_SYMBOL,
+            items: rows,
+            max_items: 10,
+            mock: true,
+          });
+        } catch (error) {
+          console.warn("News AI summary unavailable:", error.message);
+        }
       }
-      setStatus("[data-api-status='news']", `Live terminal · ${list.length} news`);
+      if (list.length) {
+        const signals = Array.isArray(analysis?.item_signals) ? analysis.item_signals : [];
+        const signalByTitle = new Map(signals.map((item) => [text(item.title, ""), item]));
+        feed.innerHTML = list.map((item, index) => {
+          const title = text(pick(item, ["news_title", "新闻标题", "标题", "title"], ""), "");
+          return newsCard(item, index, signalByTitle.get(title) || signals[index] || {}, analysis?.related_symbols || []);
+        }).join("");
+      }
+      if (analysis) {
+        const summary = document.querySelector(".panel--ai .ai-copy");
+        const confidence = document.querySelector(".panel--ai .ai-conf");
+        if (summary) summary.textContent = analysis.summary || "No summary returned.";
+        if (confidence) {
+          const label = text(analysis.sentiment?.label, "neutral").toUpperCase();
+          confidence.textContent = `Confidence: ${Math.round(numberValue(analysis.confidence) * 100)}% · ${label}`;
+        }
+      }
+      setStatus("[data-api-status='news']", `Live terminal · ${list.length} news · AI ${analysis ? "ready" : "unavailable"}`, !analysis);
     } catch (error) {
       setStatus("[data-api-status='news']", `News backend unavailable: ${error.message}`, true);
     }

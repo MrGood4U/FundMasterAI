@@ -4,7 +4,7 @@
   const config = {
     marketBaseUrl: "",
     portfolioBaseUrl: "",
-    aiBaseUrl: "http://fundmaster-ai.duckdns.org:8080",
+    aiBaseUrl: "",
     ...(window.FUNDMASTER_API_CONFIG || {}),
   };
 
@@ -90,9 +90,9 @@
     },
     publicFund,
     global: {
-      getIndexQuotesFromList: (tickers) => postMarket("/api/market/global/index/quotes", { tickers }),
-      getIndexInfo: (ticker) => postMarket("/api/market/global/index/info", { ticker }),
-      getIndexHist: (ticker, options = {}) => postMarket("/api/market/global/index/hist", { ticker, ...options }),
+      getIndexQuotesFromList: (tickers) => request(config.marketBaseUrl, "/api/market/global/index/quotes", { method: "POST", body: { tickers }, timeout: 90000 }),
+      getIndexInfo: (ticker) => request(config.marketBaseUrl, "/api/market/global/index/info", { method: "POST", body: { ticker }, timeout: 60000 }),
+      getIndexHist: (ticker, options = {}) => request(config.marketBaseUrl, "/api/market/global/index/hist", { method: "POST", body: { ticker, ...options }, timeout: 90000 }),
       getIndexList: () => postMarket("/api/market/global/index/list", {}),
       getExchangeRate: (fromCurrency, toCurrency) => postMarket("/api/market/global/exchange_rate/rate", { from_currency: fromCurrency, to_currency: toCurrency }),
       getExchangeRateHistory: (fromCurrency, toCurrency, queryDate) => postMarket("/api/market/global/exchange_rate/history", { from_currency: fromCurrency, to_currency: toCurrency, query_date: queryDate }),
@@ -111,6 +111,11 @@
     },
     
     ai: {
+      summarizeNews: (body) => request(config.aiBaseUrl, "/api/ai/news/summary", {
+        method: "POST",
+        body,
+        timeout: 60000,
+      }),
       async getInsights(body) {
         try {
           const res = await request(config.aiBaseUrl, "/api/ai/portfolio-insights", {
