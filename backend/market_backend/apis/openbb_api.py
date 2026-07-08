@@ -4,6 +4,8 @@ from typing import Optional, List, Dict, Any
 import pandas as pd
 from openbb import obb
 
+from .config import get_openbb_fmp_api_key
+
 
 # 常用全球指数代码（与 yfinance_api 保持一致，便于直接替换）
 GLOBAL_INDICES = {
@@ -32,7 +34,9 @@ class OpenBBAPI:
     """
 
     def __init__(self):
-        pass
+        fmp_key = get_openbb_fmp_api_key()
+        if fmp_key:
+            obb.user.credentials.fmp_api_key = fmp_key
 
     # ------------------------------------------------------------------
     # 内部工具方法
@@ -81,7 +85,7 @@ class OpenBBAPI:
         try:
             today = date.today()
             start = today - timedelta(days=10)
-            result = obb.index.price.historical(ticker, start_date=start, end_date=today)
+            result = obb.index.price.historical(ticker, start_date=start, end_date=today, provider="fmp")
             if result is None or not hasattr(result, "results") or not result.results:
                 return None
             data = result.results
@@ -118,7 +122,7 @@ class OpenBBAPI:
     def get_index_info(self, ticker: str) -> Optional[Dict[str, Any]]:
         """获取全球指数的详细信息（名称、价格等）"""
         try:
-            result = obb.equity.price.quote(ticker)
+            result = obb.equity.price.quote(ticker, provider="fmp")
             if result is None or not hasattr(result, "results") or not result.results:
                 return None
             r = result.results[0] if isinstance(result.results, list) else result.results
@@ -126,7 +130,7 @@ class OpenBBAPI:
 
             # 尝试通过 equity.profile 补充更多信息（PE、市值等指数通常没有）
             try:
-                profile = obb.equity.profile(ticker)
+                profile = obb.equity.profile(ticker, provider="fmp")
                 if profile and hasattr(profile, "results") and profile.results:
                     p = profile.results[0] if isinstance(profile.results, list) else profile.results
                     base["market"] = getattr(p, "sector", None)
@@ -156,7 +160,7 @@ class OpenBBAPI:
     def get_index_quote(self, ticker: str) -> Optional[Dict[str, Any]]:
         """获取全球指数的最新报价（精简版）"""
         try:
-            result = obb.equity.price.quote(ticker)
+            result = obb.equity.price.quote(ticker, provider="fmp")
             if result is None or not hasattr(result, "results") or not result.results:
                 return None
             r = result.results[0] if isinstance(result.results, list) else result.results
@@ -241,6 +245,7 @@ class OpenBBAPI:
                     start_date=start_date,
                     end_date=end_date,
                     interval=obb_interval,
+                    provider="fmp"
                 )
             else:
                 # OpenBB 没有 period 参数，需要自己根据 period 计算 start_date
@@ -257,6 +262,7 @@ class OpenBBAPI:
                     start_date=calc_start.strftime("%Y-%m-%d"),
                     end_date=today.strftime("%Y-%m-%d"),
                     interval=obb_interval,
+                    provider="fmp"
                 )
 
             if result is None or not hasattr(result, "results") or not result.results:
