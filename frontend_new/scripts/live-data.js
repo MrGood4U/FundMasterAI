@@ -195,6 +195,72 @@
     </article>`;
   }
 
+  function newsTitle(item) {
+    return text(pick(item, ["news_title", "新闻标题", "标题", "title"], ""), "");
+  }
+
+  function newsBody(item) {
+    return text(pick(item, ["news_content", "新闻内容", "内容", "摘要", "summary"], ""), "");
+  }
+
+  function newsMatchesFilter(item, signal, filter) {
+    if (filter === "all") return true;
+    const content = `${newsTitle(item)} ${newsBody(item)}`.toLowerCase();
+    if (filter === "breaking") {
+      return Boolean(signal?.risk_event)
+        || /breaking|latest|alert|risk|regulat|policy|fed|cpi|突发|最新|风险|监管|政策|加息|降息/.test(content);
+    }
+    if (filter === "earnings") {
+      return /earnings|revenue|profit|eps|guidance|财报|业绩|利润|营收|盈利|指引/.test(content);
+    }
+    return true;
+  }
+
+  function renderNewsList(feed, items, analysis, filter = "all") {
+    const signals = Array.isArray(analysis?.item_signals) ? analysis.item_signals : [];
+    const signalByTitle = new Map(signals.map((item) => [text(item.title, ""), item]));
+    const rows = items
+      .map((item, index) => ({
+        item,
+        index,
+        signal: signalByTitle.get(newsTitle(item)) || signals[index] || {},
+      }))
+      .filter((entry) => newsMatchesFilter(entry.item, entry.signal, filter));
+
+    if (!rows.length) {
+      feed.innerHTML = `<p class="muted">No ${escapeHtml(filter)} news matched the current live feed.</p>`;
+      return 0;
+    }
+
+    feed.innerHTML = rows
+      .map((entry, visibleIndex) => newsCard(entry.item, visibleIndex, entry.signal, analysis?.related_symbols || []))
+      .join("");
+    return rows.length;
+  }
+
+  function setupNewsFilters(feed, items, analysis) {
+    const buttons = Array.from(document.querySelectorAll("#news .pill-group .pill"));
+    if (!buttons.length) return;
+
+    const applyFilter = (button) => {
+      const filter = text(button.dataset.newsFilter || button.textContent, "all").trim().toLowerCase();
+      buttons.forEach((item) => item.classList.add("pill--ghost"));
+      button.classList.remove("pill--ghost");
+      const count = renderNewsList(feed, items, analysis, filter);
+      setStatus("[data-api-status='news']", `Live terminal · ${count} ${filter} news · AI ${analysis ? "ready" : "unavailable"}`, !analysis);
+    };
+
+    buttons.forEach((button) => {
+      if (button.dataset.newsFilterReady === "true") return;
+      button.dataset.newsFilterReady = "true";
+      button.dataset.newsFilter = text(button.dataset.newsFilter || button.textContent, "all").trim().toLowerCase();
+      button.addEventListener("click", () => applyFilter(button));
+    });
+
+    const active = buttons.find((button) => !button.classList.contains("pill--ghost")) || buttons[0];
+    if (active) applyFilter(active);
+  }
+
   async function loadNewsFeed() {
     const feed = document.querySelector("[data-news-feed]");
     if (!feed) return;
@@ -217,12 +283,8 @@
         }
       }
       if (list.length) {
-        const signals = Array.isArray(analysis?.item_signals) ? analysis.item_signals : [];
-        const signalByTitle = new Map(signals.map((item) => [text(item.title, ""), item]));
-        feed.innerHTML = list.map((item, index) => {
-          const title = text(pick(item, ["news_title", "新闻标题", "标题", "title"], ""), "");
-          return newsCard(item, index, signalByTitle.get(title) || signals[index] || {}, analysis?.related_symbols || []);
-        }).join("");
+        renderNewsList(feed, list, analysis, "all");
+        setupNewsFilters(feed, list, analysis);
       }
       if (analysis) {
         const summary = document.querySelector(".panel--ai .ai-copy");
