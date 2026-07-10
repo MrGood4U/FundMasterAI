@@ -53,8 +53,10 @@
 
   const postMarket = (path, body = {}) => request(config.marketBaseUrl, path, { method: "POST", body });
   const publicFund = {
+    getOneRealTime: (body = {}) => postMarket("/api/market/fund_public/real_time_get_one", body),
     getRank: (body = {}) => postMarket("/api/market/fund_public/rank", { order_by: "change_1y", ...body }),
     getHist: (body = {}) => postMarket("/api/market/fund_public/hist", body),
+    getBasicInfo: (code) => postMarket("/api/market/fund_public/individual_basic_info", { code }),
     getDetailHold: (code, date) => postMarket("/api/market/fund_public/individual_detail_hold", { code, ...(date ? { date } : {}) }),
     getIndustryAllocation: (code, year) => postMarket("/api/market/fund_public/portfolio_industry_allocation", { code, ...(year ? { year } : {}) }),
     getStockHolds: (code, year) => postMarket("/api/market/fund_public/portfolio_hold_stock", { code, ...(year ? { year } : {}) }),
@@ -96,6 +98,12 @@
       getIndexList: () => postMarket("/api/market/global/index/list", {}),
       getExchangeRate: (fromCurrency, toCurrency) => postMarket("/api/market/global/exchange_rate/rate", { from_currency: fromCurrency, to_currency: toCurrency }),
       getExchangeRateHistory: (fromCurrency, toCurrency, queryDate) => postMarket("/api/market/global/exchange_rate/history", { from_currency: fromCurrency, to_currency: toCurrency, query_date: queryDate }),
+    },
+    macro: {
+      getCountries: () => postMarket("/api/market/macro/countries", {}),
+      getIndicators: (country) => postMarket("/api/market/macro/indicators", country ? { country } : {}),
+      getSchema: (country, indicator) => postMarket("/api/market/macro/schema", { country, indicator }),
+      getData: (body) => postMarket("/api/market/macro/data", body),
     },
     news: {
       getStockRecentNews: (body) => request(config.marketBaseUrl, "/api/news/stock/get_recent_news", { method: "POST", body }),
