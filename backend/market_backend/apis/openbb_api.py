@@ -228,14 +228,13 @@ class OpenBBAPI:
         end_date : str, optional
             结束日期 "YYYY-MM-DD"
         interval : str
-            K线周期，可选 "1d","1wk","1mo","1h","1m" 等
+            K线周期，可选 "1d","1mo","1h","1m" 等
         """
         try:
             # yfinance 和 OpenBB 的 interval 格式不同，做一层转换
             _INTERVAL_MAP = {
-                "1wk": "1W", 
-                "1mo": "1M", 
-                "3mo": "1Q",
+                "1mo": "1m", 
+                "5mo": "5m",
             }
             obb_interval = _INTERVAL_MAP.get(interval, interval)
 
