@@ -19,10 +19,10 @@ class MockPipelineTest(unittest.TestCase):
 
         self.assertEqual(payload.request_id, "mock-demo-001")
         self.assertEqual(payload.fund_info.code, "005827")
-        self.assertEqual(len(payload.nav_series), 5)
+        self.assertEqual(len(payload.nav_series), 30)
         self.assertIsNotNone(payload.analysis_window)
         self.assertIsNotNone(payload.benchmark)
-        self.assertEqual(len(payload.benchmark_nav_series), 5)
+        self.assertEqual(len(payload.benchmark_nav_series), 30)
         self.assertTrue(payload.industry_exposure)
         self.assertIsNotNone(payload.top_holdings_weight)
 

@@ -96,6 +96,13 @@ const RATING_TONE = {
   hold: "cyan",
   watch: "amber",
   avoid: "red",
+  insufficient_data: "amber",
+  unavailable: "red",
+};
+
+const RATING_LABEL = {
+  insufficient_data: "INSUFFICIENT DATA",
+  unavailable: "NOT RATED",
 };
 
 const STAGE_DEFS = [
@@ -262,11 +269,12 @@ function renderVerdict(payload) {
 
   const rating = String(analysis.overall_rating || "--").toLowerCase();
   const tone = RATING_TONE[rating] || "muted";
-  fields.overallRating.textContent = rating === "--" ? "--" : rating.toUpperCase();
+  fields.overallRating.textContent = rating === "--" ? "--" : (RATING_LABEL[rating] || rating.toUpperCase());
   fields.overallRating.className = `ai-rating-badge ai-rating-badge--${tone}`;
 
-  const score = Number(analysis.overall_score || 0);
-  fields.overallScore.textContent = score.toFixed(1);
+  const hasScore = analysis.overall_score !== null && analysis.overall_score !== undefined;
+  const score = hasScore ? Number(analysis.overall_score) : 0;
+  fields.overallScore.textContent = hasScore ? score.toFixed(1) : "—";
   fields.scoreFill.style.width = `${Math.max(0, Math.min(100, score))}%`;
   fields.scoreFill.className = `ai-scorebar__fill ai-scorebar__fill--${tone}`;
 
@@ -580,7 +588,20 @@ function renderAgents(payload) {
       const chips = el("div", "ai-agent-card__chips");
       chips.append(el("span", `ai-badge ai-badge--${stance.tone}`, stance.label));
       chips.append(el("span", "ai-badge ai-badge--muted", `${(Number(agent.confidence || 0) * 100).toFixed(0)}% conf`));
+      if ((agent.metadata || {}).narrative_source === "deterministic_fallback") {
+        chips.append(el("span", "ai-badge ai-badge--amber", "Narrative fallback"));
+      }
       button.append(chips);
+
+      if ((agent.metadata || {}).narrative_source === "deterministic_fallback") {
+        button.append(
+          el(
+            "p",
+            "ai-agent-card__note",
+            "The deterministic score was retained; the optional LLM explanation was unavailable."
+          )
+        );
+      }
 
       const points = (agent.key_points || []).slice(0, 2);
       if (points.length) {
@@ -592,7 +613,13 @@ function renderAgents(payload) {
       const chips = el("div", "ai-agent-card__chips");
       chips.append(el("span", "ai-badge ai-badge--red", "Failed"));
       button.append(chips);
-      button.append(el("p", "ai-agent-card__note", "This module hit an error; its score is excluded from the rating."));
+      button.append(
+        el(
+          "p",
+          "ai-agent-card__note",
+          "This module hit a technical error and its score was excluded. Check the overall coverage status to see whether a partial rating remains available."
+        )
+      );
     } else {
       const chips = el("div", "ai-agent-card__chips");
       chips.append(el("span", `ai-badge ai-badge--${stance.tone}`, stance.label));
@@ -664,6 +691,17 @@ function renderDevPanel(payload) {
     "llm_mode",
     "llm_model",
     "summary_source",
+    "analysis_status",
+    "rating_eligible",
+    "rating_scored_agent_count",
+    "rating_applicable_agent_count",
+    "rating_coverage_ratio",
+    "rating_expected_agents",
+    "rating_policy_issue_agents",
+    "min_rating_agent_count",
+    "min_rating_coverage_ratio",
+    "specialist_narrative_fallback_count",
+    "narrative_health",
     "prompt_version",
     "average_confidence",
     "quant_metrics_sample_size",
@@ -767,7 +805,15 @@ async function runAnalysis(event) {
       throw new Error(payload.message || `Request failed with ${response.status}`);
     }
     renderResult(payload);
-    setStatus("Complete");
+    if (payload.message === "success_with_partial_coverage") {
+      setStatus("Partial coverage", "warn");
+    } else if (payload.message === "insufficient_data") {
+      setStatus("Insufficient data", "warn");
+    } else if (payload.message === "analysis_incomplete") {
+      setStatus("Not rated", "warn");
+    } else {
+      setStatus("Complete");
+    }
   } catch (error) {
     renderFailure(error.message);
     setStatus("Error", "warn");

@@ -1,10 +1,12 @@
 from dataclasses import asdict, dataclass, field
 from typing import Dict, List
 
+from fund_llm import config
 from fund_llm.agents.base import score_to_stance
 from fund_llm.agents.chief_agent import _score_to_rating
 from fund_llm.contracts import FinalAnalysisResult, FundAnalysisInput
 from fund_llm.feature_builder import FeatureBuilder
+from fund_llm.rating_policy import assess_rating_coverage
 
 CORE_AGENT_NAMES = [
     "PerformanceAgent",
@@ -15,6 +17,10 @@ CORE_AGENT_NAMES = [
     "SectorAgent",
     "MarketAgent",
 ]
+
+RATED_RATINGS = {"buy", "hold", "watch", "avoid"}
+VALID_ANALYSIS_STATUSES = {"complete", "partial", "insufficient_data", "technical_error"}
+VALID_SKIPPED_STANCES = {"insufficient_data", "not_applicable"}
 
 
 @dataclass
@@ -85,16 +91,83 @@ def _make_check(
     )
 
 
+def _make_gate(
+    name: str,
+    passed: bool,
+    severity: str,
+    details: List[str],
+) -> EvaluationCheck:
+    """Build a non-scoring gate that can cap or fail the final evaluation."""
+
+    return EvaluationCheck(
+        name=name,
+        passed=passed,
+        severity=severity,
+        score_awarded=0,
+        max_score=0,
+        details=details,
+    )
+
+
+def _classify_agent_execution(features, agent_outputs):
+    successful = []
+    insufficient_data = []
+    not_applicable = []
+    technical_errors = []
+    invalid = []
+
+    for output in agent_outputs:
+        if output.status == "success":
+            successful.append(output)
+            continue
+
+        if output.status == "error":
+            technical_errors.append(output)
+            continue
+
+        if output.status != "skipped":
+            invalid.append(f"{output.agent_name} has unsupported status={output.status!r}.")
+            continue
+
+        if output.score is not None:
+            invalid.append(f"{output.agent_name} is skipped but still has score={output.score}.")
+            continue
+        if output.stance not in VALID_SKIPPED_STANCES:
+            invalid.append(
+                f"{output.agent_name} is skipped with unsupported stance={output.stance!r}."
+            )
+            continue
+        if output.stance == "insufficient_data":
+            insufficient_data.append(output)
+            continue
+
+        not_applicable.append(output)
+
+    return {
+        "successful": successful,
+        "insufficient_data": insufficient_data,
+        "not_applicable": not_applicable,
+        "technical_errors": technical_errors,
+        "invalid": invalid,
+    }
+
+
 def evaluate_analysis_result(payload: FundAnalysisInput, result: FinalAnalysisResult) -> EvaluationReport:
     features = FeatureBuilder().build(payload)
     checks: List[EvaluationCheck] = []
     result_texts = _strings_from_result(result)
     joined_result_text = _joined_text(result_texts)
     outputs_by_name = {output.agent_name: output for output in result.agent_outputs}
+    analysis_status = result.metadata.get("analysis_status", "complete")
+    execution = _classify_agent_execution(features, result.agent_outputs)
+    rating_coverage = assess_rating_coverage(features, result.agent_outputs)
 
     required_top_level = {
         "overall_rating": bool(result.overall_rating),
-        "overall_score": result.overall_score is not None,
+        "overall_score": (
+            result.overall_score is not None
+            or analysis_status in {"insufficient_data", "technical_error"}
+        ),
         "key_thesis": bool(result.key_thesis),
         "main_risks": bool(result.main_risks),
         "action_plan": bool(result.action_plan),
@@ -131,8 +204,28 @@ def evaluate_analysis_result(payload: FundAnalysisInput, result: FinalAnalysisRe
                 structure_details.append(f"{agent_name} is successful but has no narrative.")
             else:
                 structure_passed_units += 1
-        else:
+        elif (
+            output.status == "skipped"
+            and output.stance in VALID_SKIPPED_STANCES
+            and output.score is None
+        ):
             structure_passed_units += 3
+        elif output.status == "error":
+            structure_details.extend(
+                [
+                    f"{agent_name} ended in a technical error.",
+                    f"{agent_name} has no usable score because execution failed.",
+                    f"{agent_name} error output cannot satisfy normal narrative completeness.",
+                ]
+            )
+        else:
+            structure_details.extend(
+                [
+                    f"{agent_name} has an invalid status/score/stance combination.",
+                    f"{agent_name} does not provide a usable score.",
+                    f"{agent_name} does not satisfy the agent output contract.",
+                ]
+            )
     structure_total_units = len(required_top_level) + len(CORE_AGENT_NAMES) * 3
     checks.append(
         _make_check(
@@ -145,16 +238,189 @@ def evaluate_analysis_result(payload: FundAnalysisInput, result: FinalAnalysisRe
         )
     )
 
-    score_consistency_total = 2 + len([output for output in result.agent_outputs if output.status == "success"])
+    technical_error_count = len(execution["technical_errors"])
+    successful_count = rating_coverage.scored_count
+    applicable_count = rating_coverage.applicable_count
+    valid_score_ratio = rating_coverage.ratio
+    missing_core_agents = list(rating_coverage.missing_core_agent_names)
+    rating_quorum = rating_coverage.quorum_met
+    coverage_has_issues = bool(rating_coverage.policy_issue_agent_names)
+    rated_decision = (
+        result.overall_rating in RATED_RATINGS
+        and result.overall_score is not None
+    )
+    valid_abstention = (
+        analysis_status == "insufficient_data"
+        and result.overall_rating == "insufficient_data"
+        and result.overall_score is None
+        and not execution["technical_errors"]
+        and not execution["invalid"]
+    )
+    no_usable_score_failure = successful_count == 0 and not valid_abstention
+    critical_execution_failure = (
+        bool(execution["invalid"])
+        or no_usable_score_failure
+        or (
+            technical_error_count > 0
+            and technical_error_count * 2 > max(applicable_count, 1)
+        )
+    )
+    execution_health_passed = (
+        not execution["technical_errors"]
+        and not execution["invalid"]
+        and not no_usable_score_failure
+        and not coverage_has_issues
+    )
+    execution_details = []
+    if execution["technical_errors"]:
+        execution_details.append(
+            "Technical agent errors: "
+            + ", ".join(output.agent_name for output in execution["technical_errors"])
+        )
+    execution_details.extend(execution["invalid"])
+    if rating_coverage.missing_agent_names:
+        execution_details.append(
+            "Missing expected agent outputs: "
+            + ", ".join(rating_coverage.missing_agent_names)
+        )
+    if rating_coverage.duplicate_agent_names:
+        execution_details.append(
+            "Duplicate agent outputs excluded from rating coverage: "
+            + ", ".join(rating_coverage.duplicate_agent_names)
+        )
+    if rating_coverage.invalid_agent_names:
+        execution_details.append(
+            "Invalid scoring outputs excluded from rating coverage: "
+            + ", ".join(rating_coverage.invalid_agent_names)
+        )
+    if rating_coverage.unexpected_active_agent_names:
+        execution_details.append(
+            "Unexpected active outputs for routed-out agents: "
+            + ", ".join(rating_coverage.unexpected_active_agent_names)
+        )
+    if no_usable_score_failure:
+        execution_details.append(
+            "No usable successful agent score is available and the result is not a valid abstention."
+        )
+    if not execution_details:
+        execution_details.append(
+            "Agent execution is healthy; legitimate insufficient-data and not-applicable skips are allowed."
+        )
+    checks.append(
+        _make_gate(
+            name="agent_execution_health",
+            passed=execution_health_passed,
+            severity="critical" if critical_execution_failure else "high",
+            details=execution_details,
+        )
+    )
+
+    nav_point_count = features.data_quality_metrics.get("nav_point_count", 0)
+    low_sample = nav_point_count < config.MIN_NAV_POINTS_FOR_RATING
+    analysis_status_valid = analysis_status in VALID_ANALYSIS_STATUSES
+    rated_without_quorum = rated_decision and not rating_quorum
+    invalid_partial = analysis_status == "partial" and not (
+        rated_decision and rating_quorum
+    )
+    decision_eligibility_passed = (
+        analysis_status_valid
+        and (not low_sample or valid_abstention)
+        and not rated_without_quorum
+        and not invalid_partial
+    )
+    decision_eligibility_details = []
+    if not analysis_status_valid:
+        decision_eligibility_details.append(
+            f"Unsupported analysis_status={analysis_status!r}."
+        )
+    if low_sample and not valid_abstention:
+        decision_eligibility_details.append(
+            f"NAV sample has {nav_point_count} point(s), below the "
+            f"{config.MIN_NAV_POINTS_FOR_RATING}-point rating floor; the result must abstain with "
+            "analysis_status=insufficient_data, overall_rating=insufficient_data, and overall_score=None."
+        )
+    if rated_without_quorum:
+        quorum_failures = []
+        if missing_core_agents:
+            quorum_failures.append(
+                "core agent(s) not successful: " + ", ".join(missing_core_agents)
+            )
+        if successful_count < 3:
+            quorum_failures.append(
+                f"only {successful_count} valid score(s); at least "
+                f"{config.MIN_RATING_AGENT_COUNT} are required"
+            )
+        if not rating_coverage.meets_ratio:
+            quorum_failures.append(
+                f"valid-score coverage is {valid_score_ratio:.2%} "
+                f"({successful_count}/{applicable_count}); at least "
+                f"{config.MIN_RATING_COVERAGE_RATIO:.0%} is required"
+            )
+        decision_eligibility_details.append(
+            "A directional rating was published without aggregation quorum: "
+            + "; ".join(quorum_failures)
+            + "."
+        )
+    if invalid_partial and not rated_without_quorum:
+        decision_eligibility_details.append(
+            "analysis_status='partial' requires a four-tier rating, a non-null score, "
+            "successful PerformanceAgent and RiskAgent outputs, at least "
+            f"{config.MIN_RATING_AGENT_COUNT} valid scores, and at least "
+            f"{config.MIN_RATING_COVERAGE_RATIO:.0%} valid-score coverage."
+        )
+    if not decision_eligibility_details:
+        decision_eligibility_details.append(
+            "The final decision respects the minimum NAV sample and abstention policy."
+        )
+    checks.append(
+        _make_gate(
+            name="decision_eligibility",
+            passed=decision_eligibility_passed,
+            severity="critical",
+            details=decision_eligibility_details,
+        )
+    )
+
+    score_consistency_total = 2 + len(
+        [output for output in result.agent_outputs if output.status == "success"]
+    )
     score_consistency_passed = 0
     score_consistency_details = []
 
-    expected_rating = _score_to_rating(result.overall_score)
-    if result.overall_rating == expected_rating:
+    expected_rating = None
+    decision_is_consistent = False
+    if analysis_status == "complete":
+        if result.overall_score is not None and result.overall_rating in RATED_RATINGS:
+            expected_rating = _score_to_rating(result.overall_score)
+            decision_is_consistent = (
+                result.overall_rating == expected_rating
+                and not execution["technical_errors"]
+                and not coverage_has_issues
+            )
+    elif analysis_status == "partial":
+        if result.overall_score is not None and result.overall_rating in RATED_RATINGS:
+            expected_rating = _score_to_rating(result.overall_score)
+            decision_is_consistent = (
+                result.overall_rating == expected_rating and rating_quorum
+            )
+    elif analysis_status == "insufficient_data":
+        expected_rating = "insufficient_data"
+        decision_is_consistent = (
+            result.overall_rating == expected_rating and result.overall_score is None
+        )
+    elif analysis_status == "technical_error":
+        expected_rating = "unavailable"
+        decision_is_consistent = (
+            result.overall_rating == expected_rating and result.overall_score is None
+        )
+
+    if decision_is_consistent:
         score_consistency_passed += 1
     else:
         score_consistency_details.append(
-            f"overall_rating={result.overall_rating} does not match overall_score={result.overall_score:.2f}."
+            "Final decision fields are inconsistent: "
+            f"analysis_status={analysis_status!r}, overall_rating={result.overall_rating!r}, "
+            f"overall_score={result.overall_score!r}, expected_rating={expected_rating!r}."
         )
 
     success_count = len([output for output in result.agent_outputs if output.status == "success"])
@@ -357,9 +623,16 @@ def evaluate_analysis_result(payload: FundAnalysisInput, result: FinalAnalysisRe
     total_score = sum(check.score_awarded for check in checks)
     max_score = sum(check.max_score for check in checks)
     failed_checks = len([check for check in checks if not check.passed])
-    high_severity_failures = len([check for check in checks if not check.passed and check.severity == "high"])
+    critical_failures = len(
+        [check for check in checks if not check.passed and check.severity == "critical"]
+    )
+    high_severity_failures = len(
+        [check for check in checks if not check.passed and check.severity == "high"]
+    )
 
-    if total_score >= 85 and high_severity_failures == 0:
+    if critical_failures:
+        overall_status = "fail"
+    elif total_score >= 85 and high_severity_failures == 0:
         overall_status = "pass"
     elif total_score >= 60:
         overall_status = "review"

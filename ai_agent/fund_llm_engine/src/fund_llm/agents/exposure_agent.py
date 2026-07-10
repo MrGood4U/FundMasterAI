@@ -90,7 +90,21 @@ class ExposureAgent(BaseAgent):
             f"News summary: {features.news_summary}\n"
             "Please explain whether the exposure looks concentrated or diversified."
         )
-        narrative = self.llm_client.chat(system_prompt, user_prompt)
+        fallback_evidence = []
+        if has_industry_exposure:
+            fallback_evidence.append(f"industry concentration is {industry_concentration:.2%}")
+        if has_top_holdings:
+            fallback_evidence.append(f"top holdings weight is {top_holdings_weight:.2%}")
+        fallback_narrative = (
+            f"Deterministic exposure analysis scored {score:.1f}/100 with a {stance} stance; "
+            f"{' and '.join(fallback_evidence)}. The optional LLM explanation was unavailable; "
+            "the score and structured evidence remain valid."
+        )
+        narrative, narrative_metadata = self.explain_or_fallback(
+            system_prompt,
+            user_prompt,
+            fallback_narrative,
+        )
 
         key_points = [
             f"Industry concentration is {industry_concentration:.2%}.",
@@ -141,4 +155,5 @@ class ExposureAgent(BaseAgent):
             recommendations=recommendations,
             confidence=confidence,
             narrative=narrative,
+            metadata=narrative_metadata,
         )

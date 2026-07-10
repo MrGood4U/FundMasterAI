@@ -180,7 +180,9 @@ A1 交付说明：`POST /api/ai/portfolio/analyze` 已上线（合成净值 + �
 - Agent hardening 主体只改 `ai_agent/fund_llm_engine`，不动 backend 代码；
   如需支持联调页面展示或模型选择，可以同步更新 `frontend_new` 的 AI
   Insights 集成页。
-- 公开 API 返回结构保持向后兼容。可以增加可选字段，但不能破坏前端现有读取方式。
+- 正常可评级结果保持原有四档 rating 和数值 score；为避免用 0 分冒充 AVOID，
+  abstention 结果允许 `insufficient_data` / `unavailable` 与 `overall_score=null`，
+  前端和契约必须显式处理。
 - LLM 调用合并不在本期。多个 agent 是否合并成更少 LLM call，留给 Phase 2 或后续性能 / 成本评估。
 - agent score / overall score 标定不在本期。Phase 1.5 只处理工程可靠性，不重新定义评分体系。
 - 输出语言保持英文不变。香港大学毕设交付物要求英文，prompt 里的
@@ -195,6 +197,12 @@ A1 交付说明：`POST /api/ai/portfolio/analyze` 已上线（合成净值 + �
 - real-model run 已支持同一个 OpenAI-compatible API key / base URL 下通过
   `LLM_MODEL`、CLI `--model` 或 HTTP `llm_model` 切换不同模型；
 - 已跑通过 `deepseek-v4-flash` 和 `deepseek-v4-pro` 的真实 smoke test。
+- 已增加 30-NAV 最低评级门槛；低样本只返回结构化
+  `insufficient_data`，不发布 BUY/HOLD/WATCH/AVOID 或退化年化指标；
+- 已将 specialist 的 LLM explanation 与确定性评分解耦；provider 故障保留
+  score 并使用 narrative fallback；非核心计算错误在满足 P/R 核心、至少 3 分和
+  60% 适用 Agent 覆盖率时由 Chief 做 partial aggregation，否则停止发布评级；
+- evaluator / golden suite 已增加技术错误硬门禁，error-heavy 输出不能再以高分 PASS。
 
 剩余建议实现：
 

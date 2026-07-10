@@ -3,6 +3,7 @@ from statistics import mean
 from fund_llm import config
 from fund_llm.agents.base import merge_lists
 from fund_llm.contracts import AgentOutput, FinalAnalysisResult, FundFeaturePack
+from fund_llm.rating_policy import assess_rating_coverage
 
 
 def _score_to_rating(score: float) -> str:
@@ -45,6 +46,7 @@ def _build_score_explanation(
     skipped_outputs: list[AgentOutput],
     not_applicable_outputs: list[AgentOutput],
     error_outputs: list[AgentOutput],
+    applicable_count: int,
 ) -> str:
     if not successful_outputs:
         return (
@@ -71,6 +73,11 @@ def _build_score_explanation(
         f"{'; '.join(score_items)}."
     )
 
+    if applicable_count:
+        explanation += (
+            f" Rating coverage is {len(successful_outputs)}/{applicable_count} applicable specialist modules."
+        )
+
     if drag_items and support_items:
         explanation += (
             f" Strong contributors such as {', '.join(support_items)} are offset by weaker signals from "
@@ -95,10 +102,28 @@ def _build_score_explanation(
         )
     if error_outputs:
         explanation += (
-            f" {len(error_outputs)} module(s) failed and applied an additional score penalty."
+            f" {len(error_outputs)} module(s) failed and were excluded from financial scoring."
         )
 
     return explanation
+
+
+def _build_abstention_explanation(
+    overall_rating: str,
+    blockers: list[str],
+) -> str:
+    reason_text = "; ".join(blockers) if blockers else "rating eligibility requirements were not met"
+    if overall_rating == "unavailable":
+        return (
+            "No investment rating or overall score was published because a technical specialist failure "
+            f"made the aggregation incomplete: {reason_text}. Technical availability is not treated as "
+            "positive or negative investment evidence."
+        )
+    return (
+        "No investment rating or overall score was published because the available evidence was "
+        f"insufficient: {reason_text}. The system abstains instead of mapping missing evidence to "
+        "BUY, HOLD, WATCH, or AVOID."
+    )
 
 
 def _summary_looks_incomplete(summary: str) -> bool:
@@ -160,6 +185,29 @@ def _build_fallback_summary(
     )
 
 
+def _build_abstention_summary(
+    features: FundFeaturePack,
+    overall_rating: str,
+    blockers: list[str],
+    successful_outputs: list[AgentOutput],
+    skipped_outputs: list[AgentOutput],
+    error_outputs: list[AgentOutput],
+) -> str:
+    nav_points = features.data_quality_metrics.get("nav_point_count", 0)
+    reason_text = "; ".join(blockers) if blockers else "rating eligibility requirements were not met"
+    if overall_rating == "unavailable":
+        opening = "No investment rating was issued because the analysis is technically incomplete."
+    else:
+        opening = "No investment rating was issued because the available data is insufficient."
+    return (
+        f"{features.fund_info.name} ({features.fund_info.code}) was analysed with {nav_points} NAV observations. "
+        f"{opening} The blocking reason is: {reason_text}. "
+        f"{len(successful_outputs)} specialist score(s) completed, {len(skipped_outputs)} were skipped for "
+        f"missing data, and {len(error_outputs)} failed technically. Collect the missing evidence or restore "
+        "the failed module before using this analysis for an allocation decision."
+    )
+
+
 # 年化类指标需要足够长的净值历史才可靠。低于一年（约 252 个交易日）时，
 # Sharpe / Calmar 等会被显著放大，因此随结果一起暴露样本量和可靠性标签，
 # 让前端决定是否展示或加注，而不是直接把失真的数值当成可信结论。
@@ -185,6 +233,8 @@ def _build_quant_metrics(features: FundFeaturePack) -> dict:
     return_metrics = features.return_metrics
     risk_metrics = features.risk_metrics
     nav_point_count = features.data_quality_metrics.get("nav_point_count", 0)
+    if nav_point_count < config.MIN_NAV_POINTS_FOR_RATING:
+        return {"sample_size": float(nav_point_count)}
     metrics = {
         "total_return": return_metrics.get("total_return", 0.0),
         "annualized_return": return_metrics.get("annualized_return", 0.0),
@@ -207,9 +257,8 @@ class ChiefAgent:
         self.llm_client = llm_client
 
     def aggregate(self, features: FundFeaturePack, agent_outputs: list[AgentOutput]) -> FinalAnalysisResult:
-        successful_outputs = [
-            output for output in agent_outputs if output.status == "success" and output.score is not None
-        ]
+        rating_coverage = assess_rating_coverage(features, agent_outputs)
+        successful_outputs = list(rating_coverage.valid_outputs)
         not_applicable_outputs = [
             output for output in agent_outputs if output.status == "skipped" and output.stance == "not_applicable"
         ]
@@ -221,27 +270,71 @@ class ChiefAgent:
         error_outputs = [
             output
             for output in agent_outputs
-            if output not in successful_outputs
-            and output not in skipped_outputs
-            and output not in not_applicable_outputs
+            if output.status == "error"
+            or (
+                output not in successful_outputs
+                and output not in skipped_outputs
+                and output not in not_applicable_outputs
+            )
         ]
         valid_scores = [output.score for output in successful_outputs if output.score is not None]
         confidence_outputs = [output for output in agent_outputs if output not in not_applicable_outputs]
         average_confidence = mean([output.confidence for output in confidence_outputs]) if confidence_outputs else 0.0
+        nav_point_count = features.data_quality_metrics.get("nav_point_count", 0)
+        missing_core_agents = list(rating_coverage.missing_core_agent_names)
+        applicable_output_count = rating_coverage.applicable_count
+        scored_output_count = rating_coverage.scored_count
+        rating_coverage_ratio = rating_coverage.ratio
+        rating_policy_issue_names = list(rating_coverage.policy_issue_agent_names)
+        rating_blockers = []
+        if nav_point_count < config.MIN_NAV_POINTS_FOR_RATING:
+            rating_blockers.append(
+                f"{nav_point_count} NAV observations are below the minimum of "
+                f"{config.MIN_NAV_POINTS_FOR_RATING}"
+            )
+        if missing_core_agents:
+            rating_blockers.append(
+                "required rating agents did not produce scores: " + ", ".join(missing_core_agents)
+            )
+        if scored_output_count < config.MIN_RATING_AGENT_COUNT:
+            rating_blockers.append(
+                f"{scored_output_count} scored specialist module(s) are below the minimum of "
+                f"{config.MIN_RATING_AGENT_COUNT}"
+            )
+        if not rating_coverage.meets_ratio:
+            rating_blockers.append(
+                f"rating coverage {scored_output_count}/{applicable_output_count} "
+                f"({rating_coverage_ratio:.0%}) is below the minimum of "
+                f"{config.MIN_RATING_COVERAGE_RATIO:.0%}"
+            )
 
-        overall_score = mean(valid_scores) if valid_scores else 0.0
-        if error_outputs:
-            overall_score = max(0.0, overall_score - (len(error_outputs) * 3))
-        overall_score = round(overall_score, 2)
-        overall_rating = _score_to_rating(overall_score)
-        score_explanation = _build_score_explanation(
-            overall_rating,
-            overall_score,
-            successful_outputs,
-            skipped_outputs,
-            not_applicable_outputs,
-            error_outputs,
-        )
+        technical_coverage_issue = bool(error_outputs or rating_policy_issue_names)
+        if nav_point_count < config.MIN_NAV_POINTS_FOR_RATING:
+            analysis_status = "insufficient_data"
+        elif rating_blockers:
+            analysis_status = "technical_error" if technical_coverage_issue else "insufficient_data"
+        elif technical_coverage_issue or skipped_outputs:
+            analysis_status = "partial"
+        else:
+            analysis_status = "complete"
+
+        rating_eligible = analysis_status in {"complete", "partial"} and bool(valid_scores)
+        if rating_eligible:
+            overall_score = round(mean(valid_scores), 2)
+            overall_rating = _score_to_rating(overall_score)
+            score_explanation = _build_score_explanation(
+                overall_rating,
+                overall_score,
+                successful_outputs,
+                skipped_outputs,
+                not_applicable_outputs,
+                error_outputs,
+                applicable_output_count,
+            )
+        else:
+            overall_score = None
+            overall_rating = "unavailable" if analysis_status == "technical_error" else "insufficient_data"
+            score_explanation = _build_abstention_explanation(overall_rating, rating_blockers)
 
         client_risk_profile = features.extra_context.get("client_risk_profile", "")
         chief_key_points = []
@@ -264,7 +357,31 @@ class ChiefAgent:
 
         chief_risks = []
         if error_outputs:
-            chief_risks.append("One or more agent modules failed, so the final view is only partial.")
+            if rating_eligible:
+                chief_risks.append(
+                    f"{len(error_outputs)} specialist module(s) failed technically and were excluded; "
+                    f"the rating uses the remaining {scored_output_count}/{applicable_output_count} applicable scores."
+                )
+            else:
+                chief_risks.append(
+                    "One or more agent modules failed technically and the remaining coverage was too low, "
+                    "so no investment rating was published."
+                )
+        if rating_policy_issue_names:
+            chief_risks.append(
+                "Rating coverage has missing, duplicate, invalid, or routing-inconsistent Agent output(s): "
+                + ", ".join(rating_policy_issue_names)
+                + "."
+            )
+        if nav_point_count < config.MIN_NAV_POINTS_FOR_RATING:
+            chief_risks.append(
+                f"Only {nav_point_count} NAV observations were available; at least "
+                f"{config.MIN_NAV_POINTS_FOR_RATING} are required before publishing a rating."
+            )
+        if missing_core_agents and nav_point_count >= config.MIN_NAV_POINTS_FOR_RATING:
+            chief_risks.append(
+                "Required performance/risk scoring coverage is incomplete, so the system abstained."
+            )
         if skipped_outputs:
             chief_risks.append(
                 f"{len(skipped_outputs)} agent module(s) were skipped because required input data was unavailable."
@@ -294,6 +411,12 @@ class ChiefAgent:
             chief_actions.append(f"Match any allocation to a {client_risk_profile} risk profile.")
         if error_outputs:
             chief_actions.append("Re-run the analysis after the failed agent modules are restored.")
+        if rating_policy_issue_names:
+            chief_actions.append("Restore one valid output per expected Agent before relying on full coverage.")
+        if nav_point_count < config.MIN_NAV_POINTS_FOR_RATING:
+            chief_actions.append(
+                f"Collect at least {config.MIN_NAV_POINTS_FOR_RATING} NAV observations before requesting an investment rating."
+            )
         if skipped_outputs:
             chief_actions.append("Do not treat skipped agent outputs as neutral signals; collect the missing data first.")
         if features.missing_fields:
@@ -318,11 +441,15 @@ class ChiefAgent:
             f"[{output.agent_name}] status={output.status}, score={output.score}, stance={output.stance}, confidence={output.confidence:.2f}\n{output.narrative}"
             for output in agent_outputs
         )
+        overall_score_text = f"{overall_score:.2f}" if overall_score is not None else "not published"
         user_prompt = (
             f"Fund: {features.fund_info.name} ({features.fund_info.code})\n"
             f"Normalized fund type: {features.normalized_fund_type}\n"
-            f"Overall score: {overall_score:.2f}\n"
+            f"Overall score: {overall_score_text}\n"
             f"Overall rating: {overall_rating}\n"
+            f"Analysis status: {analysis_status}\n"
+            f"Rating coverage: {scored_output_count}/{applicable_output_count} "
+            f"({rating_coverage_ratio:.0%})\n"
             f"Average agent confidence: {average_confidence:.2f}\n"
             f"Error agent count: {len(error_outputs)}\n"
             f"Fund tags: {features.fund_tags}\n"
@@ -337,28 +464,53 @@ class ChiefAgent:
             "Please write a concise final summary in two short paragraphs."
         )
         summary_source = "llm"
-        try:
-            # 7 个 agent 报告拼进 prompt 后较长，放宽输出预算，
-            # 减少总评被截断而触发确定性回退的情况。
-            summary = self.llm_client.chat(system_prompt, user_prompt, max_tokens=1100)
-        except Exception:
-            summary = ""
-            summary_source = "deterministic_fallback"
+        if rating_eligible:
+            try:
+                # 7 个 agent 报告拼进 prompt 后较长，放宽输出预算，
+                # 减少总评被截断而触发确定性回退的情况。
+                summary = self.llm_client.chat(system_prompt, user_prompt, max_tokens=1100)
+            except Exception:
+                summary = ""
+                summary_source = "deterministic_fallback"
 
-        if (
-            not getattr(self.llm_client, "is_mock", False)
-            and _summary_looks_incomplete(summary)
-        ):
-            summary = _build_fallback_summary(
+            if (
+                not getattr(self.llm_client, "is_mock", False)
+                and _summary_looks_incomplete(summary)
+            ):
+                summary = _build_fallback_summary(
+                    features,
+                    overall_rating,
+                    overall_score,
+                    average_confidence,
+                    successful_outputs,
+                    skipped_outputs,
+                    error_outputs,
+                )
+                summary_source = "deterministic_fallback"
+        else:
+            summary = _build_abstention_summary(
                 features,
                 overall_rating,
-                overall_score,
-                average_confidence,
+                rating_blockers,
                 successful_outputs,
                 skipped_outputs,
                 error_outputs,
             )
-            summary_source = "deterministic_fallback"
+            summary_source = "deterministic_abstention"
+
+        specialist_narrative_fallback_count = len(
+            [
+                output
+                for output in successful_outputs
+                if output.metadata.get("narrative_source") == "deterministic_fallback"
+            ]
+        )
+        if error_outputs or skipped_outputs or rating_policy_issue_names:
+            agent_health = "partial"
+        elif specialist_narrative_fallback_count:
+            agent_health = "degraded"
+        else:
+            agent_health = "healthy"
 
         metadata = {
             "success_agent_count": str(len(successful_outputs)),
@@ -377,7 +529,20 @@ class ChiefAgent:
             ).lower(),
             "news_item_count": str(features.data_quality_metrics.get("news_item_count", 0)),
             "client_risk_profile": client_risk_profile,
-            "agent_health": "healthy" if not error_outputs and not skipped_outputs else "partial",
+            "agent_health": agent_health,
+            "analysis_status": analysis_status,
+            "rating_eligible": str(rating_eligible).lower(),
+            "rating_blockers": " | ".join(rating_blockers),
+            "min_nav_points_for_rating": str(config.MIN_NAV_POINTS_FOR_RATING),
+            "rating_scored_agent_count": str(scored_output_count),
+            "rating_applicable_agent_count": str(applicable_output_count),
+            "rating_coverage_ratio": f"{rating_coverage_ratio:.2f}",
+            "rating_expected_agents": ",".join(rating_coverage.expected_agent_names),
+            "rating_policy_issue_agents": ",".join(rating_policy_issue_names),
+            "min_rating_agent_count": str(config.MIN_RATING_AGENT_COUNT),
+            "min_rating_coverage_ratio": f"{config.MIN_RATING_COVERAGE_RATIO:.2f}",
+            "specialist_narrative_fallback_count": str(specialist_narrative_fallback_count),
+            "narrative_health": "fallback" if specialist_narrative_fallback_count else "llm",
             "fund_tags": ",".join(features.fund_tags[:3]),
             "summary_source": summary_source,
             "prompt_version": config.PROMPT_VERSION,

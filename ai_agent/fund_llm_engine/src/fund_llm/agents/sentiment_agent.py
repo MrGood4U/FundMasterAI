@@ -162,7 +162,17 @@ class SentimentAgent(BaseAgent):
             f"News items:\n{prompt_block}\n\n"
             "Please explain whether the recent news flow is supportive, mixed, or adverse for this fund."
         )
-        narrative = self.llm_client.chat(system_prompt, user_prompt)
+        fallback_narrative = (
+            f"Deterministic sentiment analysis scored {score:.1f}/100 with a {stance} stance after "
+            f"processing {news_signal_count} news signal(s): {positive_count} positive, "
+            f"{negative_count} negative, and {risk_event_count} containing risk-event language. "
+            "The optional LLM explanation was unavailable; the score and structured evidence remain valid."
+        )
+        narrative, narrative_metadata = self.explain_or_fallback(
+            system_prompt,
+            user_prompt,
+            fallback_narrative,
+        )
 
         key_points = []
         if not has_news_signal:
@@ -213,4 +223,5 @@ class SentimentAgent(BaseAgent):
             recommendations=recommendations,
             confidence=confidence,
             narrative=narrative,
+            metadata=narrative_metadata,
         )

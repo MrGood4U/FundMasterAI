@@ -1005,6 +1005,46 @@ cd ai_agent/fund_llm_engine
 .venv/bin/python scripts/run_golden_suite.py --mode mock
 ```
 
+### 2026-07-10 - Separate data, provider, and technical failures from investment ratings
+
+Goal:
+
+- Prevent tiny NAV samples or infrastructure failures from being translated into
+  BUY/HOLD/WATCH/AVOID, and make the evaluator reject error-heavy outputs.
+
+Actual changes:
+
+- Added a 30-NAV publication floor. `PerformanceAgent` and `RiskAgent` return
+  `skipped + insufficient_data` below the floor; Chief returns
+  `overall_rating=insufficient_data` and `overall_score=null` and suppresses
+  degenerate annualized metric tiles.
+- Specialist LLM calls now use `explain_or_fallback()`. Provider/empty-response
+  failures retain deterministic scores and expose
+  `metadata.narrative_source=deterministic_fallback`; only deterministic
+  calculation failures become Agent errors.
+- Removed the `-3 per error` financial penalty. A non-core specialist error is
+  excluded and the remaining scores can still produce
+  `analysis_status=partial` when Performance/Risk, at least 3 scores, and 60%
+  applicable-agent coverage remain. Core failure or sub-quorum coverage returns
+  `overall_rating=unavailable` with a null score.
+- Quorum uses the fixed fund-routing expectation rather than the returned list
+  length: missing/skipped/error outputs remain in the denominator, only routed
+  `not_applicable` agents are removed, and duplicate/non-finite/out-of-range
+  scores cannot inflate coverage.
+- Added evaluator and golden-suite execution-health gates. Technical errors can
+  no longer receive automatic structure credit or an overall PASS; legal
+  `insufficient_data` and `not_applicable` skips remain valid.
+- Updated the AI Insights UI to show `INSUFFICIENT DATA` / `NOT RATED`, hide null
+  scores, and distinguish a narrative fallback from a scoring failure.
+
+Verification:
+
+```bash
+cd ai_agent/fund_llm_engine
+.venv/bin/python -m unittest discover -s tests  # 229 passed
+.venv/bin/python scripts/run_golden_suite.py --mode mock  # 8/8 passed
+```
+
 ## Handoff Notes For Future AI
 
 - Do not infer implemented status from proposal, plan, or report wording alone.

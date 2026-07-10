@@ -377,7 +377,7 @@ GET /api/ai/llm/models
 | `code` | integer | 应用层状态码。成功时为 `200`。 |
 | `data` | object | `FinalAnalysisResult`，前端主分析内容从这里渲染。 |
 | `coverage` | object | 本次分析的数据覆盖情况和后端数据来源摘要。 |
-| `message` | string | 人类可读的状态说明。 |
+| `message` | string | 状态说明：`success`、`success_with_narrative_fallback`、`success_with_partial_coverage`、`insufficient_data` 或 `analysis_incomplete`。 |
 
 ## `data`: FinalAnalysisResult
 
@@ -386,8 +386,8 @@ GET /api/ai/llm/models
 | 字段 | 类型 | 稳定 | 说明 |
 |---|---:|---:|---|
 | `request_id` | string | 是 | 本次分析的内部请求 id。 |
-| `overall_rating` | string | 是 | 最终评级，例如 `buy`、`hold`、`watch`、`avoid`。 |
-| `overall_score` | number | 是 | 最终 0-100 分。 |
+| `overall_rating` | string | 是 | 可发布评级时为 `buy` / `hold` / `watch` / `avoid`；数据不足时为 `insufficient_data`；技术执行不完整时为 `unavailable`。 |
+| `overall_score` | number \| null | 是 | 可发布评级时为最终 0-100 分；系统 abstain 时为 `null`，不会用 0 分冒充 AVOID。 |
 | `summary` | string | 是 | 最终综合分析摘要。 |
 | `score_explanation` | string | 是 | 用确定性文本解释最终评分和评级怎么来的。 |
 | `key_thesis` | string[] | 是 | 主要支持理由或核心判断。 |
@@ -400,6 +400,18 @@ GET /api/ai/llm/models
 | `quant_metrics` | object | 是 | 只依赖净值的量化指标（收益、波动率、Sharpe 等），前端可直接做指标卡。 |
 
 前端应当忽略自己不认识的额外字段，不要因为新增字段而报错。
+
+### 评级资格 metadata
+
+| key | 含义 |
+|---|---|
+| `analysis_status` | `complete`、`partial`、`insufficient_data` 或 `technical_error`。 |
+| `rating_eligible` | 当前结果是否满足发布四档评级的门槛。 |
+| `rating_scored_agent_count` / `rating_applicable_agent_count` | 有效评分数和路由后的适用 Agent 总数。 |
+| `rating_coverage_ratio` | 两者之比；当前最低门槛为 0.60。 |
+| `rating_expected_agents` | 本基金类型应进入 coverage 分母的固定 Agent 名称。 |
+| `rating_policy_issue_agents` | 缺失、重复、非法分数或与路由冲突的 Agent 名称。 |
+| `rating_blockers` | 未发布评级时的硬阻断原因。 |
 
 ## `data.quant_metrics`
 
@@ -420,7 +432,8 @@ GET /api/ai/llm/models
 | `sample_size` | number | 计算这些指标所用的净值点数量，用于判断年化指标是否基于足够样本。 |
 
 `excess_return` 属于需要基准数据的 B 类指标，只有传入 `benchmark_nav_series` 时才会出现，
-没有基准时不会伪造该字段。其余字段只要有净值就会返回。依赖个股交易记录的指标（如成交胜率、
+没有基准时不会伪造该字段。低于 30 个 NAV 点时只返回 `sample_size`，不向前端暴露退化的年化、
+波动率或 Sharpe 数值。依赖个股交易记录的指标（如成交胜率、
 盈亏比）和个股估值指标（如 PE/PB）不属于这里，因为基金作为被分析标的没有这些原料。
 
 ### 样本量与可靠性
@@ -431,7 +444,7 @@ GET /api/ai/llm/models
 - `data.quant_metrics.sample_size`：本次使用的净值点数量。
 - `data.metadata.quant_metrics_sample_size`：同一数量的字符串形式。
 - `data.metadata.quant_metrics_reliability`：可靠性标签，取值 `high`（≥252 点）、
-  `medium`（≥120 点）、`low`（更少）。
+  `medium`（≥120 点）、`low`（30-119 点）。低于 30 点时不发布评级或量化指标。
 
 前端建议在 `reliability` 为 `medium` 或 `low` 时，对年化指标加“样本不足”提示或弱化展示，
 而不是直接把可能失真的数值当成可信结论。指标值本身不会被改写，只附带可靠性说明。
@@ -452,6 +465,7 @@ GET /api/ai/llm/models
 | `risks` | string[] | 否 | 该 Agent 发现的风险或限制。 |
 | `recommendations` | string[] | 否 | 该 Agent 给出的建议。 |
 | `narrative` | string | 否 | LLM 或确定性逻辑生成的 Agent 说明文本。 |
+| `metadata` | object | 否 | Agent 级执行元数据。`narrative_source` 为 `llm` 或 `deterministic_fallback`。 |
 
 ### 当前 Agent 名称
 
@@ -501,6 +515,19 @@ percentile 表示优于百分之多少的同类基金）和持有期盈利概率
 
 前端不要把 `skipped + insufficient_data` 或 `skipped + not_applicable`
 当成 `error`。它们是“谨慎跳过”，不是“系统坏了”。
+
+LLM 解释失败不属于 Agent `error`：确定性评分、stance、confidence 和结构化证据仍然保留为
+`status=success`，同时 `metadata.narrative_source=deterministic_fallback`。只有确定性计算本身失败
+才返回 `error + score=null`，且不会按错误数量扣金融分。
+
+Chief 使用故障隔离 quorum：`PerformanceAgent` 与 `RiskAgent` 必须成功，同时至少有 3 个有效分数，
+有效分数覆盖除 `not_applicable` 外 Agent 的比例不得低于 60%。单个非核心 error 在满足 quorum 时会被
+排除并继续发布四档评级，`analysis_status=partial`；核心 Agent 失败或覆盖率不足时才返回
+`overall_rating=unavailable`、`overall_score=null`。
+
+覆盖率分母来自基金类型路由后的固定预期 Agent 集合，而不是实际返回数组长度：缺失 output、
+`skipped + insufficient_data` 和 `error` 都仍占分母；只有路由确认的 `not_applicable` 会移出分母。
+重复 Agent、未知 Agent 以及非有限或越界 score 不能用来凑 quorum。
 
 ## `analysis_trace`: AnalysisTraceEvent
 

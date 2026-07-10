@@ -286,6 +286,7 @@ class AgentOutput:
     recommendations: List[str]
     confidence: float
     narrative: str
+    metadata: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, payload: Dict[str, Any]) -> "AgentOutput":
@@ -301,6 +302,10 @@ class AgentOutput:
             recommendations=[str(item) for item in payload.get("recommendations", [])],
             confidence=float(payload.get("confidence", 0.0)),
             narrative=str(payload.get("narrative", "")),
+            metadata={
+                str(key): str(value)
+                for key, value in (payload.get("metadata") or {}).items()
+            },
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -479,7 +484,7 @@ class PortfolioAnalysisResult:
 class FinalAnalysisResult:
     request_id: str
     overall_rating: str
-    overall_score: float
+    overall_score: Optional[float]
     key_thesis: List[str]
     main_risks: List[str]
     action_plan: List[str]
@@ -497,7 +502,11 @@ class FinalAnalysisResult:
         return cls(
             request_id=str(payload.get("request_id", "")),
             overall_rating=str(payload.get("overall_rating", "")),
-            overall_score=float(payload.get("overall_score", 0.0)),
+            overall_score=(
+                float(payload["overall_score"])
+                if payload.get("overall_score") is not None
+                else None
+            ),
             key_thesis=[str(item) for item in payload.get("key_thesis", [])],
             main_risks=[str(item) for item in payload.get("main_risks", [])],
             action_plan=[str(item) for item in payload.get("action_plan", [])],

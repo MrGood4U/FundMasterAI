@@ -141,7 +141,21 @@ class BondExposureAgent(BaseAgent):
             f"Missing fields: {features.missing_fields}\n"
             "Please explain whether the fixed-income exposure is diversified, concentrated, or incomplete."
         )
-        narrative = self.llm_client.chat(system_prompt, user_prompt)
+        fallback_evidence = []
+        if has_bond_holdings:
+            fallback_evidence.append(f"{holding_count} disclosed bond holding(s)")
+        if has_asset_allocation:
+            fallback_evidence.append(f"{allocation_count} asset-allocation bucket(s)")
+        fallback_narrative = (
+            f"Deterministic bond-exposure analysis scored {score:.1f}/100 with a {stance} stance "
+            f"using {' and '.join(fallback_evidence)}. The optional LLM explanation was unavailable; "
+            "the score and structured evidence remain valid."
+        )
+        narrative, narrative_metadata = self.explain_or_fallback(
+            system_prompt,
+            user_prompt,
+            fallback_narrative,
+        )
 
         key_points = []
         if has_bond_holdings:
@@ -210,4 +224,5 @@ class BondExposureAgent(BaseAgent):
             recommendations=recommendations,
             confidence=confidence,
             narrative=narrative,
+            metadata=narrative_metadata,
         )
