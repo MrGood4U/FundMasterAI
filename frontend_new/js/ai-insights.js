@@ -207,6 +207,78 @@ function listItems(node, items) {
   items.forEach((item) => node.append(el("li", null, plainText(item))));
 }
 
+
+function resetResultState() {
+  lastPayload = null;
+
+  fields.overallRating.textContent = "--";
+  fields.overallRating.className = "ai-rating-badge";
+  fields.overallScore.textContent = "--";
+  fields.scoreFill.style.width = "0%";
+  fields.scoreFill.className = "ai-scorebar__fill";
+
+  fields.reliabilityBadge.hidden = true;
+  fields.reliabilityBadge.textContent = "";
+  fields.reliabilityBadge.className = "ai-badge";
+  fields.confidenceBadge.hidden = true;
+  fields.confidenceBadge.textContent = "";
+  fields.confidenceBadge.className = "ai-badge";
+
+  fields.fundName.textContent = "Run an analysis to load fund data";
+  fields.fundMeta.textContent = "";
+  fields.summary.textContent = "Run analysis to generate a grounded multi-agent summary.";
+  fields.scoreExplanation.textContent =
+    "Run analysis to see how specialist scores shaped the final rating.";
+  listItems(fields.keyThesis, []);
+  listItems(fields.mainRisks, []);
+  listItems(fields.actionPlan, []);
+
+  fields.quantMetrics.innerHTML = "";
+  fields.quantMetrics.append(
+    el(
+      "p",
+      "ai-placeholder",
+      "Run an analysis to compute return and risk metrics from real NAV history."
+    )
+  );
+  fields.metricsNote.textContent =
+    "Metrics are computed deterministically from NAV data — the LLM only explains them.";
+
+  fields.pipelineStages.querySelectorAll(".ai-stage").forEach((node) => {
+    node.className = "ai-stage ai-stage--idle";
+    const stat = node.querySelector(".ai-stage__stat");
+    if (stat) stat.textContent = "waiting";
+  });
+  fields.stageDrawer.hidden = true;
+  fields.stageDrawer.innerHTML = "";
+  delete fields.stageDrawer.dataset.openStage;
+
+  fields.agentGrid.innerHTML = "";
+  fields.agentGrid.append(
+    el(
+      "p",
+      "ai-placeholder",
+      "Each specialist agent audits one perspective and can refuse when its data is missing."
+    )
+  );
+  fields.agentDrawer.hidden = true;
+  fields.agentDrawer.innerHTML = "";
+  delete fields.agentDrawer.dataset.openAgent;
+  fields.agentCount.textContent = "idle";
+
+  fields.runId.textContent = "no run yet";
+  fields.devCoverage.innerHTML = "";
+  fields.devCoverage.append(coverageCell("Status", "Run an analysis first."));
+  fields.devMetadata.innerHTML = "";
+  fields.devMetadata.append(el("li", null, "Run an analysis first."));
+  fields.technicalEvidence.innerHTML = "";
+  fields.technicalEvidence.append(
+    el("li", null, "No backend or agent trace has been recorded yet.")
+  );
+  const technicalDetails = fields.technicalEvidence.closest("details");
+  if (technicalDetails) technicalDetails.open = false;
+}
+
 /* ------------------------------------------------------------------ */
 /* 模型目录（Run settings）                                             */
 /* ------------------------------------------------------------------ */
@@ -329,6 +401,11 @@ function renderQuantMetrics(payload) {
     fields.quantMetrics.append(
       el("p", "ai-placeholder", "No NAV-based metrics were returned for this run.")
     );
+    const sample = Number(metrics.sample_size || 0);
+    const reliability = metadata.quant_metrics_reliability || "unknown";
+    fields.metricsNote.textContent = sample
+      ? `Only ${sample} NAV points this run — annualized metrics withheld (${reliability} reliability).`
+      : "No NAV points were available this run — annualized metrics withheld.";
     return;
   }
 
@@ -742,35 +819,26 @@ function renderResult(payload) {
 }
 
 function renderFailure(message) {
+  resetResultState();
   fields.fundName.textContent = "Analysis failed";
   fields.fundMeta.textContent = message;
-  fields.overallRating.textContent = "--";
-  fields.overallRating.className = "ai-rating-badge";
-  fields.overallScore.textContent = "--";
-  fields.scoreFill.style.width = "0%";
-  fields.reliabilityBadge.hidden = true;
-  fields.confidenceBadge.hidden = true;
   fields.summary.textContent = message;
   fields.scoreExplanation.textContent = "No rating explanation available because the analysis request failed.";
-  listItems(fields.keyThesis, []);
-  listItems(fields.mainRisks, []);
-  listItems(fields.actionPlan, []);
   fields.quantMetrics.innerHTML = "";
   fields.quantMetrics.append(el("p", "ai-placeholder", "No metrics — the analysis request failed."));
+  fields.metricsNote.textContent = "No metrics were computed because this analysis request failed.";
   fields.pipelineStages.querySelectorAll(".ai-stage").forEach((node) => {
-    node.className = "ai-stage ai-stage--idle";
     const stat = node.querySelector(".ai-stage__stat");
     if (stat) stat.textContent = "not run";
   });
-  fields.stageDrawer.hidden = true;
   fields.agentGrid.innerHTML = "";
   fields.agentGrid.append(el("p", "ai-placeholder", message));
-  fields.agentDrawer.hidden = true;
   fields.agentCount.textContent = "failed";
 }
 
 async function runAnalysis(event) {
   event.preventDefault();
+  resetResultState();
   setStatus("Running…");
   if (fields.submitBtn) fields.submitBtn.disabled = true;
 
