@@ -1811,7 +1811,7 @@ FUNCTIONS = [
                 },
                 "period": {
                     "type": "string",
-                    "description": "预定义数据周期（与 start_date/end_date 互斥）。1d=1天, 5d=5天, 1mo=1月, 3mo=3月, 6mo=6月, 1y=1年, 2y=2年, 5y=5年, 10y=10年, ytd=年初至今, max=全部",
+                    "description": "预定义数据周期（与 start_date/end_date 互斥）。1d=1天, 5d=5天, 1mo=1月, 3mo=3月, 6mo=6月, 1y=1年, 2y=2年, 5y=5年, 10y=10年, ytd=年初至今, max=全部", 
                     "enum": ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"],
                 },
                 "start_date": {
@@ -1824,8 +1824,8 @@ FUNCTIONS = [
                 },
                 "interval": {
                     "type": "string",
-                    "description": "K线周期，默认 1d",
-                    "enum": ["1d", "1wk", "1mo", "1h", "1m"],
+                    "description": "K线周期，默认 1d, 其中fmp数据源仅支持 1m, 5m, 1h, 1d",
+                    "enum": ["1d", "1mo", "1h", "1m", "5m"],
                 },
             },
             "required": ["ticker"],

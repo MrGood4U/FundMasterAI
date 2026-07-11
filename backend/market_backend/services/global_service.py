@@ -5,6 +5,7 @@ from typing import Optional, List, Dict, Any
 import pandas as pd
 
 from apis.forex_api import ForexAPI
+from apis.openbb_api import OpenBBAPI
 from apis.yfinance_api import YFinanceAPI
 from daos.cache_dao import CacheDao
 
@@ -17,6 +18,7 @@ class GlobalService:
     def __init__(self):
         self.forex = ForexAPI()
         self.yf = YFinanceAPI()
+        self.obb = OpenBBAPI()
         self.cache = CacheDao.from_config()
 
     # ==================================================================
@@ -73,48 +75,94 @@ class GlobalService:
     # ==================================================================
 
     def get_index_quote(self, ticker: str) -> Optional[Dict[str, Any]]:
-        """获取单个全球指数的最新行情"""
+        """获取单个全球指数的最新行情（OpenBB 优先，失败时用 yfinance 兜底）"""
+        ticker_upper = ticker.upper()
         try:
-            return self.yf.get_index_quote(ticker.upper())
+            result = self.obb.get_index_quote(ticker_upper)
+            if result is not None:
+                return result
         except Exception as e:
-            logger.warning("GlobalService.get_index_quote(%s) failed: %s", ticker, e)
+            logger.warning("GlobalService.get_index_quote(%s) OpenBB failed: %s", ticker_upper, e)
+
+        # yfinance 兜底
+        try:
+            logger.info("GlobalService.get_index_quote(%s) falling back to yfinance", ticker_upper)
+            return self.yf.get_index_quote(ticker_upper)
+        except Exception as e:
+            logger.warning("GlobalService.get_index_quote(%s) yfinance also failed: %s", ticker_upper, e)
             return None
 
     def get_index_info(self, ticker: str) -> Optional[Dict[str, Any]]:
-        """获取单个全球指数的详细信息"""
+        """获取单个全球指数的详细信息（OpenBB 优先，失败时用 yfinance 兜底）"""
+        ticker_upper = ticker.upper()
         try:
-            return self.yf.get_index_info(ticker.upper())
+            result = self.obb.get_index_info(ticker_upper)
+            if result is not None:
+                return result
         except Exception as e:
-            logger.warning("GlobalService.get_index_info(%s) failed: %s", ticker, e)
+            logger.warning("GlobalService.get_index_info(%s) OpenBB failed: %s", ticker_upper, e)
+
+        # yfinance 兜底
+        try:
+            logger.info("GlobalService.get_index_info(%s) falling back to yfinance", ticker_upper)
+            return self.yf.get_index_info(ticker_upper)
+        except Exception as e:
+            logger.warning("GlobalService.get_index_info(%s) yfinance also failed: %s", ticker_upper, e)
             return None
 
     def get_multiple_quotes(self, tickers: List[str]) -> List[Dict[str, Any]]:
-        """批量获取多个全球指数的最新行情"""
+        """批量获取多个全球指数的最新行情（OpenBB 优先，失败时用 yfinance 兜底）"""
+        upper_tickers = [t.upper() for t in tickers]
         try:
-            return self.yf.get_multiple_quotes([t.upper() for t in tickers])
+            result = self.obb.get_multiple_quotes(upper_tickers)
+            if result and result != []:
+                return result
         except Exception as e:
-            logger.warning("GlobalService.get_multiple_quotes(%s) failed: %s", tickers, e)
+            logger.warning("GlobalService.get_multiple_quotes(%s) OpenBB failed: %s", upper_tickers, e)
+
+        # yfinance 兜底
+        try:
+            logger.info("GlobalService.get_multiple_quotes(%s) falling back to yfinance", upper_tickers)
+            return self.yf.get_multiple_quotes(upper_tickers)
+        except Exception as e:
+            logger.warning("GlobalService.get_multiple_quotes(%s) yfinance also failed: %s", upper_tickers, e)
             return []
 
     def get_index_hist(self, ticker: str, period: str = "1mo",
                        start_date: Optional[str] = None,
                        end_date: Optional[str] = None,
                        interval: str = "1d") -> List[Dict[str, Any]]:
-        """获取全球指数的历史K线数据"""
+        """获取全球指数的历史K线数据（OpenBB 优先，失败时用 yfinance 兜底）"""
+        ticker_upper = ticker.upper()
         try:
+            df = self.obb.get_index_hist(
+                ticker_upper, period=period,
+                start_date=start_date, end_date=end_date, interval=interval,
+            )
+            if df is not None and not df.empty:
+                return df.to_dict(orient="records")
+        except Exception as e:
+            logger.warning("GlobalService.get_index_hist(%s) OpenBB failed: %s", ticker_upper, e)
+
+        # yfinance 兜底
+        try:
+            logger.info("GlobalService.get_index_hist(%s) falling back to yfinance", ticker_upper)
             df = self.yf.get_index_hist(
-                ticker.upper(), period=period,
+                ticker_upper, period=period,
                 start_date=start_date, end_date=end_date, interval=interval,
             )
             if df is None or df.empty:
                 return []
             return df.to_dict(orient="records")
         except Exception as e:
-            logger.warning("GlobalService.get_index_hist(%s) failed: %s", ticker, e)
+            logger.warning("GlobalService.get_index_hist(%s) yfinance also failed: %s", ticker_upper, e)
             return []
 
     def get_index_rank(self) -> List[Dict[str, Any]]:
-        """获取所有全球指数的涨跌幅排行（change_pct 从高到低，优先读缓存）"""
+        """获取所有全球指数的涨跌幅排行（change_pct 从高到低，优先读缓存）
+
+        数据源优先级: 缓存 → OpenBB → yfinance
+        """
         cache_key = "global:index:rank"
         try:
             df = self.cache.get_df(cache_key)
@@ -123,7 +171,21 @@ class GlobalService:
         except Exception as e:
             logger.warning("GlobalService.get_index_rank() cache read failed: %s", e)
 
+        # 优先 OpenBB
         try:
+            data = self.obb.get_all_indices_ranked()
+            if data:
+                try:
+                    self.cache.set_df(cache_key, pd.DataFrame(data))
+                except Exception:
+                    pass
+                return data
+        except Exception as e:
+            logger.warning("GlobalService.get_index_rank() OpenBB failed: %s", e)
+
+        # yfinance 兜底
+        try:
+            logger.info("GlobalService.get_index_rank() falling back to yfinance")
             data = self.yf.get_all_indices_ranked()
             if data:
                 try:
@@ -132,7 +194,7 @@ class GlobalService:
                     pass
             return data
         except Exception as e:
-            logger.warning("GlobalService.get_index_rank() API call failed: %s", e)
+            logger.warning("GlobalService.get_index_rank() yfinance also failed: %s", e)
             return []
 
     def get_supported_indices(self) -> List[Dict[str, str]]:
