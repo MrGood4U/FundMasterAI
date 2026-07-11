@@ -288,14 +288,7 @@ function renderVerdict(payload) {
     fields.reliabilityBadge.hidden = true;
   }
 
-  const confidence = Number(metadata.average_confidence || 0);
-  if (confidence > 0) {
-    fields.confidenceBadge.hidden = false;
-    fields.confidenceBadge.textContent = `avg confidence ${(confidence * 100).toFixed(0)}%`;
-    fields.confidenceBadge.className = "ai-badge ai-badge--cyan";
-  } else {
-    fields.confidenceBadge.hidden = true;
-  }
+  fields.confidenceBadge.hidden = true;
 
   fields.fundName.textContent = coverage.fund_name || fields.fundCode.value.trim() || "Unknown fund";
   const metaParts = [
