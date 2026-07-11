@@ -1,33 +1,39 @@
-import re
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
+from fund_llm.ratios import (
+    canonical_fraction,
+    normalize_backend_holding,
+    to_finite_float,
+)
+
 
 def _coerce_float(value: Any) -> Optional[float]:
-    if value is None or value == "":
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    text = str(value).strip().replace(",", "")
-    match = re.search(r"-?\d+(?:\.\d+)?", text)
-    if not match:
-        return None
-    return float(match.group(0))
+    return to_finite_float(value)
 
 
 def _coerce_fraction(value: Any) -> Optional[float]:
-    number = _coerce_float(value)
-    if number is None:
-        return None
-    if (isinstance(value, str) and "%" in value) or abs(number) > 1.0:
-        return number / 100.0
-    return number
+    return canonical_fraction(value)
 
 
 def _dicts_from_list(value: Any) -> List[Dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [dict(item) for item in value if isinstance(item, dict)]
+
+
+def _holding_records_from_payload(value: Any) -> List[Dict[str, Any]]:
+    """Normalize external holding percentages into explicit internal fractions."""
+
+    normalized = []
+    for row in _dicts_from_list(value):
+        if "weight_fraction" in row:
+            copied = dict(row)
+            copied["weight_fraction"] = canonical_fraction(row.get("weight_fraction"))
+        else:
+            copied = normalize_backend_holding(row)
+        normalized.append(copied)
+    return normalized
 
 
 def _records_from_payload(value: Any) -> List[Dict[str, Any]]:
@@ -41,15 +47,22 @@ def _records_from_payload(value: Any) -> List[Dict[str, Any]]:
     return _dicts_from_list(value)
 
 
-def _fraction_dict_from_payload(value: Any) -> Dict[str, float]:
+def _fraction_dict_from_payload_with_invalid_count(
+    value: Any,
+) -> tuple[Dict[str, float], int]:
+    """Parse a canonical fraction map without losing malformed source rows."""
+
     if not isinstance(value, dict):
-        return {}
+        return {}, int(value not in (None, ""))
     normalized = {}
+    invalid_count = 0
     for key, raw_value in value.items():
         number = _coerce_fraction(raw_value)
-        if number is not None:
+        if key and number is not None:
             normalized[str(key)] = number
-    return normalized
+        else:
+            invalid_count += 1
+    return normalized, invalid_count
 
 
 @dataclass
@@ -82,9 +95,12 @@ class NavPoint:
 
     @classmethod
     def from_dict(cls, payload: Dict[str, Any]) -> "NavPoint":
+        nav = _coerce_float(payload.get("nav"))
+        if nav is None or nav <= 0:
+            raise ValueError("NAV values must be finite and positive.")
         return cls(
             date=str(payload.get("date", "")),
-            nav=float(payload.get("nav", 0.0)),
+            nav=nav,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -193,10 +209,22 @@ class FundAnalysisInput:
     fund_tags: List[str] = field(default_factory=list)
     operational_metrics: FundOperationalMetrics = field(default_factory=FundOperationalMetrics)
     extra_context: Dict[str, str] = field(default_factory=dict)
+    # Appended to preserve compatibility for any older positional construction.
+    invalid_asset_allocation_count: int = 0
 
     @classmethod
     def from_dict(cls, payload: Dict[str, Any]) -> "FundAnalysisInput":
         payload = payload or {}
+        asset_allocation, parsed_invalid_asset_count = (
+            _fraction_dict_from_payload_with_invalid_count(payload.get("asset_allocation"))
+        )
+        reported_invalid_asset_count = _coerce_float(
+            payload.get("invalid_asset_allocation_count")
+        )
+        invalid_asset_allocation_count = max(
+            parsed_invalid_asset_count,
+            max(0, int(reported_invalid_asset_count or 0)),
+        )
         return cls(
             request_id=str(payload.get("request_id", "")),
             fund_info=FundInfo.from_dict(payload.get("fund_info", {})),
@@ -206,9 +234,10 @@ class FundAnalysisInput:
                 for key, value in (payload.get("industry_exposure") or {}).items()
             },
             top_holdings_weight=_coerce_float(payload.get("top_holdings_weight")),
-            top_holdings=_dicts_from_list(payload.get("top_holdings")),
-            bond_holdings=_dicts_from_list(payload.get("bond_holdings")),
-            asset_allocation=_fraction_dict_from_payload(payload.get("asset_allocation")),
+            top_holdings=_holding_records_from_payload(payload.get("top_holdings")),
+            bond_holdings=_holding_records_from_payload(payload.get("bond_holdings")),
+            asset_allocation=asset_allocation,
+            invalid_asset_allocation_count=invalid_asset_allocation_count,
             profit_probability=_records_from_payload(payload.get("profit_probability")),
             individual_analysis=_records_from_payload(payload.get("individual_analysis")),
             news_summary=[str(item) for item in payload.get("news_summary", [])],
@@ -254,7 +283,7 @@ class FundFeaturePack:
     risk_metrics: Dict[str, float]
     exposure_metrics: Dict[str, float]
     industry_exposure_breakdown: Dict[str, float] = field(default_factory=dict)
-    bond_exposure_metrics: Dict[str, float] = field(default_factory=dict)
+    bond_exposure_metrics: Dict[str, Any] = field(default_factory=dict)
     top_holdings: List[Dict[str, Any]] = field(default_factory=list)
     bond_holdings: List[Dict[str, Any]] = field(default_factory=list)
     asset_allocation_breakdown: Dict[str, float] = field(default_factory=dict)

@@ -1,10 +1,13 @@
 from abc import ABC, abstractmethod
+import math
 from typing import Dict, List, Optional, Tuple
 
 from fund_llm.contracts import AgentOutput, FundFeaturePack
 
 
 def clamp(value: float, minimum: float = 0.0, maximum: float = 100.0) -> float:
+    if not all(math.isfinite(float(item)) for item in (value, minimum, maximum)):
+        raise ValueError("Cannot clamp non-finite numeric values.")
     return max(minimum, min(maximum, value))
 
 

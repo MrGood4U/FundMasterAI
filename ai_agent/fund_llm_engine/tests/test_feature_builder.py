@@ -158,7 +158,7 @@ class FeatureBuilderTest(unittest.TestCase):
             bond_holdings=[
                 {"bond_name": "20国开10", "pct": "21.28%"},
                 {"bond_name": "21国开03", "pct": "19.96"},
-                {"bond_name": "22国开05", "pct": 0.1504},
+                {"bond_name": "22国开05", "weight_fraction": 0.1504},
             ],
             asset_allocation={"债券": "86.00%", "现金": 0.07, "其他": 0.07},
         )
@@ -177,6 +177,64 @@ class FeatureBuilderTest(unittest.TestCase):
         self.assertAlmostEqual(features.bond_exposure_metrics["asset_bond_weight"], 0.86)
         self.assertNotIn("bond_holdings", features.missing_fields)
         self.assertNotIn("asset_allocation", features.missing_fields)
+
+    def test_realistic_sub_one_bond_percentages_keep_backend_units(self):
+        percentages = [
+            3.18, 3.03, 2.51, 2.50, 2.09, 0.59, 0.53, 0.43, 0.42,
+            0.34, 0.34, 0.28, 0.26, 0.24, 0.23, 0.22, 0.20, 0.19,
+            0.19, 0.18, 0.17, 0.16, 0.16, 0.13, 0.13, 0.13, 0.09,
+            0.08, 0.06, 0.06, 0.06, 0.06, 0.05, 0.05, 0.04, 0.04,
+            0.03, 0.03, 0.01,
+        ]
+        payload = FundAnalysisInput(
+            request_id="bond-realistic-000171",
+            fund_info=FundInfo(
+                code="000171",
+                name="易方达裕丰回报债券A",
+                asset_type="fund_open",
+                category="债券型-普通债券",
+            ),
+            nav_series=[
+                NavPoint(date="2026-01-01", nav=1.00),
+                NavPoint(date="2026-01-02", nav=1.01),
+            ],
+            bond_holdings=[
+                {"bond_name": f"Bond {index}", "pct": percentage}
+                for index, percentage in enumerate(percentages, start=1)
+            ],
+            asset_allocation={"债券": 0.927, "股票": 0.1795, "现金": 0.0023, "其他": 0.009},
+        )
+
+        features = FeatureBuilder().build(payload)
+
+        self.assertAlmostEqual(features.bond_exposure_metrics["bond_top_holding_weight"], 0.0318)
+        self.assertAlmostEqual(features.bond_exposure_metrics["bond_top_three_weight"], 0.0872)
+        self.assertAlmostEqual(features.bond_exposure_metrics["bond_total_disclosed_weight"], 0.1949)
+        self.assertAlmostEqual(features.bond_exposure_metrics["asset_bond_weight"], 0.927)
+        self.assertTrue(features.data_quality_flags["bond_holdings_valid"])
+        self.assertTrue(features.data_quality_flags["asset_allocation_valid"])
+
+    def test_gross_asset_fraction_above_one_is_not_divided_twice(self):
+        payload = FundAnalysisInput(
+            request_id="leveraged-bond-allocation",
+            fund_info=FundInfo(
+                code="000171",
+                name="Leveraged Bond Fund",
+                asset_type="fund_open",
+                category="债券型-普通债券",
+            ),
+            nav_series=[
+                NavPoint(date="2026-01-01", nav=1.00),
+                NavPoint(date="2026-01-02", nav=1.01),
+            ],
+            asset_allocation={"债券": 1.12, "现金": 0.03},
+        )
+
+        features = FeatureBuilder().build(payload)
+
+        self.assertAlmostEqual(features.asset_allocation_breakdown["债券"], 1.12)
+        self.assertAlmostEqual(features.bond_exposure_metrics["asset_bond_weight"], 1.12)
+        self.assertTrue(features.data_quality_flags["asset_allocation_valid"])
 
     def test_build_features_adds_nav_only_risk_adjusted_metrics(self):
         payload = build_sample_input()

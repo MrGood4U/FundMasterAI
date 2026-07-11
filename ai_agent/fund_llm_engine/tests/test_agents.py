@@ -1,5 +1,6 @@
 import os
 import sys
+import math
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -24,6 +25,7 @@ from fund_llm.contracts import (
     NewsItem,
     NavPoint,
 )
+from fund_llm.agents.base import clamp
 from fund_llm.feature_builder import FeatureBuilder
 from fund_llm.llm_client import MockLLMClient
 
@@ -158,6 +160,12 @@ class RecordingLLMClient:
 
 
 class AgentsTest(unittest.TestCase):
+    def test_clamp_rejects_nonfinite_values(self):
+        for value in (math.nan, math.inf, -math.inf):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    clamp(value)
+
     def test_performance_agent_returns_structured_output(self):
         result = PerformanceAgent(MockLLMClient("performance narrative")).analyze(build_sample_features())
 
@@ -242,6 +250,47 @@ class AgentsTest(unittest.TestCase):
         self.assertIsNone(result.score)
         self.assertEqual(result.stance, "insufficient_data")
         self.assertIn("No bond holdings or asset-allocation data was provided.", result.key_points)
+
+    def test_bond_exposure_agent_rejects_implausible_percentage_inputs(self):
+        payload = build_bond_input_with_exposure()
+        payload.bond_holdings = [
+            {"bond_name": "Impossible Bond", "weight_fraction": 1.50},
+        ]
+        result = BondExposureAgent(MockLLMClient("unused")).analyze(
+            FeatureBuilder().build(payload)
+        )
+
+        self.assertEqual(result.status, "error")
+        self.assertIsNone(result.score)
+        self.assertEqual(result.metadata["failure_stage"], "bond_exposure_data_validation")
+
+    def test_bond_exposure_agent_rejects_invalid_asset_allocation_from_json_boundary(self):
+        for asset_allocation in (
+            {"债券": "not-a-percentage"},
+            {"债券": 0.86, "现金": "not-a-percentage"},
+        ):
+            with self.subTest(asset_allocation=asset_allocation):
+                raw_payload = build_bond_input_with_exposure().to_dict()
+                raw_payload["bond_holdings"] = []
+                raw_payload["asset_allocation"] = asset_allocation
+                payload = FundAnalysisInput.from_dict(raw_payload)
+
+                features = FeatureBuilder().build(payload)
+                result = BondExposureAgent(MockLLMClient("unused")).analyze(features)
+
+                self.assertTrue(features.data_quality_flags["has_asset_allocation"])
+                self.assertFalse(features.data_quality_flags["asset_allocation_valid"])
+                self.assertEqual(features.data_coverage["asset_allocation"], "available")
+                self.assertNotIn("asset_allocation", features.missing_fields)
+                self.assertEqual(
+                    features.data_quality_metrics["invalid_asset_allocation_count"], 1
+                )
+                self.assertEqual(result.status, "error")
+                self.assertIsNone(result.score)
+                self.assertEqual(
+                    result.metadata["failure_stage"],
+                    "bond_exposure_data_validation",
+                )
 
     def test_risk_agent_returns_structured_output(self):
         result = RiskAgent(MockLLMClient("risk narrative")).analyze(build_sample_features())

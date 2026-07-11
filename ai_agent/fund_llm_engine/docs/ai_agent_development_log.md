@@ -1045,6 +1045,36 @@ cd ai_agent/fund_llm_engine
 .venv/bin/python scripts/run_golden_suite.py --mode mock  # 8/8 passed
 ```
 
+### 2026-07-11 - Unify percentage units and reject invalid exposure inputs
+
+Goal:
+
+- Prevent backend percentages below 1% from being misread as 0-1 fractions,
+  and stop invalid exposure data from being converted into an investment score.
+
+Actual changes:
+
+- Added one canonical ratio boundary: backend `pct` / `net_value_pct` values are
+  percentage points and receive an explicit `weight_fraction` exactly once.
+- Removed magnitude-based reinterpretation from internal asset allocation, so a
+  legitimate gross exposure such as `1.12` remains 112% instead of becoming 1.12%.
+- Applied the same canonical holding rows to single-fund bond analysis and
+  portfolio holdings look-through; the legacy direct AkShare adapter now also
+  converts industry and holding percentages at ingestion.
+- Added finite/non-negative/gross-exposure plausibility checks. Invalid bond or
+  allocation data makes `BondExposureAgent` return an error with no score, so
+  Chief can isolate that module under the existing quorum policy.
+- Preserved invalid asset-allocation counts across direct JSON and backend-tool
+  boundaries, so malformed or mixed-validity rows cannot silently become
+  "missing" data or be scored from only the surviving subset.
+- Deliberately retired legacy magnitude guessing: `pct` is always percentage
+  points, while bare numeric internal allocations are always fractions; external
+  percentage strings must include `%`.
+- `clamp()` now rejects NaN/Inf instead of silently turning them into a boundary score.
+- Added regression coverage for backend values around 1%, leveraged allocation,
+  realistic sub-1% bond positions, portfolio look-through, invalid exposure, and
+  non-finite inputs.
+
 ## Handoff Notes For Future AI
 
 - Do not infer implemented status from proposal, plan, or report wording alone.

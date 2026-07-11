@@ -10,6 +10,8 @@ from fund_llm.adapters.backend_function_client import (
     build_sector_view_funds_from_backend_functions,
 )
 from fund_llm.contracts import PortfolioPosition
+from fund_llm.feature_builder import FeatureBuilder
+from fund_llm.portfolio_analysis import build_holdings_lookthrough
 
 
 def test_backend_function_client_discovers_and_calls_post_tool():
@@ -158,6 +160,13 @@ def test_build_fund_input_from_backend_functions_maps_core_fields():
 
 
 def test_build_fund_input_maps_bond_holdings_and_asset_allocation():
+    asset_rows = [
+        {"asset_type": "债券", "pct": "112.00%"},
+        {"asset_type": "现金", "pct": "7.00%"},
+        {"asset_type": "其他", "pct": "7.00%"},
+    ]
+    asset_state = {"return_none": False}
+
     def transport(method, url, payload, timeout):
         if "/functions" in url:
             if "market" in url:
@@ -197,16 +206,13 @@ def test_build_fund_input_maps_bond_holdings_and_asset_allocation():
                     {"bond_name": "Old Bond", "pct": "30.00", "quarter": "2025Q3"},
                     {"bond_name": "20国开10", "pct": "21.28", "quarter": "2025Q4"},
                     {"bond_name": "21国开03", "pct": "19.96", "quarter": "2025Q4"},
+                    {"bond_name": "Small Bond", "pct": "0.59", "quarter": "2025Q4"},
                 ],
             }
         if url.endswith("/asset"):
             return {
                 "code": 200,
-                "data": [
-                    {"asset_type": "债券", "pct": "86.00%"},
-                    {"asset_type": "现金", "pct": "7.00%"},
-                    {"asset_type": "其他", "pct": "7.00%"},
-                ],
+                "data": None if asset_state["return_none"] else list(asset_rows),
             }
         return {"code": 200, "data": []}
 
@@ -220,11 +226,50 @@ def test_build_fund_input_maps_bond_holdings_and_asset_allocation():
     payload = build_fund_input_from_backend_functions("003358", client=client, portfolio_year="2025")
 
     assert payload.fund_info.category == "index_fixed_income"
-    assert [item["bond_name"] for item in payload.bond_holdings] == ["20国开10", "21国开03"]
-    assert payload.asset_allocation == {"债券": 0.86, "现金": 0.07, "其他": 0.07}
+    assert [item["bond_name"] for item in payload.bond_holdings] == [
+        "20国开10",
+        "21国开03",
+        "Small Bond",
+    ]
+    assert [round(item["weight_fraction"], 4) for item in payload.bond_holdings] == [
+        0.2128,
+        0.1996,
+        0.0059,
+    ]
+    assert payload.asset_allocation == {"债券": 1.12, "现金": 0.07, "其他": 0.07}
+    assert payload.invalid_asset_allocation_count == 0
     assert payload.extra_context["normalized_fund_type"] == "bond_index_fund"
-    assert payload.extra_context["bond_holdings_count"] == "2"
+    assert payload.extra_context["bond_holdings_count"] == "3"
     assert payload.extra_context["asset_allocation_count"] == "3"
+
+    features = FeatureBuilder().build(payload)
+    assert round(features.bond_exposure_metrics["bond_top_holding_weight"], 4) == 0.2128
+    assert round(features.bond_exposure_metrics["bond_top_three_weight"], 4) == 0.4183
+    assert round(features.bond_exposure_metrics["bond_total_disclosed_weight"], 4) == 0.4183
+    assert round(features.bond_exposure_metrics["asset_bond_weight"], 4) == 1.12
+    assert features.data_quality_flags["bond_holdings_valid"] is True
+    assert features.data_quality_flags["asset_allocation_valid"] is True
+
+    asset_rows.append({"asset_type": "损坏字段", "pct": "not-a-percentage"})
+    invalid_payload = build_fund_input_from_backend_functions(
+        "003358", client=client, portfolio_year="2025"
+    )
+    invalid_features = FeatureBuilder().build(invalid_payload)
+
+    assert invalid_payload.asset_allocation == payload.asset_allocation
+    assert invalid_payload.invalid_asset_allocation_count == 1
+    assert invalid_payload.extra_context["asset_allocation_count"] == "4"
+    assert invalid_payload.extra_context["invalid_asset_allocation_count"] == "1"
+    assert invalid_features.data_quality_flags["has_asset_allocation"] is True
+    assert invalid_features.data_quality_flags["asset_allocation_valid"] is False
+
+    asset_state["return_none"] = True
+    empty_payload = build_fund_input_from_backend_functions(
+        "003358", client=client, portfolio_year="2025"
+    )
+    assert empty_payload.asset_allocation == {}
+    assert empty_payload.invalid_asset_allocation_count == 0
+    assert empty_payload.extra_context["asset_allocation_count"] == "0"
 
 
 def test_build_fund_input_treats_small_holding_percentages_as_percent_units():
@@ -620,6 +665,7 @@ def test_build_portfolio_input_fetches_lookthrough_data_per_fund():
                 "data": [
                     {"stock_code": "600519", "stock_name": "贵州茅台", "net_value_pct": "9.5", "quarter": "2026Q1"},
                     {"stock_code": "000858", "stock_name": "五粮液", "net_value_pct": "7.2", "quarter": "2026Q1"},
+                    {"stock_code": "000001", "stock_name": "小比例持仓", "net_value_pct": "0.70", "quarter": "2026Q1"},
                 ],
             }
         if url.endswith("/industry"):
@@ -647,13 +693,26 @@ def test_build_portfolio_input_fetches_lookthrough_data_per_fund():
     payload = build_portfolio_input_from_backend_functions(positions, client=client)
 
     equity_fund, bond_fund = payload.funds
-    assert [row["stock_name"] for row in equity_fund.top_holdings] == ["贵州茅台", "五粮液"]
+    assert [row["stock_name"] for row in equity_fund.top_holdings] == [
+        "贵州茅台",
+        "五粮液",
+        "小比例持仓",
+    ]
+    assert round(equity_fund.top_holdings[-1]["weight_fraction"], 4) == 0.007
     assert equity_fund.industry_exposure == {"食品饮料": 0.35}
     assert equity_fund.asset_allocation == {"股票": 0.88, "现金": 0.10}
     assert bond_fund.top_holdings == []
     assert bond_fund.industry_exposure == {}
     assert bond_fund.asset_allocation == {}
     assert payload.extra_context["lookthrough_enabled"] == "true"
+
+    lookthrough = build_holdings_lookthrough(payload.funds)
+    small_position = next(
+        row for row in lookthrough["top_holdings"] if row["stock_name"] == "小比例持仓"
+    )
+    self_weight = small_position["held_by"][0]["weight_in_fund"]
+    assert round(self_weight, 4) == 0.007
+    assert round(small_position["portfolio_weight"], 4) == 0.0042
 
 
 def test_build_portfolio_input_can_skip_lookthrough_fetch():

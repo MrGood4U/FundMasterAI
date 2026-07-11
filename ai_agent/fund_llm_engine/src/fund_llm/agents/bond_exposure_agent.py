@@ -70,6 +70,33 @@ class BondExposureAgent(BaseAgent):
                 narrative="Bond exposure analysis skipped: no bond-specific exposure data was provided.",
             )
 
+        invalid_sources = []
+        if has_bond_holdings and not features.data_quality_flags.get("bond_holdings_valid", False):
+            invalid_sources.append("bond holding weights")
+        if has_asset_allocation and not features.data_quality_flags.get("asset_allocation_valid", False):
+            invalid_sources.append("asset-allocation weights")
+        if invalid_sources:
+            invalid_text = " and ".join(invalid_sources)
+            return AgentOutput(
+                agent_name=self.name,
+                status="error",
+                score=None,
+                stance="mixed",
+                key_points=[f"Invalid {invalid_text} were rejected before scoring."],
+                risks=[
+                    "Bond exposure data failed finite, non-negative, or gross-exposure plausibility checks."
+                ],
+                recommendations=[
+                    "Correct the percentage units or source records before using bond-exposure evidence."
+                ],
+                confidence=0.0,
+                narrative=(
+                    "Bond exposure analysis could not be scored because its percentage inputs "
+                    "failed data-quality validation."
+                ),
+                metadata={"failure_stage": "bond_exposure_data_validation"},
+            )
+
         metrics = features.bond_exposure_metrics
         holding_count = int(metrics.get("bond_holding_count", 0))
         allocation_count = int(metrics.get("asset_allocation_count", 0))

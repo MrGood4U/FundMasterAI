@@ -663,9 +663,18 @@ HTTP 接口会先构造 `FundAnalysisInput`，再交给 engine。脚本和测试
 `source`、`topic`、`sentiment_label`。
 
 如果有债券持仓，`bond_holdings` 建议包含 `bond_code`、`bond_name`、`pct`、
-`hold_market_value`、`quarter` 等后端可稳定提供的字段。`asset_allocation`
-建议使用资产类型到占比的对象，例如 `{"债券": 0.86, "现金": 0.07}`；百分比
-字符串也会被归一化为 0-1 的比例。
+`hold_market_value`、`quarter` 等后端可稳定提供的字段。后端 `pct` /
+`net_value_pct` 的单位固定为百分数点，因此 `0.59` 表示 `0.59%`；Adapter
+在边界处只转换一次，并附加内部字段 `weight_fraction=0.0059`。下游不得再根据
+数值是否大于 1 猜测单位。
+
+`asset_allocation` 在内部统一使用 fraction，例如 `{"债券": 0.86, "现金": 0.07}`；
+数字 `1.12` 表示 112% 的 gross exposure，不会被二次除以 100。外部 JSON 如要
+使用百分数写法必须带 `%`，例如 `"112%"`。非有限、负数或明显超过普通公募基金
+gross-exposure 合理范围的比例会被标记为无效；对应 Specialist 不得继续用该数据打分。
+这是有意的显式单位契约：旧输入中依靠“数值是否大于 1”猜单位的裸数字必须改成
+`weight_fraction` 或带 `%` 的字符串。被过滤的坏资产配置行会通过
+`invalid_asset_allocation_count` 保留数量，因此“非法数据”和“真正没数据”不会混为一谈。
 
 ## 前端交接样例
 

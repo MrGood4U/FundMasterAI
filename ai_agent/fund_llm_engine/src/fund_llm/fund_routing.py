@@ -186,7 +186,11 @@ def _has_bond_holdings(payload: "FundAnalysisInput") -> bool:
 
 
 def _has_asset_allocation(payload: "FundAnalysisInput") -> bool:
-    return bool(getattr(payload, "asset_allocation", {})) or _has_positive_count(payload, "asset_allocation_count")
+    return (
+        bool(getattr(payload, "asset_allocation", {}))
+        or int(getattr(payload, "invalid_asset_allocation_count", 0) or 0) > 0
+        or _has_positive_count(payload, "asset_allocation_count")
+    )
 
 
 def build_data_coverage(payload: "FundAnalysisInput") -> Dict[str, str]:
