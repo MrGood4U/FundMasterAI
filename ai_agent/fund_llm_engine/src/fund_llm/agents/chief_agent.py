@@ -6,6 +6,14 @@ from fund_llm.contracts import AgentOutput, FinalAnalysisResult, FundFeaturePack
 from fund_llm.rating_policy import assess_rating_coverage
 
 
+INTERNAL_TAG_NAMES = {"backend-function-registry", "open-fund"}
+
+
+def _display_fund_tags(features: FundFeaturePack) -> list[str]:
+    internal = INTERNAL_TAG_NAMES | {features.normalized_fund_type, features.fund_family}
+    return [tag for tag in features.fund_tags if tag and tag not in internal]
+
+
 def _score_to_rating(score: float) -> str:
     if score >= 75:
         return "buy"
@@ -337,6 +345,7 @@ class ChiefAgent:
             score_explanation = _build_abstention_explanation(overall_rating, rating_blockers)
 
         client_risk_profile = features.extra_context.get("client_risk_profile", "")
+        display_fund_tags = _display_fund_tags(features)
         chief_key_points = []
         if features.data_quality_flags.get("has_benchmark"):
             chief_key_points.append("Benchmark-relative context is available for cross-checking the agent views.")
@@ -350,8 +359,8 @@ class ChiefAgent:
             chief_key_points.append(
                 f"{len(not_applicable_outputs)} agent module(s) were not applicable to {features.normalized_fund_type}."
             )
-        if features.fund_tags:
-            chief_key_points.append(f"Fund role tags include {', '.join(features.fund_tags[:3])}.")
+        if display_fund_tags:
+            chief_key_points.append(f"Fund role tags include {', '.join(display_fund_tags[:3])}.")
         if average_confidence >= 0.75:
             chief_key_points.append("Agent confidence is broadly solid under the current input coverage.")
 
@@ -422,9 +431,20 @@ class ChiefAgent:
         if features.missing_fields:
             chief_actions.append("Fill the missing payload fields before making a higher-conviction decision.")
 
-        key_thesis = merge_lists([chief_key_points] + [output.key_points for output in agent_outputs], limit=5)
-        main_risks = merge_lists([chief_risks] + [output.risks for output in agent_outputs], limit=5)
-        action_plan = merge_lists([chief_actions] + [output.recommendations for output in agent_outputs], limit=5)
+        user_facing_outputs = [output for output in agent_outputs if output not in not_applicable_outputs]
+        actionable_outputs = [output for output in user_facing_outputs if output.status != "error"]
+        key_thesis = merge_lists(
+            [chief_key_points] + [output.key_points for output in user_facing_outputs],
+            limit=5,
+        )
+        main_risks = merge_lists(
+            [chief_risks] + [output.risks for output in user_facing_outputs],
+            limit=5,
+        )
+        action_plan = merge_lists(
+            [chief_actions] + [output.recommendations for output in actionable_outputs],
+            limit=5,
+        )
 
         system_prompt = (
             "You are the chief fund advisor. Summarize the multi-agent findings into one final investment view. "
@@ -452,7 +472,7 @@ class ChiefAgent:
             f"({rating_coverage_ratio:.0%})\n"
             f"Average agent confidence: {average_confidence:.2f}\n"
             f"Error agent count: {len(error_outputs)}\n"
-            f"Fund tags: {features.fund_tags}\n"
+            f"Fund tags: {display_fund_tags}\n"
             f"Client risk profile: {client_risk_profile}\n"
             f"Data quality flags: {features.data_quality_flags}\n"
             f"Data coverage: {features.data_coverage}\n"

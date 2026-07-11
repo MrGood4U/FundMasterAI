@@ -2,6 +2,14 @@ from fund_llm.agents.base import BaseAgent, clamp, score_to_stance
 from fund_llm.contracts import AgentOutput, FundFeaturePack
 
 
+INTERNAL_TAG_NAMES = {"backend-function-registry", "open-fund"}
+
+
+def _display_fund_tags(features: FundFeaturePack) -> list[str]:
+    internal = INTERNAL_TAG_NAMES | {features.normalized_fund_type, features.fund_family}
+    return [tag for tag in features.fund_tags if tag and tag not in internal]
+
+
 class ExposureAgent(BaseAgent):
     @property
     def name(self) -> str:
@@ -47,6 +55,7 @@ class ExposureAgent(BaseAgent):
             )
 
         fund_tags = features.fund_tags[:3]
+        display_fund_tags = _display_fund_tags(features)[:3]
         manager_tenure = features.operational_metrics.manager_tenure_years
         fund_size = features.operational_metrics.fund_size_billion
         client_risk_profile = features.extra_context.get("client_risk_profile", "")
@@ -110,8 +119,8 @@ class ExposureAgent(BaseAgent):
             f"Industry concentration is {industry_concentration:.2%}.",
             f"Top holdings weight is {top_holdings_weight:.2%}.",
         ]
-        if fund_tags:
-            key_points.append(f"Fund role/style tags include {', '.join(fund_tags)}.")
+        if display_fund_tags:
+            key_points.append(f"Fund role/style tags include {', '.join(display_fund_tags)}.")
         if manager_tenure is not None:
             key_points.append(f"Manager tenure is {manager_tenure:.1f} years.")
         if fund_size is not None:

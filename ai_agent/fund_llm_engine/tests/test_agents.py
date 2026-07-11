@@ -143,6 +143,20 @@ class NoCallLLMClient:
         raise AssertionError("LLM must not be called for an ineligible analysis")
 
 
+class RecordingLLMClient:
+    is_mock = True
+
+    def __init__(self, response: str = "Recorded chief summary."):
+        self.response = response
+        self.system_prompt = ""
+        self.user_prompt = ""
+
+    def chat(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
+        self.system_prompt = system_prompt
+        self.user_prompt = user_prompt
+        return self.response
+
+
 class AgentsTest(unittest.TestCase):
     def test_performance_agent_returns_structured_output(self):
         result = PerformanceAgent(MockLLMClient("performance narrative")).analyze(build_sample_features())
@@ -183,6 +197,19 @@ class AgentsTest(unittest.TestCase):
         self.assertTrue(any("Manager tenure" in item for item in result.key_points))
         self.assertIn("Exposure profile looks consistent with a core allocation role.", result.recommendations)
         self.assertGreaterEqual(result.confidence, 0.78)
+
+    def test_exposure_agent_hides_internal_provenance_tags_from_key_points(self):
+        payload = build_sample_input()
+        payload.fund_tags = ["backend-function-registry", "open-fund", "mixed_fund"]
+
+        result = ExposureAgent(MockLLMClient("exposure narrative")).analyze(
+            FeatureBuilder().build(payload)
+        )
+
+        rendered = " ".join(result.key_points)
+        self.assertNotIn("backend-function-registry", rendered)
+        self.assertNotIn("open-fund", rendered)
+        self.assertNotIn("mixed_fund", rendered)
 
     def test_bond_exposure_agent_returns_structured_output(self):
         result = BondExposureAgent(MockLLMClient("bond exposure narrative")).analyze(
@@ -824,6 +851,7 @@ class ChiefAgentTest(unittest.TestCase):
         self.assertEqual(result.metadata["rating_applicable_agent_count"], "6")
         self.assertAlmostEqual(float(result.metadata["rating_coverage_ratio"]), 0.67)
         self.assertTrue(any("failed technically" in item for item in result.main_risks))
+        self.assertFalse(any("Review the server logs" in item for item in result.action_plan))
         self.assertNotIn("penalty", result.score_explanation.lower())
 
     def test_five_of_six_successes_publish_partial_rating_without_error_penalty(self):
@@ -1090,6 +1118,105 @@ class ChiefAgentTest(unittest.TestCase):
         self.assertEqual(result.metadata["skipped_agent_count"], "0")
         self.assertEqual(result.metadata["agent_health"], "healthy")
         self.assertTrue(any("not applicable" in item for item in result.key_thesis))
+
+    def test_chief_excludes_bond_fund_not_applicable_copy_from_three_columns(self):
+        payload = build_bond_input_with_exposure()
+        payload.nav_series = build_long_nav_series(config.MIN_NAV_POINTS_FOR_RATING)
+        features = FeatureBuilder().build(payload)
+        chief = ChiefAgent(MockLLMClient("bond chief summary"))
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 70.0),
+            self._successful_output("RiskAgent", 65.0),
+            self._successful_output("BondExposureAgent", 60.0),
+            self._successful_output("SentimentAgent", 55.0),
+            self._successful_output("MarketAgent", 50.0),
+            ExposureAgent(MockLLMClient("unused")).analyze(features),
+            SectorAgent(MockLLMClient("unused")).analyze(features),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        rendered = " ".join(result.key_thesis + result.main_risks + result.action_plan)
+        self.assertNotIn(
+            "Use bond or asset-allocation data for exposure analysis instead of stock holdings.",
+            rendered,
+        )
+        self.assertNotIn(
+            "Use asset-class or bond-holding exposure data instead of equity industry buckets.",
+            rendered,
+        )
+        self.assertTrue(any("not applicable" in item for item in result.key_thesis))
+
+    def test_chief_excludes_mixed_fund_bond_not_applicable_copy_from_three_columns(self):
+        features = build_sample_features()
+        chief = ChiefAgent(MockLLMClient("mixed chief summary"))
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 70.0),
+            self._successful_output("RiskAgent", 65.0),
+            self._successful_output("ExposureAgent", 60.0),
+            self._successful_output("SentimentAgent", 55.0),
+            self._successful_output("SectorAgent", 50.0),
+            self._successful_output("MarketAgent", 50.0),
+            BondExposureAgent(MockLLMClient("unused")).analyze(features),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        rendered = " ".join(result.key_thesis + result.main_risks + result.action_plan)
+        self.assertNotIn(
+            "Use equity exposure and sector agents for non-bond fund types.",
+            rendered,
+        )
+
+    def test_chief_hides_internal_tags_from_user_copy_and_prompt_but_keeps_metadata(self):
+        payload = build_sample_input()
+        payload.fund_tags = ["backend-function-registry", "open-fund", "mixed_fund"]
+        features = FeatureBuilder().build(payload)
+        llm = RecordingLLMClient()
+        chief = ChiefAgent(llm)
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 70.0),
+            ExposureAgent(MockLLMClient("exposure narrative")).analyze(features),
+            self._successful_output("RiskAgent", 65.0),
+            self._successful_output("SentimentAgent", 55.0),
+            self._successful_output("SectorAgent", 50.0),
+            self._successful_output("MarketAgent", 50.0),
+            BondExposureAgent(MockLLMClient("unused")).analyze(features),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        rendered = " ".join(
+            result.key_thesis + result.main_risks + result.action_plan + [result.summary]
+        )
+        self.assertNotIn("backend-function-registry", rendered)
+        self.assertNotIn("backend-function-registry", llm.user_prompt)
+        self.assertNotIn("open-fund", llm.user_prompt)
+        self.assertIn("Fund tags: []", llm.user_prompt)
+        self.assertEqual(
+            result.metadata["fund_tags"],
+            "backend-function-registry,open-fund,mixed_fund",
+        )
+
+    def test_chief_keeps_meaningful_style_tags_in_key_thesis(self):
+        payload = build_sample_input()
+        payload.fund_tags = ["core_holding", "active_equity"]
+        features = FeatureBuilder().build(payload)
+        chief = ChiefAgent(MockLLMClient("chief summary"))
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 70.0),
+            self._successful_output("RiskAgent", 65.0),
+            self._successful_output("ExposureAgent", 60.0),
+            self._successful_output("SentimentAgent", 55.0),
+            self._successful_output("SectorAgent", 50.0),
+            self._successful_output("MarketAgent", 50.0),
+            BondExposureAgent(MockLLMClient("unused")).analyze(features),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertTrue(any("core_holding" in item for item in result.key_thesis))
+        self.assertEqual(result.metadata["fund_tags"], "core_holding,active_equity")
 
 
 if __name__ == "__main__":
