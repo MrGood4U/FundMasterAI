@@ -90,7 +90,7 @@ class ExposureAgent(BaseAgent):
             f"Category: {features.fund_info.category}\n"
             f"Industry concentration: {industry_concentration:.4f}\n"
             f"Top holdings weight: {top_holdings_weight:.4f}\n"
-            f"Fund tags: {fund_tags}\n"
+            f"Fund tags: {display_fund_tags}\n"
             f"Fund size (billion): {fund_size}\n"
             f"Manager tenure (years): {manager_tenure}\n"
             f"Client risk profile: {client_risk_profile}\n"
