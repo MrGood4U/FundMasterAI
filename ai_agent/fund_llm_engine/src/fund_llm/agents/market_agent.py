@@ -121,7 +121,21 @@ class MarketAgent(BaseAgent):
             f"Data quality flags: {features.data_quality_flags}\n"
             "Please explain the fund's peer standing and holding-period win-rate profile."
         )
-        narrative = self.llm_client.chat(system_prompt, user_prompt)
+        fallback_evidence = []
+        if peer_rows:
+            fallback_evidence.append(f"mean peer percentile is {mean_peer_percentile:.1f}")
+        if profit_rows:
+            fallback_evidence.append(f"mean historical profit probability is {mean_probability:.1f}")
+        fallback_narrative = (
+            f"Deterministic peer-and-market analysis scored {score:.1f}/100 with a {stance} stance; "
+            f"{' and '.join(fallback_evidence)}. The optional LLM explanation was unavailable; "
+            "the score and structured evidence remain valid."
+        )
+        narrative, narrative_metadata = self.explain_or_fallback(
+            system_prompt,
+            user_prompt,
+            fallback_narrative,
+        )
 
         key_points = []
         if peer_rows:
@@ -177,4 +191,5 @@ class MarketAgent(BaseAgent):
                 required_flags=["has_individual_analysis", "has_profit_probability"],
             ),
             narrative=narrative,
+            metadata=narrative_metadata,
         )

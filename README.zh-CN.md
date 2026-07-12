@@ -4,6 +4,18 @@
 
 对应英文说明见 [README.md](README.md)。
 
+## Docker 一键运行
+
+下面两条命令会启动并验收完整的前端、三个后端、AI Agent 和 MySQL：
+
+```bash
+docker compose up --build --wait
+docker compose run --rm smoke
+```
+
+打开 `http://localhost:8080/ai-insights.html`。端口修改、配置、日志和真实
+LLM 用法见 [DOCKER.md](DOCKER.md)。
+
 ## 当前分支定位
 
 当前分支：

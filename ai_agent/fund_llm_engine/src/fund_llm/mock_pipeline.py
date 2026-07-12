@@ -23,6 +23,20 @@ from fund_llm.llm_client import MockLLMClient
 from fund_llm.orchestration.engine import AnalysisEngine
 
 
+def _build_demo_nav_series(
+    start_nav: float,
+    up_factor: float,
+    down_factor: float,
+    point_count: int = 30,
+) -> list[NavPoint]:
+    nav = start_nav
+    points = []
+    for index in range(point_count):
+        points.append(NavPoint(date=f"2026-01-{index + 1:02d}", nav=round(nav, 6)))
+        nav *= up_factor if index % 3 else down_factor
+    return points
+
+
 def build_mock_input() -> FundAnalysisInput:
     """Build a stable demo payload for local development and smoke tests."""
 
@@ -35,13 +49,7 @@ def build_mock_input() -> FundAnalysisInput:
             category="mixed",
             manager="张坤",
         ),
-        nav_series=[
-            NavPoint(date="2026-01-01", nav=1.00),
-            NavPoint(date="2026-01-02", nav=1.05),
-            NavPoint(date="2026-01-03", nav=1.02),
-            NavPoint(date="2026-01-04", nav=1.10),
-            NavPoint(date="2026-01-05", nav=1.08),
-        ],
+        nav_series=_build_demo_nav_series(1.0, up_factor=1.008, down_factor=0.996),
         industry_exposure={
             "食品饮料": 0.35,
             "互联网": 0.20,
@@ -95,20 +103,14 @@ def build_mock_input() -> FundAnalysisInput:
         ],
         analysis_window=AnalysisWindow(
             start_date="2025-01-01",
-            end_date="2026-01-05",
-            as_of_date="2026-01-05",
+            end_date="2026-01-30",
+            as_of_date="2026-01-30",
         ),
         benchmark=BenchmarkInfo(
             code="000300",
             name="沪深300",
         ),
-        benchmark_nav_series=[
-            NavPoint(date="2026-01-01", nav=1.00),
-            NavPoint(date="2026-01-02", nav=1.03),
-            NavPoint(date="2026-01-03", nav=1.01),
-            NavPoint(date="2026-01-04", nav=1.05),
-            NavPoint(date="2026-01-05", nav=1.04),
-        ],
+        benchmark_nav_series=_build_demo_nav_series(1.0, up_factor=1.005, down_factor=0.997),
         fund_tags=["core_holding", "active_equity", "consumer_tilt"],
         operational_metrics=FundOperationalMetrics(
             fund_size_billion=28.6,

@@ -246,6 +246,60 @@ class ApiContractTest(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(body, {"code": 400, "data": None, "message": "code is required"})
 
+    def test_insufficient_nav_response_does_not_report_success(self):
+        payload = self.build_backend_payload()
+        payload.nav_series = payload.nav_series[:2]
+        with patch.object(
+            agent_app,
+            "build_fund_input_from_backend_functions",
+            return_value=payload,
+        ):
+            response = self.client.post(
+                "/api/ai/fund/analyze",
+                json={"code": "000001", "mock": True},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertEqual(body["code"], 200)
+        self.assertEqual(body["message"], "insufficient_data")
+        self.assertNotEqual(body["message"], "success")
+        self.assertEqual(body["data"]["overall_rating"], "insufficient_data")
+        self.assertIsNone(body["data"]["overall_score"])
+        self.assertEqual(body["data"]["metadata"]["analysis_status"], "insufficient_data")
+        self.assertEqual(body["data"]["metadata"]["rating_eligible"], "false")
+        self.assertEqual(body["data"]["quant_metrics"], {"sample_size": 2.0})
+
+    def test_partial_coverage_response_uses_explicit_success_message(self):
+        payload = self.build_backend_payload()
+        partial_result = run_mock_analysis_for_input(payload, max_parallel_agents=1)
+        partial_result.metadata["analysis_status"] = "partial"
+        partial_result.metadata["rating_eligible"] = "true"
+        partial_result.metadata["specialist_narrative_fallback_count"] = "0"
+
+        with patch.object(
+            agent_app,
+            "build_fund_input_from_backend_functions",
+            return_value=payload,
+        ), patch.object(
+            agent_app,
+            "run_mock_analysis_for_input",
+            return_value=partial_result,
+        ):
+            response = self.client.post(
+                "/api/ai/fund/analyze",
+                json={"code": "000001", "mock": True},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertEqual(body["code"], 200)
+        self.assertEqual(body["message"], "success_with_partial_coverage")
+        self.assertEqual(body["data"]["metadata"]["analysis_status"], "partial")
+        self.assertEqual(body["data"]["metadata"]["rating_eligible"], "true")
+        self.assertIn(body["data"]["overall_rating"], {"buy", "hold", "watch", "avoid"})
+        self.assertIsInstance(body["data"]["overall_score"], (int, float))
+
     def test_value_error_response_matches_public_contract(self):
         with patch.object(
             agent_app,

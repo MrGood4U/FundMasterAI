@@ -10,6 +10,7 @@ from fund_llm.agents import (
     BondExposureAgent,
     ChiefAgent,
     ExposureAgent,
+    MarketAgent,
     PerformanceAgent,
     RiskAgent,
     SectorAgent,
@@ -19,6 +20,15 @@ from fund_llm.contracts import AgentOutput, FinalAnalysisResult, FundAnalysisInp
 from fund_llm.feature_builder import FeatureBuilder
 from fund_llm.llm_client import MockLLMClient
 from fund_llm.orchestration.engine import AnalysisEngine
+
+
+def build_nav_series(point_count: int = 30) -> list[NavPoint]:
+    nav = 1.0
+    points = []
+    for index in range(point_count):
+        points.append(NavPoint(date=f"2026-01-{index + 1:02d}", nav=round(nav, 6)))
+        nav *= 1.008 if index % 3 else 0.996
+    return points
 
 
 def build_sample_input() -> FundAnalysisInput:
@@ -31,13 +41,7 @@ def build_sample_input() -> FundAnalysisInput:
             category="index",
             manager="某基金公司",
         ),
-        nav_series=[
-            NavPoint(date="2026-01-01", nav=1.00),
-            NavPoint(date="2026-01-02", nav=1.04),
-            NavPoint(date="2026-01-03", nav=1.01),
-            NavPoint(date="2026-01-04", nav=1.06),
-            NavPoint(date="2026-01-05", nav=1.07),
-        ],
+        nav_series=build_nav_series(),
         industry_exposure={"科技": 0.40, "医药": 0.18},
         top_holdings_weight=0.52,
         news_summary=["科技成长板块活跃"],
@@ -52,6 +56,11 @@ def build_sample_input() -> FundAnalysisInput:
             )
         ],
     )
+
+
+class BrokenLLMClient:
+    def chat(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
+        raise RuntimeError("provider unavailable")
 
 
 class EngineTest(unittest.TestCase):
@@ -92,6 +101,89 @@ class EngineTest(unittest.TestCase):
         self.assertIn("Evaluated performance", [event.title for event in result.analysis_trace])
         self.assertIn("Checked bond exposure", [event.title for event in result.analysis_trace])
         self.assertIn("Combined specialist views", [event.title for event in result.analysis_trace])
+
+    def test_two_point_nav_jump_abstains_instead_of_publishing_a_rating(self):
+        payload = build_sample_input()
+        payload.nav_series = [
+            NavPoint(date="2026-01-01", nav=1.0),
+            NavPoint(date="2026-01-02", nav=1.2),
+        ]
+        llm = MockLLMClient("Mock narrative")
+        engine = AnalysisEngine(
+            feature_builder=FeatureBuilder(),
+            agents=[
+                PerformanceAgent(llm),
+                ExposureAgent(llm),
+                BondExposureAgent(llm),
+                RiskAgent(llm),
+                SentimentAgent(llm),
+                SectorAgent(llm),
+            ],
+            chief_agent=ChiefAgent(llm),
+        )
+
+        result = engine.run(payload)
+
+        self.assertEqual(result.overall_rating, "insufficient_data")
+        self.assertIsNone(result.overall_score)
+        self.assertEqual(result.metadata["analysis_status"], "insufficient_data")
+        self.assertEqual(result.metadata["rating_eligible"], "false")
+        self.assertNotIn(result.overall_rating, {"buy", "hold", "watch", "avoid"})
+        self.assertEqual(result.quant_metrics, {"sample_size": 2.0})
+        outputs = {output.agent_name: output for output in result.agent_outputs}
+        for agent_name in ("PerformanceAgent", "RiskAgent"):
+            self.assertEqual(outputs[agent_name].status, "skipped")
+            self.assertIsNone(outputs[agent_name].score)
+            self.assertEqual(outputs[agent_name].stance, "insufficient_data")
+        self.assertEqual(result.analysis_trace[-1].status, "warning")
+        self.assertEqual(
+            result.analysis_trace[-1].technical["analysis_status"],
+            "insufficient_data",
+        )
+
+    def test_provider_outage_preserves_deterministic_final_rating(self):
+        def build_engine(llm):
+            return AnalysisEngine(
+                feature_builder=FeatureBuilder(),
+                agents=[
+                    PerformanceAgent(llm),
+                    ExposureAgent(llm),
+                    BondExposureAgent(llm),
+                    RiskAgent(llm),
+                    SentimentAgent(llm),
+                    SectorAgent(llm),
+                    MarketAgent(llm),
+                ],
+                chief_agent=ChiefAgent(llm),
+            )
+
+        healthy_payload = build_sample_input()
+        healthy_payload.individual_analysis = [
+            {
+                "period": "近1年",
+                "risk_return_ratio_vs_peers": 68,
+                "risk_robustness_vs_peers": 61,
+            }
+        ]
+        outage_payload = build_sample_input()
+        outage_payload.individual_analysis = list(healthy_payload.individual_analysis)
+        healthy_result = build_engine(MockLLMClient("Mock narrative")).run(healthy_payload)
+        outage_result = build_engine(BrokenLLMClient()).run(outage_payload)
+
+        self.assertEqual(outage_result.overall_score, healthy_result.overall_score)
+        self.assertEqual(outage_result.overall_rating, healthy_result.overall_rating)
+        self.assertEqual(outage_result.metadata["analysis_status"], "complete")
+        self.assertNotEqual(outage_result.metadata["analysis_status"], "partial")
+        self.assertEqual(outage_result.metadata["agent_health"], "degraded")
+        self.assertEqual(outage_result.metadata["summary_source"], "deterministic_fallback")
+        self.assertEqual(outage_result.metadata["specialist_narrative_fallback_count"], "6")
+        self.assertTrue(
+            all(
+                output.metadata.get("narrative_source") == "deterministic_fallback"
+                for output in outage_result.agent_outputs
+                if output.status == "success"
+            )
+        )
 
     def test_engine_runs_specialist_agents_in_parallel(self):
         state = {"active": 0, "max_active": 0}

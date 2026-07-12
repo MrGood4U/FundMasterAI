@@ -142,6 +142,27 @@ def classify_fund_type(raw_type: str) -> FundTypeProfile:
     )
 
 
+def resolve_equity_analysis_applicability(
+    payload: "FundAnalysisInput",
+    profile: FundTypeProfile | None = None,
+) -> tuple[bool, bool]:
+    """Combine conservative type defaults with disclosed equity evidence.
+
+    ``top_holdings_weight`` is deliberately not sufficient evidence by itself:
+    legacy bond inputs may use that aggregate for bond positions. Structured
+    stock-holding rows or an industry breakdown are unambiguous equity evidence.
+    """
+
+    profile = profile or classify_fund_type(payload.fund_info.category)
+    has_disclosed_equity_data = bool(payload.top_holdings) or bool(
+        payload.industry_exposure
+    )
+    return (
+        profile.equity_exposure_applicable or has_disclosed_equity_data,
+        profile.sector_analysis_applicable or has_disclosed_equity_data,
+    )
+
+
 def parse_tool_names(value: str | Iterable[str] | None) -> Set[str]:
     if value is None:
         return set()
@@ -186,11 +207,18 @@ def _has_bond_holdings(payload: "FundAnalysisInput") -> bool:
 
 
 def _has_asset_allocation(payload: "FundAnalysisInput") -> bool:
-    return bool(getattr(payload, "asset_allocation", {})) or _has_positive_count(payload, "asset_allocation_count")
+    return (
+        bool(getattr(payload, "asset_allocation", {}))
+        or int(getattr(payload, "invalid_asset_allocation_count", 0) or 0) > 0
+        or _has_positive_count(payload, "asset_allocation_count")
+    )
 
 
 def build_data_coverage(payload: "FundAnalysisInput") -> Dict[str, str]:
     profile = classify_fund_type(payload.fund_info.category)
+    equity_exposure_applicable, sector_analysis_applicable = (
+        resolve_equity_analysis_applicability(payload, profile)
+    )
     available_tools = parse_tool_names(payload.extra_context.get("available_backend_tools"))
 
     coverage = {
@@ -200,7 +228,7 @@ def build_data_coverage(payload: "FundAnalysisInput") -> Dict[str, str]:
         "news_signal": AVAILABLE if payload.news_summary or payload.news_items else MISSING,
     }
 
-    if profile.equity_exposure_applicable:
+    if equity_exposure_applicable:
         coverage["stock_holdings"] = (
             AVAILABLE
             if payload.top_holdings_weight is not None
@@ -210,6 +238,10 @@ def build_data_coverage(payload: "FundAnalysisInput") -> Dict[str, str]:
                 ["get_fund_portfolio_holds", "get_fund_portfolio_hold_stock"],
             )
         )
+    else:
+        coverage["stock_holdings"] = NOT_APPLICABLE
+
+    if sector_analysis_applicable:
         coverage["industry_exposure"] = (
             AVAILABLE
             if payload.industry_exposure
@@ -220,7 +252,6 @@ def build_data_coverage(payload: "FundAnalysisInput") -> Dict[str, str]:
             )
         )
     else:
-        coverage["stock_holdings"] = NOT_APPLICABLE
         coverage["industry_exposure"] = NOT_APPLICABLE
 
     if profile.bond_exposure_applicable:

@@ -79,6 +79,8 @@ def _build_agent_trace(output) -> AnalysisTraceEvent:
     status = output.status
     if output.status == "skipped":
         status = "warning"
+    if output.metadata.get("narrative_source") == "deterministic_fallback":
+        status = "warning"
 
     return AnalysisTraceEvent(
         category="agent",
@@ -95,6 +97,7 @@ def _build_agent_trace(output) -> AnalysisTraceEvent:
         technical={
             "agent_name": output.agent_name,
             "raw_status": output.status,
+            "narrative_source": output.metadata.get("narrative_source", "unknown"),
         },
     )
 
@@ -103,6 +106,14 @@ def _build_aggregation_trace(result: FinalAnalysisResult, worker_count: int) -> 
     successful_count = len([output for output in result.agent_outputs if output.status == "success"])
     skipped_count = len([output for output in result.agent_outputs if output.status == "skipped"])
     error_count = len([output for output in result.agent_outputs if output.status == "error"])
+    fallback_count = len(
+        [
+            output
+            for output in result.agent_outputs
+            if output.metadata.get("narrative_source") == "deterministic_fallback"
+        ]
+    )
+    analysis_status = result.metadata.get("analysis_status", "complete")
     return AnalysisTraceEvent(
         category="aggregation",
         title="Combined specialist views",
@@ -110,17 +121,19 @@ def _build_aggregation_trace(result: FinalAnalysisResult, worker_count: int) -> 
             "Aggregated successful specialist scores, confidence, skipped modules, and missing data "
             "into one final rating and action plan."
         ),
-        status="success" if not error_count else "warning",
+        status="success" if analysis_status == "complete" and not fallback_count else "warning",
         evidence={
             "overall_rating": result.overall_rating,
             "overall_score": result.overall_score,
             "successful_agents": successful_count,
             "skipped_agents": skipped_count,
             "error_agents": error_count,
+            "narrative_fallback_agents": fallback_count,
         },
         technical={
             "execution_mode": "parallel" if worker_count > 1 else "serial",
             "agent_worker_count": worker_count,
+            "analysis_status": analysis_status,
         },
     )
 

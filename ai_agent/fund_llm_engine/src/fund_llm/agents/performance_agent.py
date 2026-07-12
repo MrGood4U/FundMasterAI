@@ -1,3 +1,4 @@
+from fund_llm import config
 from fund_llm.agents.base import BaseAgent, clamp, data_driven_confidence, score_to_stance
 from fund_llm.contracts import AgentOutput, FundFeaturePack
 
@@ -10,6 +11,25 @@ class PerformanceAgent(BaseAgent):
         return "PerformanceAgent"
 
     def analyze(self, features: FundFeaturePack) -> AgentOutput:
+        nav_point_count = features.data_quality_metrics.get("nav_point_count", 0)
+        if nav_point_count < config.MIN_NAV_POINTS_FOR_RATING:
+            return AgentOutput(
+                agent_name=self.name,
+                status="skipped",
+                score=None,
+                stance="insufficient_data",
+                key_points=[
+                    f"Only {nav_point_count} NAV observation(s) are available; "
+                    f"at least {config.MIN_NAV_POINTS_FOR_RATING} are required for performance scoring."
+                ],
+                risks=["Performance scoring was withheld because the NAV history is too short."],
+                recommendations=[
+                    f"Provide at least {config.MIN_NAV_POINTS_FOR_RATING} NAV observations before rating performance."
+                ],
+                confidence=0.0,
+                narrative="Performance analysis skipped because the NAV history is insufficient for scoring.",
+            )
+
         total_return = features.return_metrics.get("total_return", 0.0)
         return_3m = features.return_metrics.get("return_3m")
         return_6m = features.return_metrics.get("return_6m")
@@ -57,7 +77,16 @@ class PerformanceAgent(BaseAgent):
             f"Missing fields: {features.missing_fields}\n"
             "Please explain the performance in concise investment language."
         )
-        narrative = self.llm_client.chat(system_prompt, user_prompt)
+        fallback_narrative = (
+            f"Deterministic performance analysis scored {score:.1f}/100 with a {stance} stance. "
+            f"Total return is {total_return:.2%} and maximum drawdown is {max_drawdown:.2%}. "
+            "The optional LLM explanation was unavailable; the score and structured evidence remain valid."
+        )
+        narrative, narrative_metadata = self.explain_or_fallback(
+            system_prompt,
+            user_prompt,
+            fallback_narrative,
+        )
 
         key_points = [
             f"Total return is {total_return:.2%}.",
@@ -100,4 +129,5 @@ class PerformanceAgent(BaseAgent):
             recommendations=recommendations,
             confidence=data_driven_confidence(features),
             narrative=narrative,
+            metadata=narrative_metadata,
         )
