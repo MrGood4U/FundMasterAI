@@ -415,6 +415,46 @@ class AgentsTest(unittest.TestCase):
         self.assertEqual(result.stance, "not_applicable")
         self.assertIn("bond_index_fund", result.key_points[0])
 
+    def test_equity_agents_run_for_secondary_bond_with_disclosed_equity_data(self):
+        payload = build_sample_input()
+        payload.fund_info.code = "000171"
+        payload.fund_info.name = "易方达裕丰回报债券A"
+        payload.fund_info.category = "债券型-普通债券"
+        payload.top_holdings_weight = 0.1237
+        payload.top_holdings = [
+            {"stock_code": "600000", "weight_fraction": 0.0712},
+            {"stock_code": "600519", "weight_fraction": 0.0525},
+        ]
+        payload.industry_exposure = {"制造业": 0.0712, "金融业": 0.0525}
+        features = FeatureBuilder().build(payload)
+
+        exposure = ExposureAgent(MockLLMClient("exposure narrative")).analyze(features)
+        sector = SectorAgent(MockLLMClient("sector narrative")).analyze(features)
+
+        self.assertEqual(exposure.status, "success")
+        self.assertIsNotNone(exposure.score)
+        self.assertEqual(sector.status, "success")
+        self.assertIsNotNone(sector.score)
+
+    def test_secondary_bond_without_industry_data_does_not_claim_sector_is_inapplicable(self):
+        payload = build_sample_input()
+        payload.fund_info.code = "000171"
+        payload.fund_info.name = "易方达裕丰回报债券A"
+        payload.fund_info.category = "债券型-普通债券"
+        payload.top_holdings_weight = 0.1237
+        payload.top_holdings = [
+            {"stock_code": "600000", "weight_fraction": 0.1237},
+        ]
+        payload.industry_exposure = {}
+        features = FeatureBuilder().build(payload)
+
+        exposure = ExposureAgent(MockLLMClient("exposure narrative")).analyze(features)
+        sector = SectorAgent(MockLLMClient("unused")).analyze(features)
+
+        self.assertEqual(exposure.status, "success")
+        self.assertEqual(sector.status, "skipped")
+        self.assertEqual(sector.stance, "insufficient_data")
+
     def test_sentiment_agent_skips_when_news_is_missing(self):
         payload = build_sample_input()
         payload.news_summary = []

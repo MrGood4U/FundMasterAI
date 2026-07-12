@@ -338,6 +338,35 @@ class EvaluationTest(unittest.TestCase):
         )
         self.assertFalse(any(output.status == "success" for output in result.agent_outputs))
 
+    def test_hybrid_bond_uses_same_seven_agent_denominator_in_evaluator(self):
+        payload = build_rating_eligible_input()
+        payload.fund_info.code = "000171"
+        payload.fund_info.name = "易方达裕丰回报债券A"
+        payload.fund_info.category = "债券型-普通债券"
+        payload.top_holdings_weight = 0.1237
+        payload.top_holdings = [
+            {"stock_code": "600000", "weight_fraction": 0.0712},
+            {"stock_code": "600519", "weight_fraction": 0.0525},
+        ]
+        payload.industry_exposure = {"制造业": 0.0712, "金融业": 0.0525}
+        payload.bond_holdings = [
+            {"bond_name": "示例债券", "weight_fraction": 0.82},
+        ]
+        payload.asset_allocation = {"债券": 0.82, "股票": 0.1237, "现金": 0.0563}
+
+        result = run_mock_analysis_for_input(payload)
+        report = evaluate_analysis_result(payload, result)
+        outputs = {output.agent_name: output for output in result.agent_outputs}
+
+        self.assertEqual(outputs["ExposureAgent"].status, "success")
+        self.assertEqual(outputs["SectorAgent"].status, "success")
+        self.assertEqual(outputs["BondExposureAgent"].status, "success")
+        self.assertEqual(result.metadata["rating_applicable_agent_count"], "7")
+        self.assertEqual(result.metadata["rating_scored_agent_count"], "7")
+        self.assertEqual(float(result.metadata["rating_coverage_ratio"]), 1.0)
+        self.assertTrue(get_check(report, "agent_execution_health").passed)
+        self.assertTrue(get_check(report, "decision_eligibility").passed)
+
     def test_deterministic_narrative_fallback_is_not_a_technical_error(self):
         payload = build_rating_eligible_input()
         result = run_mock_analysis_for_input(payload)

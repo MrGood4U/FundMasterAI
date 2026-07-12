@@ -6,8 +6,9 @@ from fund_llm.fund_routing import (
     AVAILABLE,
     MISSING,
     MISSING_BACKEND_CAPABILITY,
-    classify_fund_type,
     build_data_coverage,
+    classify_fund_type,
+    resolve_equity_analysis_applicability,
 )
 from fund_llm.ratios import canonical_fraction, holding_weight_fraction
 
@@ -290,6 +291,9 @@ class FeatureBuilder:
     def build(self, payload: FundAnalysisInput) -> FundFeaturePack:
         missing_fields = payload.validate_required_fields()
         fund_type_profile = classify_fund_type(payload.fund_info.category)
+        equity_exposure_applicable, sector_analysis_applicable = (
+            resolve_equity_analysis_applicability(payload, fund_type_profile)
+        )
         data_coverage = build_data_coverage(payload)
 
         if not payload.nav_series:
@@ -440,8 +444,8 @@ class FeatureBuilder:
             "has_profit_probability": bool(payload.profit_probability),
             "has_individual_analysis": bool(payload.individual_analysis),
             "fund_type_known": data_coverage.get("fund_type") == AVAILABLE,
-            "equity_exposure_applicable": fund_type_profile.equity_exposure_applicable,
-            "sector_analysis_applicable": fund_type_profile.sector_analysis_applicable,
+            "equity_exposure_applicable": equity_exposure_applicable,
+            "sector_analysis_applicable": sector_analysis_applicable,
             "bond_exposure_applicable": fund_type_profile.bond_exposure_applicable,
             "asset_allocation_required": fund_type_profile.asset_allocation_required,
         }

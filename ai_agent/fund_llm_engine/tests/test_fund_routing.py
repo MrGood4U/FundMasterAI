@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from fund_llm.contracts import FundAnalysisInput, FundInfo, NavPoint
 from fund_llm.fund_routing import (
     AVAILABLE,
+    MISSING,
     MISSING_BACKEND_CAPABILITY,
     NOT_APPLICABLE,
     build_data_coverage,
@@ -107,6 +108,37 @@ class FundRoutingTest(unittest.TestCase):
 
         self.assertEqual(coverage["bond_holdings"], AVAILABLE)
         self.assertEqual(coverage["asset_allocation"], AVAILABLE)
+
+    def test_coverage_expands_bond_default_when_equity_data_is_disclosed(self):
+        stock_payload = FundAnalysisInput(
+            request_id="secondary-bond-stock-data",
+            fund_info=FundInfo(
+                code="000171",
+                name="易方达裕丰回报债券A",
+                asset_type="fund_open",
+                category="债券型-普通债券",
+            ),
+            nav_series=[NavPoint(date="2026-01-01", nav=1.0)],
+            top_holdings_weight=0.1237,
+            top_holdings=[{"stock_code": "600000", "weight_fraction": 0.1237}],
+        )
+
+        stock_coverage = build_data_coverage(stock_payload)
+
+        self.assertEqual(stock_coverage["stock_holdings"], AVAILABLE)
+        self.assertEqual(stock_coverage["industry_exposure"], MISSING)
+
+        industry_payload = FundAnalysisInput(
+            request_id="secondary-bond-industry-data",
+            fund_info=stock_payload.fund_info,
+            nav_series=stock_payload.nav_series,
+            industry_exposure={"制造业": 0.1237},
+        )
+
+        industry_coverage = build_data_coverage(industry_payload)
+
+        self.assertEqual(industry_coverage["stock_holdings"], MISSING)
+        self.assertEqual(industry_coverage["industry_exposure"], AVAILABLE)
 
 
 if __name__ == "__main__":

@@ -122,6 +122,9 @@ class FeatureBuilderTest(unittest.TestCase):
                 NavPoint(date="2026-01-01", nav=1.00),
                 NavPoint(date="2026-01-02", nav=1.01),
             ],
+            # Legacy real-input fixtures may use this aggregate for bond
+            # positions, so it must not activate equity analysis by itself.
+            top_holdings_weight=0.8364,
             extra_context={
                 "data_source": "backend_function_registry",
                 "available_backend_tools": "get_fund_hist,get_fund_individual_basic_info,get_fund_portfolio_holds",
@@ -141,6 +144,45 @@ class FeatureBuilderTest(unittest.TestCase):
         self.assertNotIn("top_holdings_weight", features.missing_fields)
         self.assertIn("bond_holdings", features.missing_fields)
         self.assertIn("asset_allocation", features.missing_fields)
+
+    def test_build_features_enables_equity_routes_for_secondary_bond_fund(self):
+        payload = FundAnalysisInput(
+            request_id="secondary-bond-000171",
+            fund_info=FundInfo(
+                code="000171",
+                name="易方达裕丰回报债券A",
+                asset_type="fund_open",
+                category="债券型-普通债券",
+            ),
+            nav_series=[
+                NavPoint(date="2026-01-01", nav=1.00),
+                NavPoint(date="2026-01-02", nav=1.01),
+            ],
+            top_holdings_weight=0.1237,
+            top_holdings=[
+                {
+                    "stock_code": f"stock-{index:02d}",
+                    "weight_fraction": 0.1237 / 11,
+                }
+                for index in range(1, 12)
+            ],
+            industry_exposure={
+                "制造业": 0.0712,
+                "金融业": 0.0315,
+                "信息技术": 0.0210,
+            },
+        )
+
+        features = FeatureBuilder().build(payload)
+
+        self.assertEqual(features.normalized_fund_type, "bond_fund")
+        self.assertTrue(features.data_quality_flags["equity_exposure_applicable"])
+        self.assertTrue(features.data_quality_flags["sector_analysis_applicable"])
+        self.assertTrue(features.data_quality_flags["bond_exposure_applicable"])
+        self.assertEqual(features.data_coverage["stock_holdings"], AVAILABLE)
+        self.assertEqual(features.data_coverage["industry_exposure"], AVAILABLE)
+        self.assertNotIn("top_holdings_weight", features.missing_fields)
+        self.assertNotIn("industry_exposure", features.missing_fields)
 
     def test_build_features_extracts_bond_exposure_metrics(self):
         payload = FundAnalysisInput(
