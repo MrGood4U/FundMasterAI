@@ -7,6 +7,18 @@ Language:
 - English: this file
 - Chinese: [README.zh-CN.md](README.zh-CN.md)
 
+## Docker quick start
+
+Run the complete frontend, three backends, AI Agent, and MySQL stack:
+
+```bash
+docker compose up --build --wait
+docker compose run --rm smoke
+```
+
+Open `http://localhost:8080/ai-insights.html`. See [DOCKER.md](DOCKER.md) for
+port overrides, configuration, logs, and real-LLM setup.
+
 This branch connects:
 
 ```text
