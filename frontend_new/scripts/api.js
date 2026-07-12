@@ -126,10 +126,10 @@
         } catch (err) {
           console.error("API AI 模块请求失败:", err);
           return {
-            success: true,
-            signal: "Green",
-            analysis: "Successfully updated! (Fallback Mode: AI concluded your asset allocation is optimized.)",
-            rebalancing: ["No immediate rebalancing required."]
+            success: false,
+            signal: "Red",
+            analysis: `Failed to fetch AI insights: ${err.message || "Unknown network error"}.`,
+            rebalancing: []
           };
         }
       }
