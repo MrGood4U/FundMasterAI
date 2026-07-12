@@ -1,3 +1,4 @@
+from fund_llm import config
 from fund_llm.agents.base import BaseAgent, clamp, data_driven_confidence, score_to_stance
 from fund_llm.contracts import AgentOutput, FundFeaturePack
 
@@ -8,6 +9,25 @@ class RiskAgent(BaseAgent):
         return "RiskAgent"
 
     def analyze(self, features: FundFeaturePack) -> AgentOutput:
+        nav_point_count = features.data_quality_metrics.get("nav_point_count", 0)
+        if nav_point_count < config.MIN_NAV_POINTS_FOR_RATING:
+            return AgentOutput(
+                agent_name=self.name,
+                status="skipped",
+                score=None,
+                stance="insufficient_data",
+                key_points=[
+                    f"Only {nav_point_count} NAV observation(s) are available; "
+                    f"at least {config.MIN_NAV_POINTS_FOR_RATING} are required for risk scoring."
+                ],
+                risks=["Risk scoring was withheld because the NAV history is too short."],
+                recommendations=[
+                    f"Provide at least {config.MIN_NAV_POINTS_FOR_RATING} NAV observations before rating risk."
+                ],
+                confidence=0.0,
+                narrative="Risk analysis skipped because the NAV history is insufficient for scoring.",
+            )
+
         max_drawdown = features.risk_metrics.get("max_drawdown", 0.0)
         volatility = features.risk_metrics.get("annualized_volatility", 0.0)
         max_drawdown_3m = features.risk_metrics.get("max_drawdown_3m")
@@ -50,7 +70,16 @@ class RiskAgent(BaseAgent):
             f"Missing fields: {features.missing_fields}\n"
             "Please explain risk level, risk sources, and investor suitability."
         )
-        narrative = self.llm_client.chat(system_prompt, user_prompt)
+        fallback_narrative = (
+            f"Deterministic risk analysis scored {score:.1f}/100 with a {stance} stance. "
+            f"Annualized volatility is {volatility:.2%} and maximum drawdown is {max_drawdown:.2%}. "
+            "The optional LLM explanation was unavailable; the score and structured evidence remain valid."
+        )
+        narrative, narrative_metadata = self.explain_or_fallback(
+            system_prompt,
+            user_prompt,
+            fallback_narrative,
+        )
 
         key_points = [
             f"Annualized volatility is {volatility:.2%}.",
@@ -91,4 +120,5 @@ class RiskAgent(BaseAgent):
             recommendations=recommendations,
             confidence=data_driven_confidence(features),
             narrative=narrative,
+            metadata=narrative_metadata,
         )

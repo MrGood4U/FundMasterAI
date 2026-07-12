@@ -336,6 +336,104 @@
     return `${sign}${n.toFixed(1)}%`;
   }
 
+  function formatPercent2(value) {
+    if (!Number.isFinite(value)) return "--";
+    const percent = value * 100;
+    return `${percent > 0 ? "+" : ""}${percent.toFixed(2)}%`;
+  }
+
+  function volatilityBand(value) {
+    if (!Number.isFinite(value)) return "--";
+    if (value >= 0.25) return "High";
+    if (value >= 0.15) return "Mod-High";
+    if (value >= 0.08) return "Medium";
+    return "Low";
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function strategyScoreFromMetrics(metrics) {
+    if (!metrics) return null;
+    const annualized = Number.isFinite(metrics.annualized) ? metrics.annualized : 0;
+    const volatility = Number.isFinite(metrics.volatility) ? metrics.volatility : 0;
+    const sharpe = Number.isFinite(metrics.sharpe) ? metrics.sharpe : 0;
+    const score =
+      50
+      + clamp(annualized * 120, -25, 30)
+      + clamp(sharpe * 8, -12, 20)
+      - clamp(volatility * 45, 0, 18);
+    return Math.round(clamp(score, 0, 100));
+  }
+
+  function strategyScoreHint(score, metrics) {
+    if (!Number.isFinite(score)) return "Insufficient live inputs";
+    if (score >= 85) return "Strong risk-adjusted profile";
+    if (score >= 70) return "Constructive live profile";
+    if (score >= 55) return "Balanced but watch risk";
+    if (Number.isFinite(metrics?.volatility) && metrics.volatility >= 0.25) return "High volatility drag";
+    return "Weak risk-adjusted profile";
+  }
+
+  function strategyScoreFromRank(item) {
+    const return1y = numberValue(item.return1y) / 100;
+    const mtd = numberValue(item.mtd) / 100;
+    if (!Number.isFinite(return1y) && !Number.isFinite(mtd)) return null;
+    const score = 55 + clamp(return1y * 100, -25, 30) + clamp(mtd * 80, -10, 15);
+    return Math.round(clamp(score, 0, 100));
+  }
+
+  function parseDate(value) {
+    if (!value) return null;
+    const normalized = String(value).replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3");
+    const date = new Date(normalized);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function formatAum(value) {
+    if (value === null || value === undefined || value === "" || value === "--") return "--";
+    if (typeof value === "string" && /[¥$亿万MB]/i.test(value)) return value;
+    const n = numberValue(value);
+    if (!Number.isFinite(n) || n === 0) return "--";
+    if (n >= 100000000) return `¥${(n / 100000000).toFixed(2)}B`;
+    if (n >= 10000) return `¥${(n / 10000).toFixed(2)}W`;
+    return `¥${n.toLocaleString("zh-CN", { maximumFractionDigits: 2 })}`;
+  }
+
+  function histPoint(record) {
+    const value = numberValue(pick(record, ["unit_net_value", "accumulated_net_value", "单位净值", "累计净值", "close", "净值"]));
+    const date = parseDate(pick(record, ["date", "净值日期", "日期"], ""));
+    return Number.isFinite(value) && value > 0 ? { value, date, raw: record } : null;
+  }
+
+  function calculateMetrics(rows) {
+    const points = rows.map(histPoint).filter(Boolean);
+    if (points.length < 2) return null;
+    points.sort((a, b) => (a.date?.getTime() || 0) - (b.date?.getTime() || 0));
+    const first = points[0];
+    const last = points[points.length - 1];
+    const days = first.date && last.date ? Math.max(1, (last.date - first.date) / 86400000) : points.length;
+    const totalReturn = first.value ? last.value / first.value - 1 : NaN;
+    const annualized = Number.isFinite(totalReturn) ? Math.pow(1 + totalReturn, 365 / days) - 1 : NaN;
+    const returns = points.slice(1).map((point, index) => point.value / points[index].value - 1).filter(Number.isFinite);
+    const mean = returns.reduce((sum, value) => sum + value, 0) / Math.max(returns.length, 1);
+    const variance = returns.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / Math.max(returns.length - 1, 1);
+    const volatility = Math.sqrt(variance) * Math.sqrt(252);
+    const sharpe = volatility ? annualized / volatility : NaN;
+    const monthStart = points.find((point) => last.date && point.date && (last.date - point.date) <= 31 * 86400000) || first;
+    const mtd = monthStart.value ? last.value / monthStart.value - 1 : NaN;
+    return {
+      latestDate: last.date ? last.date.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }) : "Latest NAV",
+      latestValue: String(last.value),
+      annualized,
+      volatility,
+      sharpe,
+      mtd,
+      curve: points.slice(-32).map((point) => point.value),
+    };
+  }
+
   function pick(record, keys, fallback = "") {
     for (const key of keys) {
       if (record && record[key] !== undefined && record[key] !== null && record[key] !== "") {
@@ -394,7 +492,7 @@
       volatility: String(pick(record, ["volatility", "波动"], "--")),
       risk: String(pick(record, ["risk", "风险等级"], "--")),
       score: String(pick(record, ["score"], "--")),
-      scoreHint: "Not supplied by backend",
+      scoreHint: "Calculating from live metrics...",
       aum: String(pick(record, ["aum", "规模"], "--")),
       latestDate: String(pick(record, ["date", "latestDate", "净值日期"], "--")),
       latestValue: String(pick(record, ["unit_net_value", "latestValue", "单位净值"], "--")),
@@ -434,6 +532,50 @@
       console.warn(`Return curve unavailable for ${item.code}:`, error.message);
       return [];
     }
+  }
+
+  async function enrichSelectedItem(item, type) {
+    const enriched = { ...item };
+    const [histResult, basicResult] = await Promise.allSettled([
+      api?.market?.getFundHist && item.code ? api.market.getFundHist(item.code) : Promise.resolve([]),
+      api?.publicFund?.getBasicInfo && item.code ? api.publicFund.getBasicInfo(item.code) : Promise.resolve([]),
+    ]);
+    const histRows = histResult.status === "fulfilled" && Array.isArray(histResult.value) ? histResult.value : [];
+    const metrics = calculateMetrics(histRows);
+    if (metrics) {
+      enriched.curve = metrics.curve;
+      enriched.latestDate = metrics.latestDate;
+      enriched.latestValue = metrics.latestValue;
+      enriched.stdDev = formatPercent2(metrics.volatility);
+      enriched.volatility = `${formatPercent2(metrics.volatility)} (${volatilityBand(metrics.volatility)})`;
+      enriched.sharpe = Number.isFinite(metrics.sharpe) ? metrics.sharpe.toFixed(2) : "--";
+      if (type === "equity" && (enriched.score === "--" || !enriched.score)) {
+        const score = strategyScoreFromMetrics(metrics);
+        enriched.score = Number.isFinite(score) ? `${score}/100` : "--";
+        enriched.scoreHint = strategyScoreHint(score, metrics);
+      }
+      if (type === "equity") {
+        enriched.annualizedYield = formatPercent2(metrics.annualized);
+        enriched.mtd = `${formatPercent2(metrics.mtd)} MTD`;
+      } else {
+        enriched.averageYield = formatPercent2(metrics.annualized);
+      }
+    }
+    if (type === "equity" && (enriched.score === "--" || !enriched.score)) {
+      const score = strategyScoreFromRank(enriched);
+      enriched.score = Number.isFinite(score) ? `${score}/100` : "--";
+      enriched.scoreHint = Number.isFinite(score) ? "Estimated from ranking returns" : "Insufficient live inputs";
+    }
+
+    const basicRows = basicResult.status === "fulfilled" && Array.isArray(basicResult.value) ? basicResult.value : [];
+    const basic = basicRows[0] || {};
+    const aum = pick(basic, ["latest_aum", "最新规模", "fund_scale", "规模"], pick(item, ["latest_aum", "totalValue", "aum"], "--"));
+    enriched.totalValue = formatAum(aum);
+    enriched.aum = enriched.totalValue;
+    enriched.risk = pick(basic, ["fund_rating", "基金评级", "rating"], enriched.risk);
+    enriched.rating = pick(basic, ["fund_rating", "基金评级", "rating"], enriched.rating);
+    enriched.focus = pick(basic, ["investment_objective", "投资目标", "investment_strategy", "投资策略"], enriched.focus);
+    return enriched;
   }
 
   function renderCard(root, item, type) {
@@ -547,7 +689,7 @@
     const allocation = Array.from(page.querySelectorAll(".glass-panel")).find((panel) =>
       /Sector Allocation/.test(panel.textContent || "")
     );
-    let sectors = [];
+    let sectors = Array.isArray(item.sectors) ? item.sectors : [];
     try {
       const rows = await api.publicFund.getIndustryAllocation(item.code);
       if (Array.isArray(rows) && rows.length) {
@@ -566,7 +708,7 @@
     );
     updateText(alert?.querySelector("p"), item.signal);
 
-    const curve = await loadCurve(item);
+    const curve = item.curve?.length ? item.curve : await loadCurve(item);
     renderCurve(page.querySelector("[data-return-chart]"), curve, `${item.name} return curve`);
   }
 
@@ -581,13 +723,13 @@
       legend.innerHTML = `<span>Stable Income ${item.stableYield}</span><span>High-Yield ${item.highYield}</span>`;
     }
     const chart = comparison?.querySelector(".debt-chart");
-    const curve = await loadCurve(item);
+    const curve = item.curve?.length ? item.curve : await loadCurve(item);
     renderCurve(chart, curve, `${item.name} return curve · Avg yield ${item.averageYield}`);
 
     const risk = Array.from(page.querySelectorAll(".glass-panel")).find((panel) =>
       /Risk Composition/.test(panel.textContent || "")
     );
-    let riskMix = [];
+    let riskMix = Array.isArray(item.riskMix) ? item.riskMix : [];
     try {
       const rows = await api.publicFund.getDetailHold(item.code);
       if (Array.isArray(rows) && rows.length) {
@@ -631,7 +773,7 @@
     pager.className = "ranking-pager";
     section.appendChild(pager);
 
-    function select(index) {
+    async function select(index) {
       const item = rows[index];
       if (!item) return;
       activeIndex = index;
@@ -640,6 +782,14 @@
       });
       renderCard(detail, item, type);
       updatePage(section, item, type);
+      try {
+        const enriched = await enrichSelectedItem(item, type);
+        rows[index] = enriched;
+        renderCard(detail, enriched, type);
+        updatePage(section, enriched, type);
+      } catch (error) {
+        console.warn(`Selected fund enrichment unavailable for ${item.code}:`, error.message);
+      }
     }
 
     function renderPage() {

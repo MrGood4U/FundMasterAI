@@ -26,6 +26,7 @@ from fund_llm.contracts import (
     NavPoint,
     NewsItem,
 )
+from fund_llm.ratios import percentage_points_to_fraction
 
 _FUND_NAME_CACHE: Optional[List[Dict[str, Any]]] = None
 
@@ -115,10 +116,9 @@ def _fetch_industry_exposure(code: str, portfolio_year: str) -> Dict[str, float]
         pct_raw = row.get("占净值比例")
         if not name or pct_raw is None:
             continue
-        try:
-            exposure[name] = float(pct_raw)
-        except (TypeError, ValueError):
-            continue
+        exposure_weight = percentage_points_to_fraction(pct_raw)
+        if exposure_weight is not None:
+            exposure[name] = exposure_weight
     return exposure
 
 
@@ -141,10 +141,9 @@ def _sum_holdings_weight(holdings: List[Dict[str, Any]]) -> Optional[float]:
         return None
     total = 0.0
     for record in holdings:
-        try:
-            total += float(record.get("占净值比例") or 0.0)
-        except (TypeError, ValueError):
-            continue
+        weight = percentage_points_to_fraction(record.get("占净值比例"))
+        if weight is not None:
+            total += weight
     return total if total > 0 else None
 
 

@@ -107,8 +107,29 @@
 
     setStatus("[data-api-status='market']", "Connecting to market backend...");
     try {
-      const rows = await api.global.getIndexQuotesFromList(["^GSPC", "^IXIC", "^FTSE", "^N225"], 4);
-      const quotes = Array.isArray(rows) ? rows : [];
+      const tickers = ["^GSPC", "^IXIC", "^FTSE", "^N225"];
+      const rows = await api.global.getIndexQuotesFromList(tickers);
+      const batchQuotes = Array.isArray(rows) ? rows : [];
+      const details = await Promise.allSettled(tickers.map((ticker) => api.global.getIndexInfo(ticker)));
+      const quotes = tickers.map((ticker, index) => {
+        const batch = batchQuotes.find((item) => pick(item, ["ticker"], "") === ticker) || batchQuotes[index];
+        const detail = details[index]?.status === "fulfilled" ? details[index].value : null;
+        return batch || detail || null;
+      }).filter(Boolean);
+      if (!quotes.length) {
+        document.querySelectorAll(".mh-indices .mh-index").forEach((card) => {
+          const price = card.querySelector(".mh-index__v");
+          const percent = card.querySelector(".mh-index__p");
+          if (price) price.textContent = "--";
+          if (percent) percent.textContent = "--";
+        });
+        const heat = document.querySelector("[data-market-heat]");
+        const movers = document.querySelector("[data-market-movers]");
+        if (heat) heat.innerHTML = '<p class="muted">No global index data returned.</p>';
+        if (movers) movers.innerHTML = '<p class="muted">No mover data returned.</p>';
+        setStatus("[data-api-status='market']", "Global index APIs returned no data", true);
+        return;
+      }
       document.querySelectorAll(".mh-indices .mh-index").forEach((card, index) => {
         const quote = quotes[index];
         if (!quote) return;
@@ -137,21 +158,25 @@
       })));
       setStatus(
         "[data-api-status='market']",
-        quotes.length ? `Global index API live · ${quotes.length} quotes` : "Global index API returned no quotes; showing preview values",
-        quotes.length === 0
+        `Global index API live · ${quotes.length} quotes`,
+        false
       );
     } catch (error) {
       setStatus("[data-api-status='market']", `Market backend unavailable: ${error.message}`, true);
     }
   }
 
-  function newsCard(item, index) {
+  function newsCard(item, index, signal = {}, relatedSymbols = []) {
     const title = pick(item, ["news_title", "新闻标题", "标题", "title"], "Untitled market update");
     const body = pick(item, ["news_content", "新闻内容", "内容", "摘要", "summary"], "");
     const source = pick(item, ["文章来源", "来源", "source"], "MARKET NEWS");
     const time = pick(item, ["publish_time", "发布时间", "时间", "date"], "");
     const url = pick(item, ["新闻链接", "链接", "url"], "#");
     const hot = index === 0;
+    const sentiment = text(signal.sentiment, "neutral").toLowerCase();
+    const sentimentClass = sentiment === "positive" ? "bull" : sentiment === "negative" ? "bear" : "neutral";
+    const sentimentLabel = sentiment === "positive" ? "BULLISH" : sentiment === "negative" ? "BEARISH" : "NEUTRAL";
+    const related = Array.isArray(relatedSymbols) && relatedSymbols.length ? relatedSymbols.join(", ") : DEFAULT_STOCK_SYMBOL;
 
     return `<article class="news-card ${hot ? "news-card--flash" : ""}">
       <div class="news-card__meta">
@@ -164,10 +189,170 @@
       <h4 class="news-card__headline">${escapeHtml(title)}</h4>
       <p class="news-card__body">${escapeHtml(body || title)}</p>
       <div class="news-card__footer">
-        <span class="sentiment-pill sentiment-pill--neutral"><span class="sentiment-pill__dot"></span>LIVE FEED</span>
-        <span class="news-card__related">Symbol: ${DEFAULT_STOCK_SYMBOL}</span>
+        <span class="sentiment-pill sentiment-pill--${sentimentClass}"><span class="sentiment-pill__dot"></span>${sentimentLabel}${signal.risk_event ? " · RISK EVENT" : ""}</span>
+        <span class="news-card__related">Related: ${escapeHtml(related)}</span>
       </div>
     </article>`;
+  }
+
+  function newsTitle(item) {
+    return text(pick(item, ["news_title", "新闻标题", "标题", "title"], ""), "");
+  }
+
+  function newsBody(item) {
+    return text(pick(item, ["news_content", "新闻内容", "内容", "摘要", "summary"], ""), "");
+  }
+
+  function newsMatchesFilter(item, signal, filter) {
+    if (filter === "all") return true;
+    const content = `${newsTitle(item)} ${newsBody(item)}`.toLowerCase();
+    if (filter === "breaking") {
+      return Boolean(signal?.risk_event)
+        || /breaking|latest|alert|risk|regulat|policy|fed|cpi|突发|最新|风险|监管|政策|加息|降息/.test(content);
+    }
+    if (filter === "earnings") {
+      return /earnings|revenue|profit|eps|guidance|财报|业绩|利润|营收|盈利|指引/.test(content);
+    }
+    return true;
+  }
+
+  function renderNewsList(feed, items, analysis, filter = "all") {
+    const signals = Array.isArray(analysis?.item_signals) ? analysis.item_signals : [];
+    const signalByTitle = new Map(signals.map((item) => [text(item.title, ""), item]));
+    const rows = items
+      .map((item, index) => ({
+        item,
+        index,
+        signal: signalByTitle.get(newsTitle(item)) || signals[index] || {},
+      }))
+      .filter((entry) => newsMatchesFilter(entry.item, entry.signal, filter));
+
+    if (!rows.length) {
+      feed.innerHTML = `<p class="muted">No ${escapeHtml(filter)} news matched the current live feed.</p>`;
+      return 0;
+    }
+
+    feed.innerHTML = rows
+      .map((entry, visibleIndex) => newsCard(entry.item, visibleIndex, entry.signal, analysis?.related_symbols || []))
+      .join("");
+    return rows.length;
+  }
+
+  function setupNewsFilters(feed, items, analysis) {
+    const buttons = Array.from(document.querySelectorAll("#news .pill-group .pill"));
+    if (!buttons.length) return;
+
+    const applyFilter = (button) => {
+      const filter = text(button.dataset.newsFilter || button.textContent, "all").trim().toLowerCase();
+      buttons.forEach((item) => item.classList.add("pill--ghost"));
+      button.classList.remove("pill--ghost");
+      const count = renderNewsList(feed, items, analysis, filter);
+      setStatus("[data-api-status='news']", `Live terminal · ${count} ${filter} news · AI ${analysis ? "ready" : "unavailable"}`, !analysis);
+    };
+
+    buttons.forEach((button) => {
+      if (button.dataset.newsFilterReady === "true") return;
+      button.dataset.newsFilterReady = "true";
+      button.dataset.newsFilter = text(button.dataset.newsFilter || button.textContent, "all").trim().toLowerCase();
+      button.addEventListener("click", () => applyFilter(button));
+    });
+
+    const active = buttons.find((button) => !button.classList.contains("pill--ghost")) || buttons[0];
+    if (active) applyFilter(active);
+  }
+
+  function sectorFromNews(item) {
+    const content = `${newsTitle(item)} ${newsBody(item)}`.toLowerCase();
+    if (/nvda|chip|semiconductor|ai|cloud|software|data center|technology|tech|芯片|半导体|人工智能|科技/.test(content)) return "TECHNOLOGY";
+    if (/oil|crude|energy|gas|opec|eia|能源|原油|石油|天然气/.test(content)) return "ENERGY";
+    if (/fed|rate|bank|yield|treasury|credit|loan|inflation|cpi|financial|金融|银行|利率|通胀|债券/.test(content)) return "FINANCIALS";
+    if (/health|pharma|biotech|drug|medical|healthcare|医药|医疗|生物/.test(content)) return "HEALTHCARE";
+    return "MARKET NEWS";
+  }
+
+  function fallbackNewsScore(item) {
+    const content = `${newsTitle(item)} ${newsBody(item)}`.toLowerCase();
+    const positive = /beat|beats|surge|rally|gain|growth|record|upgrade|bullish|strong|shatters|利好|增长|上涨|突破|强劲/.test(content);
+    const negative = /miss|fall|drop|plunge|risk|warning|cut|bearish|restrictive|inflation|concern|压力|下跌|风险|警告|收紧/.test(content);
+    if (positive && !negative) return 1;
+    if (negative && !positive) return -1;
+    if (positive && negative) return 0;
+    return null;
+  }
+
+  function signalScore(signal, item) {
+    const label = text(signal?.sentiment || signal?.sentiment_label || "", "").toLowerCase();
+    if (label === "positive" || label === "bullish") return 1;
+    if (label === "negative" || label === "bearish") return -1;
+    if (label === "neutral" || label === "mixed") return 0;
+    return fallbackNewsScore(item);
+  }
+
+  function renderNewsSectorSentiment(items, analysis) {
+    const signals = Array.isArray(analysis?.item_signals) ? analysis.item_signals : [];
+    const signalByTitle = new Map(signals.map((item) => [text(item.title, ""), item]));
+    const buckets = new Map();
+
+    items.forEach((item, index) => {
+      const sector = sectorFromNews(item);
+      const signal = signalByTitle.get(newsTitle(item)) || signals[index] || {};
+      const score = signalScore(signal, item);
+      const normalizedScore = Number.isFinite(score) ? score : 0;
+      const current = buckets.get(sector) || { name: sector, total: 0, count: 0 };
+      current.total += normalizedScore;
+      current.count += 1;
+      buckets.set(sector, current);
+    });
+
+    const rows = Array.from(buckets.values())
+      .map((bucket) => ({ name: bucket.name, score: bucket.count ? bucket.total / bucket.count : null }))
+      .sort((a, b) => Math.abs(b.score || 0) - Math.abs(a.score || 0));
+
+    renderSectorSentiment(rows);
+  }
+
+  function renderAiSummary(items, analysis) {
+    const summary = document.querySelector(".panel--ai .ai-copy");
+    const confidence = document.querySelector(".panel--ai .ai-conf");
+    const button = document.querySelector(".panel--ai .ai-btn");
+    if (!summary && !confidence && !button) return;
+
+    if (analysis) {
+      if (summary) summary.textContent = analysis.summary || "No AI summary returned.";
+      if (confidence) {
+        const label = text(analysis.sentiment?.label, "neutral").toUpperCase();
+        confidence.textContent = `Confidence: ${Math.round(numberValue(analysis.confidence) * 100)}% · ${label}`;
+      }
+      if (button) {
+        button.textContent = "Read Analysis";
+        button.disabled = false;
+      }
+      return;
+    }
+
+    if (!items.length) {
+      if (summary) summary.textContent = "No live news returned from the backend, so no signal summary is available.";
+      if (confidence) confidence.textContent = "Confidence: --";
+      if (button) {
+        button.textContent = "No Analysis";
+        button.disabled = true;
+      }
+      return;
+    }
+
+    const positive = items.filter((item) => fallbackNewsScore(item) === 1).length;
+    const negative = items.filter((item) => fallbackNewsScore(item) === -1).length;
+    const neutral = Math.max(0, items.length - positive - negative);
+    const topTitle = newsTitle(items[0]) || "latest headline";
+    const tone = positive > negative ? "positive" : negative > positive ? "negative" : "mixed";
+    if (summary) {
+      summary.textContent = `Live news fallback summary: ${items.length} headline(s) loaded. Tone is ${tone} (${positive} positive / ${negative} negative / ${neutral} neutral). Latest: ${topTitle}`;
+    }
+    if (confidence) confidence.textContent = "Confidence: rules fallback";
+    if (button) {
+      button.textContent = "Live Feed Basis";
+      button.disabled = false;
+    }
   }
 
   async function loadNewsFeed() {
@@ -178,13 +363,179 @@
     try {
       const rows = await api.news.getStockRecentNews({ symbol: DEFAULT_STOCK_SYMBOL });
       const list = Array.isArray(rows) ? rows.slice(0, 6) : [];
-      if (list.length) {
-        feed.innerHTML = list.map(newsCard).join("");
+      let analysis = null;
+      if (list.length && api.ai?.summarizeNews) {
+        try {
+          analysis = await api.ai.summarizeNews({
+            symbol: DEFAULT_STOCK_SYMBOL,
+            items: rows,
+            max_items: 10,
+            mock: true,
+          });
+        } catch (error) {
+          console.warn("News AI summary unavailable:", error.message);
+        }
       }
-      setStatus("[data-api-status='news']", `Live terminal · ${list.length} news`);
+      if (list.length) {
+        renderNewsList(feed, list, analysis, "all");
+        setupNewsFilters(feed, list, analysis);
+        renderNewsSectorSentiment(list, analysis);
+      } else {
+        feed.innerHTML = '<p class="muted">No live news returned from backend.</p>';
+        renderSectorSentiment([]);
+      }
+      renderAiSummary(list, analysis);
+      setStatus("[data-api-status='news']", `Live terminal · ${list.length} news · AI ${analysis ? "ready" : "unavailable"}`, !analysis);
     } catch (error) {
+      feed.innerHTML = '<p class="muted">News backend unavailable.</p>';
+      renderSectorSentiment([]);
+      renderAiSummary([], null);
       setStatus("[data-api-status='news']", `News backend unavailable: ${error.message}`, true);
     }
+  }
+
+  function sentimentLabel(score) {
+    if (score >= 0.55) return "EXTREME GREED";
+    if (score >= 0.18) return "BULLISH";
+    if (score <= -0.35) return "FEAR";
+    if (score <= -0.12) return "CAUTIOUS";
+    return "NEUTRAL";
+  }
+
+  function sentimentClass(score) {
+    if (score >= 0.18) return "sector-tile--greed";
+    if (score <= -0.12) return "sector-tile--fear";
+    return "sector-tile--neutral";
+  }
+
+  function formatScore(score) {
+    if (!Number.isFinite(score)) return "--";
+    const value = score;
+    return `${value > 0 ? "+" : ""}${value.toFixed(2)}`;
+  }
+
+  function averageChange(rows, field = "change_1y") {
+    const valid = rows
+      .map((item) => pick(item, [field], undefined))
+      .filter((value) => value !== undefined && value !== null && value !== "")
+      .map(numberValue)
+      .filter(Number.isFinite);
+    if (!valid.length) return null;
+    return valid.reduce((sum, value) => sum + value, 0) / valid.length;
+  }
+
+  function renderSectorSentiment(items) {
+    const grid = document.querySelector(".sector-grid");
+    if (!grid) return;
+    const validItems = items.filter((item) => Number.isFinite(item.score));
+    if (!validItems.length) {
+      grid.innerHTML = '<p class="muted">No backend sentiment inputs returned.</p>';
+      const valueNode = document.querySelector(".gauge__value");
+      const marker = document.querySelector(".gauge__marker");
+      const track = document.querySelector(".gauge__track");
+      if (valueNode) valueNode.textContent = "-- / No data";
+      if (marker) marker.style.left = "50%";
+      if (track) track.setAttribute("aria-label", "No backend sentiment data returned");
+      return;
+    }
+    grid.innerHTML = validItems.slice(0, 4).map((item) => {
+      const score = Math.max(-1, Math.min(1, item.score));
+      return `<div class="sector-tile ${sentimentClass(score)}">
+        <p class="sector-tile__name">${escapeHtml(item.name)}</p>
+        <p class="sector-tile__score ${score < 0 ? "sector-tile__score--neg" : score < 0.18 ? "sector-tile__score--amber" : ""}">${formatScore(score)}</p>
+        <p class="sector-tile__mood">${sentimentLabel(score)}</p>
+      </div>`;
+    }).join("");
+    const aggregate = validItems.reduce((sum, item) => sum + item.score, 0) / validItems.length;
+    const gaugeValue = Math.max(0, Math.min(100, Math.round(50 + aggregate * 50)));
+    const gaugeLabel = gaugeValue >= 60 ? "Greed" : gaugeValue <= 40 ? "Fear" : "Neutral";
+    const valueNode = document.querySelector(".gauge__value");
+    const marker = document.querySelector(".gauge__marker");
+    const track = document.querySelector(".gauge__track");
+    if (valueNode) valueNode.textContent = `${gaugeValue} / ${gaugeLabel}`;
+    if (marker) marker.style.left = `${gaugeValue}%`;
+    if (track) track.setAttribute("aria-label", `Aggregate sentiment ${gaugeValue}, ${gaugeLabel}`);
+  }
+
+  function latestMacroRow(rows) {
+    if (!Array.isArray(rows) || !rows.length) return null;
+    return rows.slice().sort((a, b) => {
+      const ad = Date.parse(pick(a, ["date", "month", "月份", "统计时间"], ""));
+      const bd = Date.parse(pick(b, ["date", "month", "月份", "统计时间"], ""));
+      return (Number.isNaN(bd) ? 0 : bd) - (Number.isNaN(ad) ? 0 : ad);
+    })[0];
+  }
+
+  function renderMacroCalendar(rows) {
+    const header = document.querySelector(".cal-header__date");
+    const list = document.querySelector(".cal-list");
+    if (!list) return;
+    if (header) header.textContent = "Latest macro data";
+    const visible = rows.filter(Boolean).slice(0, 3);
+    if (!visible.length) {
+      list.innerHTML = '<li class="cal-row"><div class="cal-row__main"><div class="cal-row__info"><span class="cal-row__title">No macro data returned</span></div></div></li>';
+      return;
+    }
+    list.innerHTML = visible.map((item, index) => {
+      const date = pick(item.row, ["date", "month", "月份", "统计时间"], "Latest");
+      return `<li class="cal-row ${index ? "cal-row--border" : ""}">
+        <div class="cal-row__main">
+          <time class="cal-time">${escapeHtml(text(date).slice(0, 10))}</time>
+          <div class="cal-row__info">
+            <span class="cal-row__title">${escapeHtml(item.title)}</span>
+            <span class="cal-row__bars ${item.importance < 3 ? "cal-row__bars--short" : ""}" aria-hidden="true">${"▮".repeat(item.importance)}</span>
+          </div>
+        </div>
+        <div class="cal-row__nums">
+          <span>Actual: ${escapeHtml(text(item.actual))}</span>
+          <span>Source: Backend</span>
+        </div>
+      </li>`;
+    }).join("");
+  }
+
+  async function loadHomeSidebars() {
+    const needsSentiment = document.querySelector(".sector-grid");
+    const needsMacro = document.querySelector(".cal-list");
+    if (!needsSentiment && !needsMacro) return;
+    const newsPageOwnsSentiment = Boolean(document.querySelector("[data-news-feed]"));
+
+    const [equityRank, debtRank, globalQuotes, cpiData, pmiData, oilData] = await Promise.allSettled([
+      api.publicFund.getRank({ fund_type: "stock" }),
+      api.publicFund.getRank({ fund_type: "bond" }),
+      api.global.getIndexQuotesFromList(["^IXIC", "^GSPC", "^HSI"]),
+      api.macro.getData({ country: "usa", indicator: "core_cpi_monthly" }),
+      api.macro.getData({ country: "china", indicator: "pmi" }),
+      api.macro.getData({ country: "usa", indicator: "eia_crude_rate" }),
+    ]);
+
+    const equityRows = equityRank.status === "fulfilled" && Array.isArray(equityRank.value) ? equityRank.value : [];
+    const debtRows = debtRank.status === "fulfilled" && Array.isArray(debtRank.value) ? debtRank.value : [];
+    const quoteRows = globalQuotes.status === "fulfilled" && Array.isArray(globalQuotes.value) ? globalQuotes.value : [];
+    const equityChange = averageChange(equityRows, "change_1m");
+    const debtChange = averageChange(debtRows, "change_1m");
+    const indexChange = averageChange(quoteRows, "change_pct");
+    const breadthValues = equityRows
+      .map((item) => pick(item, ["daily_growth_rate"], undefined))
+      .filter((value) => value !== undefined && value !== null && value !== "")
+      .map(numberValue);
+    if (!newsPageOwnsSentiment) {
+      renderSectorSentiment([
+        { name: "EQUITY FUNDS", score: equityChange === null ? null : equityChange / 10 },
+        { name: "BOND FUNDS", score: debtChange === null ? null : debtChange / 5 },
+        { name: "GLOBAL INDEX", score: indexChange === null ? null : indexChange / 3 },
+        { name: "FUND BREADTH", score: breadthValues.length ? breadthValues.filter((value) => value > 0).length / breadthValues.length * 2 - 1 : null },
+      ]);
+    }
+
+    const cpi = cpiData.status === "fulfilled" ? latestMacroRow(cpiData.value) : null;
+    const pmi = pmiData.status === "fulfilled" ? latestMacroRow(pmiData.value) : null;
+    const oil = oilData.status === "fulfilled" ? latestMacroRow(oilData.value) : null;
+    renderMacroCalendar([
+      { title: "US Core CPI (MoM)", row: cpi, actual: pick(cpi, ["value", "core_cpi_monthly", "核心CPI月率", "actual"], "--"), importance: 3 },
+      { title: "China Manufacturing PMI", row: pmi, actual: pick(pmi, ["manufacturing_index", "制造业-指数", "value"], "--"), importance: 2 },
+      { title: "US EIA Crude Inventory", row: oil, actual: pick(oil, ["value", "eia_crude_rate", "库存", "actual"], "--"), importance: 2 },
+    ]);
   }
 
   function renderFundHeader(record) {
@@ -316,5 +667,6 @@
     loadMarketHub();
     loadNewsFeed();
     loadFundDetail();
+    loadHomeSidebars();
   });
 })(window, document);

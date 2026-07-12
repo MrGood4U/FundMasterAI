@@ -1,9 +1,11 @@
 import os
 import sys
+import math
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+from fund_llm import config
 from fund_llm.agents import (
     BondExposureAgent,
     ChiefAgent,
@@ -23,6 +25,7 @@ from fund_llm.contracts import (
     NewsItem,
     NavPoint,
 )
+from fund_llm.agents.base import clamp
 from fund_llm.feature_builder import FeatureBuilder
 from fund_llm.llm_client import MockLLMClient
 
@@ -49,13 +52,7 @@ def build_sample_input() -> FundAnalysisInput:
             category="mixed",
             manager="示例经理",
         ),
-        nav_series=[
-            NavPoint(date="2026-01-01", nav=1.00),
-            NavPoint(date="2026-01-02", nav=1.03),
-            NavPoint(date="2026-01-03", nav=1.01),
-            NavPoint(date="2026-01-04", nav=1.08),
-            NavPoint(date="2026-01-05", nav=1.09),
-        ],
+        nav_series=build_long_nav_series(30),
         industry_exposure={
             "科技": 0.32,
             "医药": 0.18,
@@ -139,7 +136,36 @@ class BrokenLLMClient:
         raise RuntimeError("mock llm failure")
 
 
+class NoCallLLMClient:
+    def __init__(self):
+        self.calls = 0
+
+    def chat(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
+        self.calls += 1
+        raise AssertionError("LLM must not be called for an ineligible analysis")
+
+
+class RecordingLLMClient:
+    is_mock = True
+
+    def __init__(self, response: str = "Recorded chief summary."):
+        self.response = response
+        self.system_prompt = ""
+        self.user_prompt = ""
+
+    def chat(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
+        self.system_prompt = system_prompt
+        self.user_prompt = user_prompt
+        return self.response
+
+
 class AgentsTest(unittest.TestCase):
+    def test_clamp_rejects_nonfinite_values(self):
+        for value in (math.nan, math.inf, -math.inf):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    clamp(value)
+
     def test_performance_agent_returns_structured_output(self):
         result = PerformanceAgent(MockLLMClient("performance narrative")).analyze(build_sample_features())
 
@@ -180,6 +206,19 @@ class AgentsTest(unittest.TestCase):
         self.assertIn("Exposure profile looks consistent with a core allocation role.", result.recommendations)
         self.assertGreaterEqual(result.confidence, 0.78)
 
+    def test_exposure_agent_hides_internal_provenance_tags_from_key_points(self):
+        payload = build_sample_input()
+        payload.fund_tags = ["backend-function-registry", "open-fund", "mixed_fund"]
+
+        result = ExposureAgent(MockLLMClient("exposure narrative")).analyze(
+            FeatureBuilder().build(payload)
+        )
+
+        rendered = " ".join(result.key_points)
+        self.assertNotIn("backend-function-registry", rendered)
+        self.assertNotIn("open-fund", rendered)
+        self.assertNotIn("mixed_fund", rendered)
+
     def test_bond_exposure_agent_returns_structured_output(self):
         result = BondExposureAgent(MockLLMClient("bond exposure narrative")).analyze(
             build_bond_features_with_exposure()
@@ -212,6 +251,47 @@ class AgentsTest(unittest.TestCase):
         self.assertEqual(result.stance, "insufficient_data")
         self.assertIn("No bond holdings or asset-allocation data was provided.", result.key_points)
 
+    def test_bond_exposure_agent_rejects_implausible_percentage_inputs(self):
+        payload = build_bond_input_with_exposure()
+        payload.bond_holdings = [
+            {"bond_name": "Impossible Bond", "weight_fraction": 1.50},
+        ]
+        result = BondExposureAgent(MockLLMClient("unused")).analyze(
+            FeatureBuilder().build(payload)
+        )
+
+        self.assertEqual(result.status, "error")
+        self.assertIsNone(result.score)
+        self.assertEqual(result.metadata["failure_stage"], "bond_exposure_data_validation")
+
+    def test_bond_exposure_agent_rejects_invalid_asset_allocation_from_json_boundary(self):
+        for asset_allocation in (
+            {"债券": "not-a-percentage"},
+            {"债券": 0.86, "现金": "not-a-percentage"},
+        ):
+            with self.subTest(asset_allocation=asset_allocation):
+                raw_payload = build_bond_input_with_exposure().to_dict()
+                raw_payload["bond_holdings"] = []
+                raw_payload["asset_allocation"] = asset_allocation
+                payload = FundAnalysisInput.from_dict(raw_payload)
+
+                features = FeatureBuilder().build(payload)
+                result = BondExposureAgent(MockLLMClient("unused")).analyze(features)
+
+                self.assertTrue(features.data_quality_flags["has_asset_allocation"])
+                self.assertFalse(features.data_quality_flags["asset_allocation_valid"])
+                self.assertEqual(features.data_coverage["asset_allocation"], "available")
+                self.assertNotIn("asset_allocation", features.missing_fields)
+                self.assertEqual(
+                    features.data_quality_metrics["invalid_asset_allocation_count"], 1
+                )
+                self.assertEqual(result.status, "error")
+                self.assertIsNone(result.score)
+                self.assertEqual(
+                    result.metadata["failure_stage"],
+                    "bond_exposure_data_validation",
+                )
+
     def test_risk_agent_returns_structured_output(self):
         result = RiskAgent(MockLLMClient("risk narrative")).analyze(build_sample_features())
 
@@ -232,6 +312,25 @@ class AgentsTest(unittest.TestCase):
             "Risk history is still too short for a fuller rolling-risk assessment.",
             result.risks,
         )
+
+    def test_nav_agents_abstain_below_rating_floor_without_calling_llm(self):
+        for nav_point_count in (1, 2, config.MIN_NAV_POINTS_FOR_RATING - 1):
+            with self.subTest(nav_point_count=nav_point_count):
+                payload = build_sample_input()
+                payload.nav_series = build_long_nav_series(nav_point_count)
+                features = FeatureBuilder().build(payload)
+
+                for agent_class in (PerformanceAgent, RiskAgent):
+                    with self.subTest(agent=agent_class.__name__):
+                        llm = NoCallLLMClient()
+                        result = agent_class(llm).analyze(features)
+
+                        self.assertEqual(result.status, "skipped")
+                        self.assertIsNone(result.score)
+                        self.assertEqual(result.stance, "insufficient_data")
+                        self.assertEqual(result.confidence, 0.0)
+                        self.assertEqual(llm.calls, 0)
+                        self.assertIn(str(config.MIN_NAV_POINTS_FOR_RATING), result.key_points[0])
 
     def test_sentiment_agent_returns_structured_output(self):
         result = SentimentAgent(MockLLMClient("sentiment narrative")).analyze(build_sample_features())
@@ -316,6 +415,46 @@ class AgentsTest(unittest.TestCase):
         self.assertEqual(result.stance, "not_applicable")
         self.assertIn("bond_index_fund", result.key_points[0])
 
+    def test_equity_agents_run_for_secondary_bond_with_disclosed_equity_data(self):
+        payload = build_sample_input()
+        payload.fund_info.code = "000171"
+        payload.fund_info.name = "易方达裕丰回报债券A"
+        payload.fund_info.category = "债券型-普通债券"
+        payload.top_holdings_weight = 0.1237
+        payload.top_holdings = [
+            {"stock_code": "600000", "weight_fraction": 0.0712},
+            {"stock_code": "600519", "weight_fraction": 0.0525},
+        ]
+        payload.industry_exposure = {"制造业": 0.0712, "金融业": 0.0525}
+        features = FeatureBuilder().build(payload)
+
+        exposure = ExposureAgent(MockLLMClient("exposure narrative")).analyze(features)
+        sector = SectorAgent(MockLLMClient("sector narrative")).analyze(features)
+
+        self.assertEqual(exposure.status, "success")
+        self.assertIsNotNone(exposure.score)
+        self.assertEqual(sector.status, "success")
+        self.assertIsNotNone(sector.score)
+
+    def test_secondary_bond_without_industry_data_does_not_claim_sector_is_inapplicable(self):
+        payload = build_sample_input()
+        payload.fund_info.code = "000171"
+        payload.fund_info.name = "易方达裕丰回报债券A"
+        payload.fund_info.category = "债券型-普通债券"
+        payload.top_holdings_weight = 0.1237
+        payload.top_holdings = [
+            {"stock_code": "600000", "weight_fraction": 0.1237},
+        ]
+        payload.industry_exposure = {}
+        features = FeatureBuilder().build(payload)
+
+        exposure = ExposureAgent(MockLLMClient("exposure narrative")).analyze(features)
+        sector = SectorAgent(MockLLMClient("unused")).analyze(features)
+
+        self.assertEqual(exposure.status, "success")
+        self.assertEqual(sector.status, "skipped")
+        self.assertEqual(sector.stance, "insufficient_data")
+
     def test_sentiment_agent_skips_when_news_is_missing(self):
         payload = build_sample_input()
         payload.news_summary = []
@@ -338,14 +477,54 @@ class AgentsTest(unittest.TestCase):
         self.assertEqual(result.stance, "not_applicable")
         self.assertIn("bond_index_fund", result.key_points[0])
 
-    def test_safe_analyze_isolates_agent_failures(self):
-        result = PerformanceAgent(BrokenLLMClient()).safe_analyze(build_sample_features())
+    def test_llm_failure_preserves_all_deterministic_specialist_results(self):
+        equity_features = build_sample_features()
+        market_payload = build_sample_input()
+        market_payload.individual_analysis = [
+            {"period": "近1年", "risk_return_ratio_vs_peers": 72, "risk_robustness_vs_peers": 58}
+        ]
+        market_payload.profit_probability = [
+            {"holding_period": "满1年", "profit_probability": 62, "average_return": 12.4}
+        ]
+        market_features = FeatureBuilder().build(market_payload)
+        cases = [
+            (PerformanceAgent, equity_features),
+            (ExposureAgent, equity_features),
+            (RiskAgent, equity_features),
+            (SentimentAgent, equity_features),
+            (SectorAgent, equity_features),
+            (MarketAgent, market_features),
+            (BondExposureAgent, build_bond_features_with_exposure()),
+        ]
+
+        for agent_class, features in cases:
+            with self.subTest(agent=agent_class.__name__):
+                result = agent_class(BrokenLLMClient()).safe_analyze(features)
+
+                self.assertEqual(result.agent_name, agent_class.__name__)
+                self.assertEqual(result.status, "success")
+                self.assertIsNotNone(result.score)
+                self.assertGreater(result.confidence, 0.0)
+                self.assertEqual(result.metadata["narrative_source"], "deterministic_fallback")
+                self.assertIn("optional LLM explanation was unavailable", result.narrative)
+                self.assertNotIn("mock llm failure", result.narrative)
+
+    def test_safe_analyze_sanitizes_true_deterministic_failures(self):
+        class BrokenDeterministicAgent(PerformanceAgent):
+            def analyze(self, features):
+                raise RuntimeError("secret deterministic failure detail")
+
+        result = BrokenDeterministicAgent(MockLLMClient("unused")).safe_analyze(
+            build_sample_features()
+        )
 
         self.assertEqual(result.agent_name, "PerformanceAgent")
         self.assertEqual(result.status, "error")
         self.assertIsNone(result.score)
         self.assertEqual(result.confidence, 0.0)
-        self.assertIn("mock llm failure", result.narrative)
+        self.assertEqual(result.metadata["failure_stage"], "deterministic_analysis")
+        self.assertNotIn("secret deterministic failure detail", result.narrative)
+        self.assertNotIn("secret deterministic failure detail", " ".join(result.risks))
 
 
 class MarketAgentTest(unittest.TestCase):
@@ -464,6 +643,91 @@ class DataDrivenConfidenceTest(unittest.TestCase):
 
 
 class ChiefAgentTest(unittest.TestCase):
+    @staticmethod
+    def _successful_output(agent_name: str, score: float) -> AgentOutput:
+        stance = "positive" if score >= 70 else "negative" if score <= 40 else "neutral"
+        return AgentOutput(
+            agent_name=agent_name,
+            status="success",
+            score=score,
+            stance=stance,
+            key_points=[f"{agent_name} completed."],
+            risks=[],
+            recommendations=[f"Use the {agent_name} evidence."],
+            confidence=0.75,
+            narrative=f"{agent_name} narrative",
+        )
+
+    @staticmethod
+    def _error_output(agent_name: str) -> AgentOutput:
+        return AgentOutput(
+            agent_name=agent_name,
+            status="error",
+            score=None,
+            stance="mixed",
+            key_points=[],
+            risks=[f"{agent_name} could not complete its deterministic analysis."],
+            recommendations=["Review the server logs and retry the analysis."],
+            confidence=0.0,
+            narrative=f"{agent_name} could not complete its deterministic analysis.",
+        )
+
+    @staticmethod
+    def _not_applicable_output(agent_name: str) -> AgentOutput:
+        return AgentOutput(
+            agent_name=agent_name,
+            status="skipped",
+            score=None,
+            stance="not_applicable",
+            key_points=[f"{agent_name} is not applicable."],
+            risks=[],
+            recommendations=[],
+            confidence=0.0,
+            narrative=f"{agent_name} is not applicable.",
+        )
+
+    def test_chief_abstains_when_nav_history_is_below_rating_floor(self):
+        payload = build_sample_input()
+        payload.nav_series = build_long_nav_series(2)
+        features = FeatureBuilder().build(payload)
+        llm = NoCallLLMClient()
+        chief = ChiefAgent(llm)
+        agent_outputs = [
+            AgentOutput(
+                agent_name="PerformanceAgent",
+                status="success",
+                score=100.0,
+                stance="positive",
+                key_points=["Short sample appears strong."],
+                risks=[],
+                recommendations=[],
+                confidence=0.9,
+                narrative="performance narrative",
+            ),
+            AgentOutput(
+                agent_name="RiskAgent",
+                status="success",
+                score=100.0,
+                stance="positive",
+                key_points=["Short sample appears calm."],
+                risks=[],
+                recommendations=[],
+                confidence=0.9,
+                narrative="risk narrative",
+            ),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(result.overall_rating, "insufficient_data")
+        self.assertIsNone(result.overall_score)
+        self.assertEqual(result.metadata["analysis_status"], "insufficient_data")
+        self.assertEqual(result.metadata["rating_eligible"], "false")
+        self.assertEqual(result.quant_metrics, {"sample_size": 2.0})
+        self.assertEqual(result.metadata["summary_source"], "deterministic_abstention")
+        self.assertEqual(llm.calls, 0)
+        self.assertNotIn(result.overall_rating, {"buy", "hold", "watch", "avoid"})
+
     def test_chief_agent_aggregates_outputs(self):
         features = build_sample_features()
         chief = ChiefAgent(MockLLMClient("chief summary"))
@@ -501,6 +765,17 @@ class ChiefAgentTest(unittest.TestCase):
                 confidence=0.75,
                 narrative="risk narrative",
             ),
+            AgentOutput(
+                agent_name="SentimentAgent",
+                status="success",
+                score=60.0,
+                stance="neutral",
+                key_points=["News signal is balanced."],
+                risks=[],
+                recommendations=["Keep news as a secondary signal."],
+                confidence=0.7,
+                narrative="sentiment narrative",
+            ),
         ]
 
         result = chief.aggregate(features, agent_outputs)
@@ -512,7 +787,7 @@ class ChiefAgentTest(unittest.TestCase):
         self.assertIn("HOLD rating", result.score_explanation)
         self.assertIn("Performance scored 80.0", result.score_explanation)
         self.assertIn("Risk control scored 40.0", result.score_explanation)
-        self.assertEqual(len(result.agent_outputs), 3)
+        self.assertEqual(len(result.agent_outputs), 4)
         self.assertTrue(result.key_thesis)
         self.assertTrue(result.main_risks)
         self.assertTrue(result.action_plan)
@@ -592,7 +867,7 @@ class ChiefAgentTest(unittest.TestCase):
         self.assertTrue(any("Sector exposure breakdown is available" in item for item in result.key_thesis))
         self.assertTrue(any("balanced risk profile" in item for item in result.action_plan))
 
-    def test_chief_agent_flags_partial_results_when_agents_fail(self):
+    def test_chief_publishes_partial_rating_for_one_non_core_error_without_penalty(self):
         features = build_sample_features()
         chief = ChiefAgent(MockLLMClient("partial chief summary"))
         agent_outputs = [
@@ -609,14 +884,47 @@ class ChiefAgentTest(unittest.TestCase):
             ),
             AgentOutput(
                 agent_name="RiskAgent",
+                status="success",
+                score=65.0,
+                stance="neutral",
+                key_points=["Risk remains manageable."],
+                risks=[],
+                recommendations=["Monitor volatility."],
+                confidence=0.74,
+                narrative="risk narrative",
+            ),
+            AgentOutput(
+                agent_name="ExposureAgent",
+                status="success",
+                score=70.0,
+                stance="positive",
+                key_points=["Exposure remains acceptable."],
+                risks=[],
+                recommendations=["Monitor concentration."],
+                confidence=0.72,
+                narrative="exposure narrative",
+            ),
+            AgentOutput(
+                agent_name="SectorAgent",
+                status="success",
+                score=70.0,
+                stance="positive",
+                key_points=["Sector evidence remains constructive."],
+                risks=[],
+                recommendations=["Monitor sector concentration."],
+                confidence=0.71,
+                narrative="sector narrative",
+            ),
+            AgentOutput(
+                agent_name="SentimentAgent",
                 status="error",
                 score=None,
                 stance="mixed",
                 key_points=[],
-                risks=["RiskAgent failed: mock llm failure"],
-                recommendations=["Check the upstream payload or prompt formatting."],
+                risks=["SentimentAgent could not complete its deterministic analysis."],
+                recommendations=["Review the server logs and retry the analysis."],
                 confidence=0.0,
-                narrative="RiskAgent failed: mock llm failure",
+                narrative="SentimentAgent could not complete its deterministic analysis.",
             ),
         ]
 
@@ -624,7 +932,191 @@ class ChiefAgentTest(unittest.TestCase):
 
         self.assertEqual(result.metadata["error_agent_count"], "1")
         self.assertEqual(result.metadata["agent_health"], "partial")
-        self.assertTrue(any("final view is only partial" in item for item in result.main_risks))
+        self.assertEqual(result.metadata["analysis_status"], "partial")
+        self.assertEqual(result.overall_rating, "hold")
+        self.assertEqual(result.overall_score, 70.0)
+        self.assertEqual(result.metadata["rating_eligible"], "true")
+        self.assertEqual(result.metadata["rating_scored_agent_count"], "4")
+        self.assertEqual(result.metadata["rating_applicable_agent_count"], "6")
+        self.assertAlmostEqual(float(result.metadata["rating_coverage_ratio"]), 0.67)
+        self.assertTrue(any("failed technically" in item for item in result.main_risks))
+        self.assertFalse(any("Review the server logs" in item for item in result.action_plan))
+        self.assertNotIn("penalty", result.score_explanation.lower())
+
+    def test_five_of_six_successes_publish_partial_rating_without_error_penalty(self):
+        features = build_sample_features()
+        chief = ChiefAgent(MockLLMClient("partial chief summary"))
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 80.0),
+            self._successful_output("RiskAgent", 60.0),
+            self._successful_output("ExposureAgent", 70.0),
+            self._successful_output("SentimentAgent", 50.0),
+            self._successful_output("SectorAgent", 40.0),
+            self._error_output("MarketAgent"),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(result.metadata["analysis_status"], "partial")
+        self.assertEqual(result.metadata["rating_scored_agent_count"], "5")
+        self.assertEqual(result.metadata["rating_applicable_agent_count"], "6")
+        self.assertEqual(float(result.metadata["rating_coverage_ratio"]), round(5 / 6, 2))
+        self.assertEqual(result.overall_score, 60.0)
+        self.assertEqual(result.overall_rating, "hold")
+        self.assertEqual(result.metadata["rating_eligible"], "true")
+
+    def test_exact_sixty_percent_scoring_coverage_is_rating_eligible(self):
+        payload = build_bond_input_with_exposure()
+        payload.nav_series = build_long_nav_series(config.MIN_NAV_POINTS_FOR_RATING)
+        features = FeatureBuilder().build(payload)
+        chief = ChiefAgent(MockLLMClient("partial chief summary"))
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 75.0),
+            self._successful_output("RiskAgent", 65.0),
+            self._successful_output("BondExposureAgent", 70.0),
+            self._error_output("SentimentAgent"),
+            self._error_output("MarketAgent"),
+            self._not_applicable_output("ExposureAgent"),
+            self._not_applicable_output("SectorAgent"),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(result.metadata["analysis_status"], "partial")
+        self.assertEqual(result.metadata["rating_scored_agent_count"], "3")
+        self.assertEqual(result.metadata["rating_applicable_agent_count"], "5")
+        self.assertAlmostEqual(float(result.metadata["rating_coverage_ratio"]), 0.60)
+        self.assertEqual(result.overall_score, 70.0)
+        self.assertEqual(result.overall_rating, "hold")
+        self.assertEqual(result.metadata["rating_eligible"], "true")
+
+    def test_fewer_than_three_scores_cannot_publish_rating(self):
+        features = build_sample_features()
+        chief = ChiefAgent(MockLLMClient("unused"))
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 80.0),
+            self._successful_output("RiskAgent", 60.0),
+            self._error_output("ExposureAgent"),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(result.metadata["rating_scored_agent_count"], "2")
+        self.assertEqual(result.metadata["rating_applicable_agent_count"], "6")
+        self.assertAlmostEqual(float(result.metadata["rating_coverage_ratio"]), 0.33)
+        self.assertEqual(result.overall_rating, "unavailable")
+        self.assertIsNone(result.overall_score)
+        self.assertEqual(result.metadata["rating_eligible"], "false")
+
+    def test_below_sixty_percent_scoring_coverage_cannot_publish_rating(self):
+        features = build_sample_features()
+        chief = ChiefAgent(MockLLMClient("unused"))
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 80.0),
+            self._successful_output("RiskAgent", 60.0),
+            self._successful_output("ExposureAgent", 70.0),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(result.metadata["rating_scored_agent_count"], "3")
+        self.assertEqual(result.metadata["rating_applicable_agent_count"], "6")
+        self.assertAlmostEqual(float(result.metadata["rating_coverage_ratio"]), 0.50)
+        self.assertEqual(result.overall_rating, "unavailable")
+        self.assertIsNone(result.overall_score)
+        self.assertEqual(result.metadata["rating_eligible"], "false")
+
+    def test_core_agent_failure_blocks_rating_even_with_high_overall_coverage(self):
+        features = build_sample_features()
+        chief = ChiefAgent(MockLLMClient("unused"))
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 80.0),
+            self._error_output("RiskAgent"),
+            self._successful_output("ExposureAgent", 70.0),
+            self._successful_output("SentimentAgent", 60.0),
+            self._successful_output("SectorAgent", 55.0),
+            self._successful_output("MarketAgent", 50.0),
+            self._not_applicable_output("BondExposureAgent"),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(result.metadata["rating_scored_agent_count"], "5")
+        self.assertEqual(result.metadata["rating_applicable_agent_count"], "6")
+        self.assertGreater(float(result.metadata["rating_coverage_ratio"]), 0.60)
+        self.assertEqual(result.overall_rating, "unavailable")
+        self.assertIsNone(result.overall_score)
+        self.assertEqual(result.metadata["rating_eligible"], "false")
+
+    def test_rating_coverage_deduplicates_names_and_rejects_invalid_scores(self):
+        features = build_sample_features()
+        chief = ChiefAgent(MockLLMClient("partial chief summary"))
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 80.0),
+            self._successful_output("PerformanceAgent", 20.0),
+            self._successful_output("RiskAgent", 60.0),
+            self._successful_output("ExposureAgent", 70.0),
+            self._successful_output("SectorAgent", 50.0),
+            self._successful_output("SentimentAgent", float("nan")),
+            self._successful_output("MarketAgent", 101.0),
+            self._not_applicable_output("BondExposureAgent"),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(result.metadata["rating_scored_agent_count"], "3")
+        self.assertEqual(result.metadata["rating_applicable_agent_count"], "6")
+        self.assertAlmostEqual(float(result.metadata["rating_coverage_ratio"]), 0.50)
+        self.assertEqual(result.metadata["analysis_status"], "technical_error")
+        self.assertEqual(result.metadata["rating_eligible"], "false")
+        self.assertEqual(result.overall_rating, "unavailable")
+        self.assertIsNone(result.overall_score)
+
+    def test_one_high_score_and_six_errors_cannot_publish_buy(self):
+        features = build_sample_features()
+        chief = ChiefAgent(MockLLMClient("unused"))
+        agent_outputs = [
+            AgentOutput(
+                agent_name="PerformanceAgent",
+                status="success",
+                score=100.0,
+                stance="positive",
+                key_points=["Performance score is high."],
+                risks=[],
+                recommendations=[],
+                confidence=0.9,
+                narrative="performance narrative",
+            )
+        ]
+        for agent_name in (
+            "ExposureAgent",
+            "BondExposureAgent",
+            "RiskAgent",
+            "SentimentAgent",
+            "SectorAgent",
+            "MarketAgent",
+        ):
+            agent_outputs.append(
+                AgentOutput(
+                    agent_name=agent_name,
+                    status="error",
+                    score=None,
+                    stance="mixed",
+                    key_points=[],
+                    risks=[f"{agent_name} could not complete its deterministic analysis."],
+                    recommendations=["Review the server logs and retry the analysis."],
+                    confidence=0.0,
+                    narrative=f"{agent_name} could not complete its deterministic analysis.",
+                )
+            )
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(result.metadata["error_agent_count"], "6")
+        self.assertEqual(result.metadata["analysis_status"], "technical_error")
+        self.assertEqual(result.overall_rating, "unavailable")
+        self.assertIsNone(result.overall_score)
+        self.assertNotEqual(result.overall_rating, "buy")
 
     def test_chief_fallback_summary_does_not_turn_zero_missing_fields_into_limitation(self):
         features = build_sample_features()
@@ -651,6 +1143,28 @@ class ChiefAgentTest(unittest.TestCase):
                 recommendations=["Control position size."],
                 confidence=0.75,
                 narrative="risk narrative",
+            ),
+            AgentOutput(
+                agent_name="ExposureAgent",
+                status="success",
+                score=60.0,
+                stance="neutral",
+                key_points=["Exposure is balanced."],
+                risks=[],
+                recommendations=["Monitor concentration."],
+                confidence=0.7,
+                narrative="exposure narrative",
+            ),
+            AgentOutput(
+                agent_name="SentimentAgent",
+                status="success",
+                score=60.0,
+                stance="neutral",
+                key_points=["News signal is balanced."],
+                risks=[],
+                recommendations=["Keep news as a secondary signal."],
+                confidence=0.7,
+                narrative="sentiment narrative",
             ),
         ]
 
@@ -679,6 +1193,10 @@ class ChiefAgentTest(unittest.TestCase):
                 confidence=0.8,
                 narrative="performance narrative",
             ),
+            self._successful_output("RiskAgent", 65.0),
+            self._successful_output("BondExposureAgent", 60.0),
+            self._successful_output("SentimentAgent", 55.0),
+            self._successful_output("MarketAgent", 50.0),
             ExposureAgent(MockLLMClient("unused")).analyze(features),
             SectorAgent(MockLLMClient("unused")).analyze(features),
         ]
@@ -689,6 +1207,105 @@ class ChiefAgentTest(unittest.TestCase):
         self.assertEqual(result.metadata["skipped_agent_count"], "0")
         self.assertEqual(result.metadata["agent_health"], "healthy")
         self.assertTrue(any("not applicable" in item for item in result.key_thesis))
+
+    def test_chief_excludes_bond_fund_not_applicable_copy_from_three_columns(self):
+        payload = build_bond_input_with_exposure()
+        payload.nav_series = build_long_nav_series(config.MIN_NAV_POINTS_FOR_RATING)
+        features = FeatureBuilder().build(payload)
+        chief = ChiefAgent(MockLLMClient("bond chief summary"))
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 70.0),
+            self._successful_output("RiskAgent", 65.0),
+            self._successful_output("BondExposureAgent", 60.0),
+            self._successful_output("SentimentAgent", 55.0),
+            self._successful_output("MarketAgent", 50.0),
+            ExposureAgent(MockLLMClient("unused")).analyze(features),
+            SectorAgent(MockLLMClient("unused")).analyze(features),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        rendered = " ".join(result.key_thesis + result.main_risks + result.action_plan)
+        self.assertNotIn(
+            "Use bond or asset-allocation data for exposure analysis instead of stock holdings.",
+            rendered,
+        )
+        self.assertNotIn(
+            "Use asset-class or bond-holding exposure data instead of equity industry buckets.",
+            rendered,
+        )
+        self.assertTrue(any("not applicable" in item for item in result.key_thesis))
+
+    def test_chief_excludes_mixed_fund_bond_not_applicable_copy_from_three_columns(self):
+        features = build_sample_features()
+        chief = ChiefAgent(MockLLMClient("mixed chief summary"))
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 70.0),
+            self._successful_output("RiskAgent", 65.0),
+            self._successful_output("ExposureAgent", 60.0),
+            self._successful_output("SentimentAgent", 55.0),
+            self._successful_output("SectorAgent", 50.0),
+            self._successful_output("MarketAgent", 50.0),
+            BondExposureAgent(MockLLMClient("unused")).analyze(features),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        rendered = " ".join(result.key_thesis + result.main_risks + result.action_plan)
+        self.assertNotIn(
+            "Use equity exposure and sector agents for non-bond fund types.",
+            rendered,
+        )
+
+    def test_chief_hides_internal_tags_from_user_copy_and_prompt_but_keeps_metadata(self):
+        payload = build_sample_input()
+        payload.fund_tags = ["backend-function-registry", "open-fund", "mixed_fund"]
+        features = FeatureBuilder().build(payload)
+        llm = RecordingLLMClient()
+        chief = ChiefAgent(llm)
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 70.0),
+            ExposureAgent(MockLLMClient("exposure narrative")).analyze(features),
+            self._successful_output("RiskAgent", 65.0),
+            self._successful_output("SentimentAgent", 55.0),
+            self._successful_output("SectorAgent", 50.0),
+            self._successful_output("MarketAgent", 50.0),
+            BondExposureAgent(MockLLMClient("unused")).analyze(features),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        rendered = " ".join(
+            result.key_thesis + result.main_risks + result.action_plan + [result.summary]
+        )
+        self.assertNotIn("backend-function-registry", rendered)
+        self.assertNotIn("backend-function-registry", llm.user_prompt)
+        self.assertNotIn("open-fund", llm.user_prompt)
+        self.assertIn("Fund tags: []", llm.user_prompt)
+        self.assertEqual(
+            result.metadata["fund_tags"],
+            "backend-function-registry,open-fund,mixed_fund",
+        )
+
+    def test_chief_keeps_meaningful_style_tags_in_key_thesis(self):
+        payload = build_sample_input()
+        payload.fund_tags = ["core_holding", "active_equity"]
+        features = FeatureBuilder().build(payload)
+        chief = ChiefAgent(MockLLMClient("chief summary"))
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 70.0),
+            self._successful_output("RiskAgent", 65.0),
+            self._successful_output("ExposureAgent", 60.0),
+            self._successful_output("SentimentAgent", 55.0),
+            self._successful_output("SectorAgent", 50.0),
+            self._successful_output("MarketAgent", 50.0),
+            BondExposureAgent(MockLLMClient("unused")).analyze(features),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertTrue(any("core_holding" in item for item in result.key_thesis))
+        self.assertEqual(result.metadata["fund_tags"], "core_holding,active_equity")
 
 
 if __name__ == "__main__":

@@ -361,12 +361,25 @@ def create_app() -> Flask:
 
             result.analysis_trace = _build_source_trace(payload) + result.analysis_trace
 
+            analysis_status = result.metadata.get("analysis_status", "complete")
+            fallback_count = int(result.metadata.get("specialist_narrative_fallback_count", "0") or 0)
+            if analysis_status == "technical_error":
+                response_message = "analysis_incomplete"
+            elif analysis_status == "insufficient_data":
+                response_message = "insufficient_data"
+            elif analysis_status == "partial":
+                response_message = "success_with_partial_coverage"
+            elif fallback_count:
+                response_message = "success_with_narrative_fallback"
+            else:
+                response_message = "success"
+
             return jsonify(
                 {
                     "code": 200,
                     "data": result.to_dict(),
                     "coverage": _coverage(payload),
-                    "message": "success",
+                    "message": response_message,
                 }
             ), 200
         except ValueError as exc:

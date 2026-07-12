@@ -32,6 +32,13 @@ from fund_llm.contracts import (
     _records_from_payload,
 )
 from fund_llm.fund_routing import classify_fund_type
+from fund_llm.ratios import (
+    first_present_value,
+    holding_weight_fraction,
+    normalize_backend_holding,
+    percentage_points_to_fraction,
+    to_finite_float,
+)
 
 
 JsonDict = Dict[str, Any]
@@ -119,22 +126,11 @@ def _normalize_date(value: Any) -> str:
 
 
 def _to_float(value: Any) -> Optional[float]:
-    if value is None or value == "":
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    text = str(value).strip().replace(",", "")
-    match = re.search(r"-?\d+(?:\.\d+)?", text)
-    if not match:
-        return None
-    return float(match.group(0))
+    return to_finite_float(value)
 
 
 def _percent_to_fraction(value: Any) -> Optional[float]:
-    number = _to_float(value)
-    if number is None:
-        return None
-    return number / 100.0
+    return percentage_points_to_fraction(value)
 
 
 def _aum_to_billion(value: Any) -> Optional[float]:
@@ -369,7 +365,7 @@ def _select_latest_quarter(records: List[JsonDict], quarter_key: str = "quarter"
 
 
 def _holding_weight(row: JsonDict) -> Optional[float]:
-    return _percent_to_fraction(row.get("net_value_pct") or row.get("pct"))
+    return holding_weight_fraction(row)
 
 
 def _build_industry_exposure(records: List[JsonDict]) -> Dict[str, float]:
@@ -381,19 +377,31 @@ def _build_industry_exposure(records: List[JsonDict]) -> Dict[str, float]:
             or row.get("sector")
             or ""
         ).strip()
-        pct = _percent_to_fraction(row.get("pct") or row.get("net_value_pct"))
+        pct = _percent_to_fraction(first_present_value(row, ("pct", "net_value_pct")))
         if name and pct is not None:
             exposure[name] = pct
     return exposure
 
 
-def _build_asset_allocation(records: List[JsonDict]) -> Dict[str, float]:
+def _build_asset_allocation_with_invalid_count(
+    records: List[JsonDict],
+) -> tuple[Dict[str, float], int]:
     allocation: Dict[str, float] = {}
+    invalid_count = 0
     for row in records:
         name = str(row.get("asset_type") or row.get("asset_class") or row.get("资产类型") or "").strip()
-        pct = _percent_to_fraction(row.get("pct") or row.get("net_value_pct") or row.get("仓位占比"))
+        pct = _percent_to_fraction(
+            first_present_value(row, ("pct", "net_value_pct", "仓位占比"))
+        )
         if name and pct is not None:
             allocation[name] = pct
+        else:
+            invalid_count += 1
+    return allocation, invalid_count
+
+
+def _build_asset_allocation(records: List[JsonDict]) -> Dict[str, float]:
+    allocation, _ = _build_asset_allocation_with_invalid_count(records)
     return allocation
 
 
@@ -549,7 +557,10 @@ def build_fund_input_from_backend_functions(
         if latest_call_failed(stock_holdings_tool):
             break
 
-    latest_holdings = _select_latest_quarter(holding_records or [])
+    latest_holdings = [
+        normalize_backend_holding(row)
+        for row in _select_latest_quarter(holding_records or [])
+    ]
     ranked_holdings = sorted(
         latest_holdings,
         key=lambda row: _holding_weight(row) or 0.0,
@@ -591,7 +602,10 @@ def build_fund_input_from_backend_functions(
             if latest_call_failed("get_fund_portfolio_hold_bond"):
                 break
     latest_bond_holdings = sorted(
-        _select_latest_quarter(bond_holding_records or []),
+        [
+            normalize_backend_holding(row)
+            for row in _select_latest_quarter(bond_holding_records or [])
+        ],
         key=lambda row: _holding_weight(row) or 0.0,
         reverse=True,
     )
@@ -603,7 +617,9 @@ def build_fund_input_from_backend_functions(
             {"code": code},
             timeout_seconds=optional_timeout_seconds,
         )
-    asset_allocation = _build_asset_allocation(asset_allocation_records or [])
+    asset_allocation, invalid_asset_allocation_count = (
+        _build_asset_allocation_with_invalid_count(asset_allocation_records or [])
+    )
 
     announcement_records = safe_call(
         "get_public_fund_announcement",
@@ -653,6 +669,7 @@ def build_fund_input_from_backend_functions(
         top_holdings=[dict(row) for row in top_holdings],
         bond_holdings=latest_bond_holdings,
         asset_allocation=asset_allocation,
+        invalid_asset_allocation_count=invalid_asset_allocation_count,
         profit_probability=_records_from_payload(profit_probability),
         individual_analysis=_records_from_payload(individual_analysis),
         news_items=news_items,
@@ -669,7 +686,8 @@ def build_fund_input_from_backend_functions(
             "holdings_count": str(len(top_holdings)),
             "industry_exposure_count": str(len(industry_exposure)),
             "bond_holdings_count": str(len(latest_bond_holdings)),
-            "asset_allocation_count": str(len(asset_allocation)),
+            "asset_allocation_count": str(len(asset_allocation_records or [])),
+            "invalid_asset_allocation_count": str(invalid_asset_allocation_count),
             "news_count": str(len(news_items)),
             "available_backend_tools": ",".join(sorted(tool_client.functions)),
             "successful_backend_tools": ",".join(successful_tools),
@@ -756,7 +774,10 @@ def build_portfolio_input_from_backend_functions(
         for year in candidate_years:
             records = optional_call(stock_holdings_tool, {"code": fund_code, "year": year}, fund_code)
             if records:
-                latest = _select_latest_quarter(records)
+                latest = [
+                    normalize_backend_holding(row)
+                    for row in _select_latest_quarter(records)
+                ]
                 ranked = sorted(latest, key=lambda row: _holding_weight(row) or 0.0, reverse=True)
                 return [dict(row) for row in ranked[:top_holdings_n]]
             if tool_trace and tool_trace[-1].get("status") == "error":

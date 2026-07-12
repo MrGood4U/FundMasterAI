@@ -102,7 +102,17 @@ class SectorAgent(BaseAgent):
             f"Missing fields: {features.missing_fields}\n"
             "Please explain the sector positioning in concise investment language."
         )
-        narrative = self.llm_client.chat(system_prompt, user_prompt)
+        fallback_narrative = (
+            f"Deterministic sector analysis scored {score:.1f}/100 with a {stance} stance. "
+            f"The largest disclosed sector is {top_sector_name} at {top_sector_weight:.2%}, "
+            f"across {sector_count} sector bucket(s). The optional LLM explanation was unavailable; "
+            "the score and structured evidence remain valid."
+        )
+        narrative, narrative_metadata = self.explain_or_fallback(
+            system_prompt,
+            user_prompt,
+            fallback_narrative,
+        )
 
         key_points = []
         if has_industry_exposure:
@@ -153,4 +163,5 @@ class SectorAgent(BaseAgent):
             recommendations=recommendations,
             confidence=confidence,
             narrative=narrative,
+            metadata=narrative_metadata,
         )

@@ -175,6 +175,24 @@ def _check_minimum_status(minimum_status: str, evaluation_report: EvaluationRepo
     return GoldenCaseCheck(name="minimum_evaluation_status", passed=passed, details=details)
 
 
+def _check_agent_execution_health(evaluation_report: EvaluationReport) -> GoldenCaseCheck:
+    execution_check = next(
+        (check for check in evaluation_report.checks if check.name == "agent_execution_health"),
+        None,
+    )
+    if execution_check is None:
+        return GoldenCaseCheck(
+            name="agent_execution_health",
+            passed=False,
+            details=["Evaluation report is missing the agent execution health gate."],
+        )
+    return GoldenCaseCheck(
+        name="agent_execution_health",
+        passed=execution_check.passed,
+        details=list(execution_check.details),
+    )
+
+
 def run_golden_suite(
     manifest_path: str,
     analysis_mode: str = "mock",
@@ -204,6 +222,7 @@ def run_golden_suite(
 
         checks = [
             _check_minimum_status(expectations.get("minimum_evaluation_status", "review"), evaluation_report),
+            _check_agent_execution_health(evaluation_report),
             _check_required_agents(expectations.get("required_agents", []), result_agent_names),
             _check_expected_metadata(expectations.get("expected_metadata", {}), result.metadata),
             _check_expected_missing_fields(
@@ -220,7 +239,12 @@ def run_golden_suite(
             )
 
         overall_status = "pass" if all(check.passed for check in checks) else "review"
-        if not checks[0].passed or not checks[1].passed:
+        hard_failure_checks = {
+            "minimum_evaluation_status",
+            "agent_execution_health",
+            "required_agents",
+        }
+        if any(not check.passed and check.name in hard_failure_checks for check in checks):
             overall_status = "fail"
 
         case_reports.append(

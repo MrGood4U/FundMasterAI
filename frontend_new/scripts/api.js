@@ -4,7 +4,7 @@
   const config = {
     marketBaseUrl: "",
     portfolioBaseUrl: "",
-    aiBaseUrl: "http://fundmaster-ai.duckdns.org:8080",
+    aiBaseUrl: "",
     ...(window.FUNDMASTER_API_CONFIG || {}),
   };
 
@@ -53,8 +53,10 @@
 
   const postMarket = (path, body = {}) => request(config.marketBaseUrl, path, { method: "POST", body });
   const publicFund = {
+    getOneRealTime: (body = {}) => postMarket("/api/market/fund_public/real_time_get_one", body),
     getRank: (body = {}) => postMarket("/api/market/fund_public/rank", { order_by: "change_1y", ...body }),
     getHist: (body = {}) => postMarket("/api/market/fund_public/hist", body),
+    getBasicInfo: (code) => postMarket("/api/market/fund_public/individual_basic_info", { code }),
     getDetailHold: (code, date) => postMarket("/api/market/fund_public/individual_detail_hold", { code, ...(date ? { date } : {}) }),
     getIndustryAllocation: (code, year) => postMarket("/api/market/fund_public/portfolio_industry_allocation", { code, ...(year ? { year } : {}) }),
     getStockHolds: (code, year) => postMarket("/api/market/fund_public/portfolio_hold_stock", { code, ...(year ? { year } : {}) }),
@@ -90,12 +92,18 @@
     },
     publicFund,
     global: {
-      getIndexQuotesFromList: (tickers) => postMarket("/api/market/global/index/quotes", { tickers }),
-      getIndexInfo: (ticker) => postMarket("/api/market/global/index/info", { ticker }),
-      getIndexHist: (ticker, options = {}) => postMarket("/api/market/global/index/hist", { ticker, ...options }),
+      getIndexQuotesFromList: (tickers) => request(config.marketBaseUrl, "/api/market/global/index/quotes", { method: "POST", body: { tickers }, timeout: 90000 }),
+      getIndexInfo: (ticker) => request(config.marketBaseUrl, "/api/market/global/index/info", { method: "POST", body: { ticker }, timeout: 60000 }),
+      getIndexHist: (ticker, options = {}) => request(config.marketBaseUrl, "/api/market/global/index/hist", { method: "POST", body: { ticker, ...options }, timeout: 90000 }),
       getIndexList: () => postMarket("/api/market/global/index/list", {}),
       getExchangeRate: (fromCurrency, toCurrency) => postMarket("/api/market/global/exchange_rate/rate", { from_currency: fromCurrency, to_currency: toCurrency }),
       getExchangeRateHistory: (fromCurrency, toCurrency, queryDate) => postMarket("/api/market/global/exchange_rate/history", { from_currency: fromCurrency, to_currency: toCurrency, query_date: queryDate }),
+    },
+    macro: {
+      getCountries: () => postMarket("/api/market/macro/countries", {}),
+      getIndicators: (country) => postMarket("/api/market/macro/indicators", country ? { country } : {}),
+      getSchema: (country, indicator) => postMarket("/api/market/macro/schema", { country, indicator }),
+      getData: (body) => postMarket("/api/market/macro/data", body),
     },
     news: {
       getStockRecentNews: (body) => request(config.marketBaseUrl, "/api/news/stock/get_recent_news", { method: "POST", body }),
@@ -111,6 +119,11 @@
     },
     
     ai: {
+      summarizeNews: (body) => request(config.aiBaseUrl, "/api/ai/news/summary", {
+        method: "POST",
+        body,
+        timeout: 60000,
+      }),
       async getInsights(body) {
         try {
           const res = await request(config.aiBaseUrl, "/api/ai/portfolio-insights", {

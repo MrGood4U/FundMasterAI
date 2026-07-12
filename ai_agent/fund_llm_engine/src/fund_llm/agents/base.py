@@ -1,10 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+import math
+from typing import Dict, List, Optional, Tuple
 
 from fund_llm.contracts import AgentOutput, FundFeaturePack
 
 
 def clamp(value: float, minimum: float = 0.0, maximum: float = 100.0) -> float:
+    if not all(math.isfinite(float(item)) for item in (value, minimum, maximum)):
+        raise ValueError("Cannot clamp non-finite numeric values.")
     return max(minimum, min(maximum, value))
 
 
@@ -64,20 +67,49 @@ class BaseAgent(ABC):
     def analyze(self, features: FundFeaturePack) -> AgentOutput:
         ...
 
+    def explain_or_fallback(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        fallback_narrative: str,
+    ) -> Tuple[str, Dict[str, str]]:
+        """Generate the optional LLM explanation without risking the deterministic result.
+
+        Specialist scores, stances, evidence, and confidence are computed before this
+        helper is called. A provider failure therefore degrades only the narrative;
+        it must not turn a completed deterministic analysis into an agent error.
+        """
+        try:
+            narrative = self.llm_client.chat(system_prompt, user_prompt)
+        except Exception:
+            narrative = ""
+
+        if isinstance(narrative, str) and narrative.strip():
+            return narrative.strip(), {"narrative_source": "llm"}
+
+        fallback = (fallback_narrative or "").strip()
+        if not fallback:
+            fallback = (
+                f"{self.name} completed its deterministic analysis, but the optional "
+                "LLM explanation was unavailable."
+            )
+        return fallback, {"narrative_source": "deterministic_fallback"}
+
     def safe_analyze(self, features: FundFeaturePack) -> AgentOutput:
         try:
             return self.analyze(features)
-        except Exception as exc:
+        except Exception:
             return AgentOutput(
                 agent_name=self.name,
                 status="error",
                 score=None,
                 stance="mixed",
                 key_points=[],
-                risks=[f"{self.name} failed: {exc}"],
-                recommendations=["Check the upstream payload or prompt formatting."],
+                risks=[f"{self.name} could not complete its deterministic analysis."],
+                recommendations=["Review the server logs and retry the analysis."],
                 confidence=0.0,
-                narrative=f"{self.name} failed: {exc}",
+                narrative=f"{self.name} could not complete its deterministic analysis.",
+                metadata={"failure_stage": "deterministic_analysis"},
             )
 
 
@@ -98,4 +130,3 @@ def merge_lists(items: List[List[str]], limit: int = 3) -> List[str]:
             if len(merged) >= limit:
                 return merged
     return merged
-

@@ -108,6 +108,7 @@ class ContractsTest(unittest.TestCase):
                     {"stock_name": "贵州茅台", "net_value_pct": "9.5", "quarter": "2026Q1"},
                     "not-a-dict-should-be-dropped",
                 ],
+                "asset_allocation": {"债券": 1.12, "现金": "3%"},
                 "profit_probability": [{"holding_period": "1y", "profit_probability": "78.5%"}],
                 "individual_analysis": {"rank": "top 20%"},
             }
@@ -115,14 +116,39 @@ class ContractsTest(unittest.TestCase):
 
         self.assertEqual(len(payload.top_holdings), 1)
         self.assertEqual(payload.top_holdings[0]["stock_name"], "贵州茅台")
+        self.assertAlmostEqual(payload.top_holdings[0]["weight_fraction"], 0.095)
+        self.assertEqual(payload.asset_allocation, {"债券": 1.12, "现金": 0.03})
         self.assertEqual(len(payload.profit_probability), 1)
         # 单个对象会被包装成单元素列表
         self.assertEqual(payload.individual_analysis, [{"rank": "top 20%"}])
 
         round_tripped = FundAnalysisInput.from_dict(payload.to_dict())
         self.assertEqual(round_tripped.top_holdings, payload.top_holdings)
+        self.assertEqual(round_tripped.asset_allocation, payload.asset_allocation)
         self.assertEqual(round_tripped.profit_probability, payload.profit_probability)
         self.assertEqual(round_tripped.individual_analysis, payload.individual_analysis)
+
+    def test_invalid_asset_allocation_count_survives_normalization_and_round_trip(self):
+        payload = FundAnalysisInput.from_dict(
+            {
+                "request_id": "req-invalid-allocation",
+                "fund_info": {
+                    "code": "000171",
+                    "name": "示例债券基金",
+                    "asset_type": "fund_open",
+                    "category": "债券型-普通债券",
+                },
+                "nav_series": [{"date": "2026-01-01", "nav": 1.0}],
+                "asset_allocation": {"债券": 0.86, "现金": "not-a-percentage"},
+            }
+        )
+
+        self.assertEqual(payload.asset_allocation, {"债券": 0.86})
+        self.assertEqual(payload.invalid_asset_allocation_count, 1)
+
+        round_tripped = FundAnalysisInput.from_dict(payload.to_dict())
+        self.assertEqual(round_tripped.asset_allocation, {"债券": 0.86})
+        self.assertEqual(round_tripped.invalid_asset_allocation_count, 1)
 
     def test_final_analysis_result_round_trip(self):
         result = run_mock_analysis()

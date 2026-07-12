@@ -1,5 +1,4 @@
 from math import sqrt
-import re
 from typing import Any, Callable, Dict, List, Optional
 
 from fund_llm.contracts import FundAnalysisInput, FundFeaturePack, NavPoint
@@ -7,9 +6,11 @@ from fund_llm.fund_routing import (
     AVAILABLE,
     MISSING,
     MISSING_BACKEND_CAPABILITY,
-    classify_fund_type,
     build_data_coverage,
+    classify_fund_type,
+    resolve_equity_analysis_applicability,
 )
+from fund_llm.ratios import canonical_fraction, holding_weight_fraction
 
 TRADING_WINDOWS = {
     "1m": 21,
@@ -22,6 +23,11 @@ TRADING_DAYS_PER_YEAR = 252
 # 年化无风险利率假设，约等于中国短期国债收益率，用于 Sharpe / Sortino 等风险调整指标。
 # 这些指标只依赖基金净值序列（A 类指标），不需要个股交易记录。
 ANNUAL_RISK_FREE_RATE = 0.02
+MAX_PLAUSIBLE_GROSS_EXPOSURE = 1.40
+# Published asset buckets are rounded independently.  Allow a small rounding
+# margin around the 140% gross-exposure ceiling without accepting materially
+# over-limit data.
+EXPOSURE_TOLERANCE = 0.001
 
 
 def _nav_values(nav_series: List[NavPoint]) -> List[float]:
@@ -146,38 +152,37 @@ def calculate_industry_concentration(industry_exposure: Dict[str, float]) -> flo
     return max(industry_exposure.values())
 
 
-def _to_float(value: Any) -> Optional[float]:
-    if value is None or value == "":
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    text = str(value).strip().replace(",", "")
-    match = re.search(r"-?\d+(?:\.\d+)?", text)
-    if not match:
-        return None
-    return float(match.group(0))
-
-
-def _to_fraction(value: Any) -> Optional[float]:
-    number = _to_float(value)
-    if number is None:
-        return None
-    if (isinstance(value, str) and "%" in value) or abs(number) > 1.0:
-        return number / 100.0
-    return number
-
-
 def _holding_weight(row: Dict[str, Any]) -> Optional[float]:
-    return _to_fraction(row.get("pct") or row.get("net_value_pct") or row.get("占净值比例"))
+    return holding_weight_fraction(row)
 
 
 def _normalize_asset_allocation(asset_allocation: Dict[str, float]) -> Dict[str, float]:
+    """Read the internal fraction contract without re-guessing numeric units."""
+
+    normalized, _ = _normalize_asset_allocation_with_invalid_count(asset_allocation)
+    return normalized
+
+
+def _normalize_asset_allocation_with_invalid_count(
+    asset_allocation: Dict[str, float],
+) -> tuple[Dict[str, float], int]:
+    """Return canonical allocation plus the number of unusable source values."""
+
     normalized = {}
+    invalid_count = 0
     for key, value in asset_allocation.items():
-        weight = _to_fraction(value)
+        weight = canonical_fraction(value)
         if key and weight is not None:
             normalized[str(key)] = weight
-    return normalized
+        else:
+            invalid_count += 1
+    return normalized, invalid_count
+
+
+def _weights_are_plausible(weights: List[float]) -> bool:
+    if any(weight < 0 or weight > MAX_PLAUSIBLE_GROSS_EXPOSURE for weight in weights):
+        return False
+    return sum(weights) <= MAX_PLAUSIBLE_GROSS_EXPOSURE + EXPOSURE_TOLERANCE
 
 
 def _asset_name_key(name: str) -> str:
@@ -197,10 +202,22 @@ def _asset_bucket_weight(asset_allocation: Dict[str, float], keywords: List[str]
 def calculate_bond_exposure_metrics(
     bond_holdings: List[Dict[str, Any]],
     asset_allocation: Dict[str, float],
-) -> Dict[str, float]:
-    weights = sorted(
-        [weight for weight in (_holding_weight(row) for row in bond_holdings) if weight is not None],
-        reverse=True,
+    invalid_asset_allocation_count: int = 0,
+) -> Dict[str, Any]:
+    parsed_weights = [_holding_weight(row) for row in bond_holdings]
+    weights = sorted([weight for weight in parsed_weights if weight is not None], reverse=True)
+    invalid_bond_weight_count = len(parsed_weights) - len(weights)
+    asset_weights = list(asset_allocation.values())
+    bond_weights_valid = (
+        not bond_holdings
+        or (
+            invalid_bond_weight_count == 0
+            and _weights_are_plausible(weights)
+        )
+    )
+    asset_allocation_valid = (
+        invalid_asset_allocation_count == 0
+        and (not asset_allocation or _weights_are_plausible(asset_weights))
     )
     metrics = {
         "bond_holding_count": float(len(bond_holdings)),
@@ -211,6 +228,10 @@ def calculate_bond_exposure_metrics(
         "asset_bond_weight": _asset_bucket_weight(asset_allocation, ["债券", "bond", "固定收益", "fixedincome"]),
         "asset_cash_weight": _asset_bucket_weight(asset_allocation, ["现金", "cash", "货币", "money"]),
         "asset_stock_weight": _asset_bucket_weight(asset_allocation, ["股票", "stock", "equity", "权益"]),
+        "invalid_bond_weight_count": float(invalid_bond_weight_count),
+        "invalid_asset_allocation_count": float(invalid_asset_allocation_count),
+        "bond_weights_valid": bond_weights_valid,
+        "asset_allocation_valid": asset_allocation_valid,
     }
     allocated_known = (
         metrics["asset_bond_weight"]
@@ -270,6 +291,9 @@ class FeatureBuilder:
     def build(self, payload: FundAnalysisInput) -> FundFeaturePack:
         missing_fields = payload.validate_required_fields()
         fund_type_profile = classify_fund_type(payload.fund_info.category)
+        equity_exposure_applicable, sector_analysis_applicable = (
+            resolve_equity_analysis_applicability(payload, fund_type_profile)
+        )
         data_coverage = build_data_coverage(payload)
 
         if not payload.nav_series:
@@ -333,8 +357,18 @@ class FeatureBuilder:
             "industry_concentration": calculate_industry_concentration(payload.industry_exposure),
             "top_holdings_weight": float(payload.top_holdings_weight or 0.0),
         }
-        asset_allocation = _normalize_asset_allocation(payload.asset_allocation)
-        bond_exposure_metrics = calculate_bond_exposure_metrics(payload.bond_holdings, asset_allocation)
+        asset_allocation, locally_invalid_asset_allocation_count = (
+            _normalize_asset_allocation_with_invalid_count(payload.asset_allocation)
+        )
+        invalid_asset_allocation_count = (
+            max(0, int(payload.invalid_asset_allocation_count))
+            + locally_invalid_asset_allocation_count
+        )
+        bond_exposure_metrics = calculate_bond_exposure_metrics(
+            payload.bond_holdings,
+            asset_allocation,
+            invalid_asset_allocation_count=invalid_asset_allocation_count,
+        )
         exposure_metrics.update(
             {
                 "bond_top_holding_weight": bond_exposure_metrics.get("bond_top_holding_weight", 0.0),
@@ -372,6 +406,12 @@ class FeatureBuilder:
             "top_holding_count": len(payload.top_holdings),
             "bond_holding_count": len(payload.bond_holdings),
             "asset_allocation_count": len(asset_allocation),
+            "invalid_bond_weight_count": int(
+                bond_exposure_metrics.get("invalid_bond_weight_count", 0)
+            ),
+            "invalid_asset_allocation_count": int(
+                bond_exposure_metrics.get("invalid_asset_allocation_count", 0)
+            ),
             "profit_probability_count": len(payload.profit_probability),
             "individual_analysis_count": len(payload.individual_analysis),
             "available_return_window_count": len(
@@ -390,12 +430,22 @@ class FeatureBuilder:
             "has_news_signal": bool(normalized_news_summary or payload.news_items),
             "has_structured_news": bool(payload.news_items),
             "has_bond_holdings": bool(payload.bond_holdings),
-            "has_asset_allocation": bool(asset_allocation),
+            # Presence and validity are separate: if every supplied value is
+            # invalid, the specialist must report an error rather than silently
+            # treating the source as absent.
+            "has_asset_allocation": bool(payload.asset_allocation)
+            or invalid_asset_allocation_count > 0,
+            "bond_holdings_valid": bool(
+                bond_exposure_metrics.get("bond_weights_valid", True)
+            ),
+            "asset_allocation_valid": bool(
+                bond_exposure_metrics.get("asset_allocation_valid", True)
+            ),
             "has_profit_probability": bool(payload.profit_probability),
             "has_individual_analysis": bool(payload.individual_analysis),
             "fund_type_known": data_coverage.get("fund_type") == AVAILABLE,
-            "equity_exposure_applicable": fund_type_profile.equity_exposure_applicable,
-            "sector_analysis_applicable": fund_type_profile.sector_analysis_applicable,
+            "equity_exposure_applicable": equity_exposure_applicable,
+            "sector_analysis_applicable": sector_analysis_applicable,
             "bond_exposure_applicable": fund_type_profile.bond_exposure_applicable,
             "asset_allocation_required": fund_type_profile.asset_allocation_required,
         }
