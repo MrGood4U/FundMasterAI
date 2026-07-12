@@ -123,17 +123,18 @@
   }
 
   async function loadFunds() {
-    if (!api?.market?.getFundRank) return FALLBACK_FUNDS;
-    try {
-      const rows = await api.market.getFundRank("QDII");
-      if (Array.isArray(rows) && rows.length > PAGE_SIZE) {
-        return rows.map(normalizeBackendRecord);
-      }
-    } catch (error) {
-      // Keep the page usable while backend integration is in progress.
+  if (!api?.market?.getFundRank) return FALLBACK_FUNDS;
+  try {
+    // 统一改为小写 "qdii" 以兼容后端映射
+    const rows = await api.market.getFundRank("qdii");
+    if (Array.isArray(rows) && rows.length > 0) {
+      return rows.map(normalizeBackendRecord);
     }
-    return FALLBACK_FUNDS;
+  } catch (error) {
+    console.error("QDII基金排行接口请求失败，启用本地Fallback降级数据:", error);
   }
+  return FALLBACK_FUNDS;
+}
 
   function sortByReturn(rows) {
     return [...rows].sort((a, b) => numberValue(b.return1y) - numberValue(a.return1y));
@@ -156,7 +157,6 @@
       </div>
       <div class="ranking-detail__copy">
         <p><strong>Strategy:</strong> ${item.strategy}</p>
-        <p><strong>Backend hook:</strong> Replace fallback rows with /api/market/fund_public/rank global index fund data.</p>
       </div>
     `;
   }
