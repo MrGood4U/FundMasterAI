@@ -14,7 +14,7 @@ pip3.11 install flask flask-openapi3 akshare pandas numpy efinance okx redis
 pip3.11 install -U "flask-openapi3[swagger,redoc]"
 
 # 全球指数/汇率/宏观矩阵、个股资金流向与龙虎榜（新增于 2026-06）
-pip3.11 install yfinance pysqlite3-binary forex-python CurrencyConverter finshare
+pip3.11 install yfinance pysqlite3-binary forex-python CurrencyConverter finshare openbb
 ```
 
 > `pysqlite3-binary` 是必须的：`yfinance` 依赖标准库 `sqlite3`，但部分云服务器上的
@@ -35,6 +35,20 @@ pip3.11 install yfinance pysqlite3-binary forex-python CurrencyConverter finshar
 api_key = 你的_api_key
 api_secret = 你的_api_secret
 api_pass = 你的_api_passphrase
+```
+
+#### `[tick_flow]` — TickFlow API 密钥（个股资金流向接口）
+
+```ini
+[tick_flow]
+api_key = 你的_api_key
+```
+
+#### `[openbb]` — OpenBB FMP API 密钥（全球指数/汇率/宏观矩阵）
+
+```ini
+[openbb]
+fmp_api_key = 你的_fmp_api_key
 ```
 
 #### `[redis]` — Redis 连接（缓存层依赖）
@@ -77,11 +91,15 @@ fund_ths_spot_interval = 600
 fund_name_list_enabled = false   # 基金名称列表（约 20000 条）
 fund_name_list_interval = 3600
 fund_rank_enabled = false        # 基金排行榜
-fund_rank_interval = 60
+fund_rank_interval = 300
 fund_value_est_enabled = false   # 基金估值
 fund_value_est_interval = 30
 fund_info_index_enabled = false  # 指数基金信息
 fund_info_index_interval = 60
+
+# ---- 全球指数 ----
+global_index_rank_enabled = true  # 全球指数排行（YFinance）
+global_index_rank_interval = 300
 
 # ---- 压缩 ----
 compression_threshold = 1048576  # 大于此字节数（1 MiB）的 JSON 才 gzip 压缩
@@ -89,6 +107,14 @@ compression = false              # 是否启用 gzip（true/false）
 ```
 
 > **设计说明**：数据量较大的源（如 `fund_ths_spot` 约 10000 条、股票行情约 5000 条）建议开启缓存，前端请求将直接从 Redis 读取（毫秒级），而非每次等待 akshare 实时拉取（秒级）。个人投资分析场景不需要高频数据，600 秒（10 分钟）刷新一次即可。
+
+### `apis/config.py`（API 密钥读取器）
+
+从 `config.ini` 读取 OKX、TickFlow、OpenBB 的 API 密钥，提供 `get_okx_api_key()`、`get_tickflow_api_key()`、`get_openbb_fmp_api_key()` 等函数供各 API 模块调用。
+
+### `config.py`（应用配置类）
+
+Flask 应用的全局配置（`Config` 类），从 `apis/config.ini` 的 `[cache]` 和 `[redis]` 段读取所有配置项，同时兼容环境变量覆盖。缓存开关/间隔、Redis 连接、MySQL 连接、HTTP 端口等配置均集中在此。
 
 ### 环境变量（可选，config.ini 有值时优先）
 
@@ -158,31 +184,44 @@ tail -f app.log
 
 ```
 market_backend/
-├── app.py                  # 应用入口（Flask + flask-openapi3）
-├── config.py               # 配置类（环境变量）
-├── start.sh / stop.sh      # 启动/停止脚本
+├── app.py                       # 应用入口（Flask + flask-openapi3）
+├── config.py                    # 应用配置类（[cache]/[redis] → Flask Config）
+├── start.sh / stop.sh           # 启动/停止脚本
 ├── apis/
-│   ├── config.ini                # 主配置文件（缓存/Redis/OKX）
-│   ├── akshare_stock_api.py      # A 股数据（akshare）
+│   ├── config.ini               # 主配置文件（缓存/Redis/OKX/TickFlow/OpenBB）
+│   ├── config.py                # API 密钥读取器（OKX / TickFlow / OpenBB）
+│   ├── akshare_stock_api.py     # A 股数据（akshare）
 │   ├── akshare_public_fund_api.py # 公募基金数据（akshare）
-│   ├── efinance_api.py           # 基金历史净值（efinance）
-│   ├── okx_api.py                # 加密货币行情（OKX）
-│   └── field_mapping.py          # 字段映射
+│   ├── akshare_bond_api.py      # 可转债数据（akshare）
+│   ├── akshare_macro_api.py     # 宏观经济数据（akshare）
+│   ├── efinance_api.py          # 基金历史净值（efinance）
+│   ├── okx_api.py               # 加密货币行情（OKX）
+│   ├── finshare_stock_api.py    # A 股数据（FinShare）
+│   ├── yfinance_api.py          # 全球指数排行（YFinance）
+│   ├── forex_api.py             # 汇率数据（CurrencyConverter）
+│   ├── openbb_api.py            # 全球指数/宏观矩阵（OpenBB）
+│   └── field_mapping.py         # 字段映射
 ├── views/
-│   ├── stock_view.py        # A 股接口
-│   ├── public_fund_view.py  # 公募基金接口
-│   ├── crypto_view.py       # 加密货币接口
-│   └── meta_view.py         # /api/market/functions 端点
+│   ├── stock_view.py            # A 股接口
+│   ├── public_fund_view.py      # 公募基金接口
+│   ├── crypto_view.py           # 加密货币接口
+│   ├── bond_view.py             # 可转债接口
+│   ├── macro_view.py            # 宏观经济接口
+│   ├── global_view.py           # 全球指数/汇率接口
+│   └── meta_view.py             # /api/market/functions 端点（Function Calling）
 ├── services/
-│   ├── stock_service.py     # A 股业务逻辑（缓存 + fallback）
-│   ├── public_fund_service.py    # 公募基金业务逻辑
-│   └── crypto_service.py
+│   ├── stock_service.py         # A 股业务逻辑（缓存 + fallback）
+│   ├── public_fund_service.py   # 公募基金业务逻辑
+│   ├── crypto_service.py        # 加密货币业务逻辑
+│   ├── bond_service.py          # 可转债业务逻辑
+│   ├── macro_service.py         # 宏观经济业务逻辑
+│   └── global_service.py        # 全球市场业务逻辑
 ├── daos/
-│   ├── cache_dao.py         # Redis 缓存 DAO（JSON + gzip）
-│   └── market_dao.py        # 内存 mock DAO（预留）
+│   ├── cache_dao.py             # Redis 缓存 DAO（JSON + gzip，含 DataFrame 支持）
+│   └── market_dao.py            # 内存 mock DAO（预留）
 ├── utils/
-│   ├── function_registry.py # Function Calling 函数定义
-│   ├── kline_generator.py   # K 线生成工具
-│   └── cache_scheduler.py   # 缓存预热与周期性刷新调度
-└── tests/                   # pytest 测试
+│   ├── function_registry.py     # Function Calling 函数定义（约 25 个函数）
+│   ├── kline_generator.py       # K 线生成工具
+│   └── cache_scheduler.py       # 缓存预热与周期性刷新调度（ThreadPoolExecutor）
+└── tests/                       # pytest 测试（API / Service / View 层）
 ```
