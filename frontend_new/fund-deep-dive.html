@@ -185,5 +185,44 @@
     <script src="scripts/api.js"></script>
     <script src="scripts/search.js"></script>
     <script src="scripts/pro-upgrade.js"></script>
+    <script>
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const fundCode = urlParams.get('code');
+    const fundName = urlParams.get('name');
+
+    if (fundCode || fundName) {
+        const noticeBar = document.createElement('div');
+        noticeBar.style.cssText = `
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 14px;
+            border-bottom: 1px solid #ffeeba;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        `;
+        noticeBar.innerHTML = `⚠️ <strong>当前处于演示模式：</strong>您正在查看 <b>${fundName || ''} (${fundCode || ''})</b> 的深度分析。除基金名称外，下方精选持仓、AUM及风险指标等正文内容目前仍为<b>系统静态示例数据</b>。`;
+        document.body.insertBefore(noticeBar, document.body.firstChild);
+
+        if (fundCode && /^\d+$/.test(fundCode)) {
+            const navElement = document.querySelector('.nav-value, .price, [data-target="nav"]'); 
+            if (navElement && navElement.innerText.includes('$')) {
+                navElement.innerHTML = navElement.innerHTML.replace('$', '¥ ');
+            }
+            
+            const holdingList = document.querySelector('.holdings-list, .top-holdings'); /
+            if (holdingList) {
+                const holdingTitle = holdingList.parentElement.querySelector('h3, .card-title');
+                if (holdingTitle && !holdingTitle.innerText.includes('示例')) {
+                    holdingTitle.innerText += ' (静态示例)';
+                }
+            }
+        }
+    }
+});
+</script>
   </body>
 </html>
