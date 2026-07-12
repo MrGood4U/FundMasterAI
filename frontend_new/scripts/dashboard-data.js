@@ -369,7 +369,7 @@
     try {
       const results = await Promise.allSettled([
         api.global.getIndexQuotesFromList(["^IXIC", "^GDAXI", "^HSI"], 3),
-        api.global.exchangeRate({ from_currency: "USD", to_currency: "CNY" }),
+        api.global.getExchangeRate("USD", "CNY"),
         api.macro.getData({ country: "china", indicator: "pmi" }),
       ]);
       const rows = results[0].status === "fulfilled" && Array.isArray(results[0].value) ? results[0].value : [];
