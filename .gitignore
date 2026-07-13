@@ -213,3 +213,6 @@ __marimo__/
 .history/
 
 *.ini
+
+# Local browser QA evidence (kept off the shared repository)
+docs/qa_reports/2026-07-13_full_system_round2/

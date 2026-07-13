@@ -535,7 +535,7 @@ def build_fund_input_from_backend_functions(
         category=str(basic_info.get("fund_type") or "unknown"),
         manager=basic_info.get("fund_manager"),
     )
-    fund_type_profile = classify_fund_type(fund_info.category)
+    fund_type_profile = classify_fund_type(fund_info.category, fund_info.name)
 
     current_year = datetime.now().year
     candidate_years = [portfolio_year] if portfolio_year else [str(current_year), str(current_year - 1)]

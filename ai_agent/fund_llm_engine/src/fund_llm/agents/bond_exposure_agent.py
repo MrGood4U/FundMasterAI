@@ -35,6 +35,25 @@ class BondExposureAgent(BaseAgent):
     def analyze(self, features: FundFeaturePack) -> AgentOutput:
         bond_exposure_applicable = features.data_quality_flags.get("bond_exposure_applicable", False)
         if not bond_exposure_applicable:
+            if features.fund_family == "etf_feeder":
+                return AgentOutput(
+                    agent_name=self.name,
+                    status="skipped",
+                    score=None,
+                    stance="not_applicable",
+                    key_points=[
+                        "ETF feeder bond exposure is not assessed separately from the target ETF."
+                    ],
+                    risks=[],
+                    recommendations=[
+                        "Use target-ETF or tracked-index holdings for a look-through asset assessment."
+                    ],
+                    confidence=0.0,
+                    narrative=(
+                        "Bond exposure analysis skipped: an ETF feeder should be assessed through its target "
+                        "ETF rather than residual direct holdings."
+                    ),
+                )
             return AgentOutput(
                 agent_name=self.name,
                 status="skipped",

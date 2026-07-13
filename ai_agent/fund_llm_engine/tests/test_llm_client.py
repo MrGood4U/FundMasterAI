@@ -65,8 +65,8 @@ class LLMClientTest(unittest.TestCase):
 
         client = LLMClient(
             api_key="demo-key",
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-            model="gemini-3-flash-preview",
+            base_url="https://opencode.ai/zen/go/v1",
+            model="deepseek-v4-flash",
             timeout_seconds=12,
         )
 
@@ -81,12 +81,12 @@ class LLMClientTest(unittest.TestCase):
         self.assertEqual(response, "PROJECT_OK")
         self.assertEqual(
             captured["url"],
-            "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+            "https://opencode.ai/zen/go/v1/chat/completions",
         )
         self.assertEqual(captured["authorization"], "Bearer demo-key")
         self.assertEqual(captured["user_agent"], "FundMasterAI/1.0")
         self.assertEqual(captured["timeout"], 12)
-        self.assertEqual(captured["payload"]["model"], "gemini-3-flash-preview")
+        self.assertEqual(captured["payload"]["model"], "deepseek-v4-flash")
         self.assertEqual(captured["payload"]["temperature"], 0.2)
         self.assertEqual(captured["payload"]["max_tokens"], 50)
 
@@ -126,7 +126,7 @@ class LLMClientTest(unittest.TestCase):
         responses = [
             {
                 "id": "first",
-                "model": "gemini-3-flash-preview",
+                "model": "deepseek-v4-flash",
                 "choices": [
                     {
                         "finish_reason": "length",
@@ -144,7 +144,7 @@ class LLMClientTest(unittest.TestCase):
             },
             {
                 "id": "retry",
-                "model": "gemini-3-flash-preview",
+                "model": "deepseek-v4-flash",
                 "choices": [
                     {
                         "finish_reason": "stop",
@@ -165,8 +165,8 @@ class LLMClientTest(unittest.TestCase):
 
         client = LLMClient(
             api_key="demo-key",
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-            model="gemini-3-flash-preview",
+            base_url="https://opencode.ai/zen/go/v1",
+            model="deepseek-v4-flash",
             thinking_mode="enabled",
             reasoning_effort="high",
         )

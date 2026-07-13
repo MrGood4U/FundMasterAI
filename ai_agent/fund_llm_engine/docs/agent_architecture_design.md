@@ -110,7 +110,7 @@ LLM_REASONING_EFFORT=
 
 当前已验证的 provider 包括：
 
-- Gemini OpenAI-compatible endpoint
+- OpenCode Go OpenAI-compatible endpoint
 - DeepSeek V4 OpenAI-compatible endpoint
 
 本地测试和 CI 场景使用 `MockLLMClient`，不需要真实 API key。
@@ -233,24 +233,17 @@ analyze(features: FundFeaturePack) -> AgentOutput
 
 ## 8. Provider 切换设计
 
-智能体模块不绑定某一家模型服务。真实模型通过环境变量配置：
-
-Gemini 示例：
-
-```env
-LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
-LLM_MODEL=gemini-3-flash-preview
-```
-
-DeepSeek V4 示例：
+智能体模块通过 OpenAI-compatible 接口调用真实模型。当前演示默认使用 OpenCode Go
+网关和 DeepSeek V4：
 
 ```env
-LLM_BASE_URL=https://api.deepseek.com
+LLM_BASE_URL=https://opencode.ai/zen/go/v1
 LLM_MODEL=deepseek-v4-flash
 LLM_THINKING_MODE=disabled
 ```
 
-这样团队成员可以在不同网络环境下使用不同 provider。深圳或中国大陆网络环境下，建议优先使用 DeepSeek V4；能稳定访问 Gemini API 的同学可以继续使用 Gemini。
+团队成员可以通过各自不入库的 `.env` 切换当前网关支持的模型；课堂演示优先使用
+已经验证的 DeepSeek V4。
 
 ## 9. 与 Flask 后端的集成方式
 
@@ -331,6 +324,6 @@ AI module v1.0: multi-agent fund analysis engine
 - 多个专业智能体从不同视角分析基金
 - ChiefAgent 聚合中间结论
 - 输出可解释的投资建议
-- provider 可以在 Gemini 和 DeepSeek 之间切换
+- provider 和模型可以通过 OpenAI-compatible 配置切换
 
 但它还不是完整 FundMaster AI 系统的 1.0，因为完整系统还需要前端、后端 API、数据库、缓存和真实数据采集模块共同完成。

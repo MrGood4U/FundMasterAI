@@ -78,7 +78,7 @@ def _build_agent_trace(output) -> AnalysisTraceEvent:
     )
     status = output.status
     if output.status == "skipped":
-        status = "warning"
+        status = "success" if output.stance == "not_applicable" else "warning"
     if output.metadata.get("narrative_source") == "deterministic_fallback":
         status = "warning"
 

@@ -88,16 +88,18 @@ docker compose down -v
 
 ## 4. 配置与真实 LLM
 
-默认账号仅用于本地课堂演示，宿主机端口也只绑定到 `127.0.0.1`。需要自定义端口、数据库密码或 LLM 时，请在**第一次启动前**执行：
+默认账号仅用于本地课堂演示，宿主机端口也只绑定到 `127.0.0.1`。如果只需要
+自定义端口或数据库配置，请在**第一次启动前**执行：
 
 ```bash
 cp .env.docker.example .env
 ```
 
-编辑根目录 `.env` 后启动容器：
+编辑根目录 `.env` 后启动容器。原先把 LLM 配置也放在根目录 `.env` 的方式仍然兼容，
+但新环境推荐统一使用 Agent 自己的 `.env`：
 
 ```bash
-docker compose up -d --build --wait
+cp ai_agent/fund_llm_engine/.env.example ai_agent/fund_llm_engine/.env
 ```
 
 MySQL 用户、密码和数据库只会在数据卷首次初始化时创建。如果 `mysql_data`
@@ -105,7 +107,7 @@ MySQL 用户、密码和数据库只会在数据卷首次初始化时创建。�
 账号，或者在确认不需要现有演示数据后执行 `docker compose down -v`，再按新配置
 启动；`-v` 会永久删除该 Compose 项目的数据库数据。
 
-真实 LLM 至少配置：
+在 `ai_agent/fund_llm_engine/.env` 中，真实 LLM 至少配置：
 
 ```text
 LLM_MOCK_MODE=false
@@ -113,6 +115,24 @@ LLM_API_KEY=你的密钥
 LLM_BASE_URL=OpenAI-compatible API 地址
 LLM_MODEL=模型名
 ```
+
+如果已经在 Agent 目录维护了本地 `.env`，不需要复制、移动或额外传
+`--env-file`。Compose 会在启动 Agent 容器时自动只读加载：
+
+```text
+ai_agent/fund_llm_engine/.env
+```
+
+配置优先级为：安全的 `.env.docker.example` mock 默认值 < 可选的根目录 `.env`
+（兼容原 Docker 用法）< Agent 目录 `.env`（最高）。因此直接执行普通启动命令即可：
+
+```bash
+docker compose up -d --build --wait
+```
+
+没有任何本地 `.env` 的干净 clone 会继续使用 mock 模式；存在 Agent `.env` 时会
+自动使用其中的 `LLM_MOCK_MODE`、key、base URL 和模型。Compose 不会修改这些文件，
+它们也继续由 Git 忽略，因此每位团队成员可以保留自己的配置。
 
 根目录 `.env`、Agent 自己的 `.env`、本机 `config.ini`、虚拟环境、日志和 PID 文件都被 `.dockerignore` 排除，不会复制进镜像。不要把真实密钥写入 `compose.yaml` 或提交到 Git。
 

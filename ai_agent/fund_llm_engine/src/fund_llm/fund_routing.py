@@ -33,14 +33,26 @@ def _normalize_text(value: str) -> str:
     return (value or "").strip().lower().replace(" ", "")
 
 
-def classify_fund_type(raw_type: str) -> FundTypeProfile:
+def classify_fund_type(raw_type: str, fund_name: str = "") -> FundTypeProfile:
     """Map backend fund_type text into deterministic routing flags.
 
     The LLM should not decide fund type. This function intentionally uses only
-    structured backend text and conservative keyword rules.
+    structured backend type/name text and conservative keyword rules.
     """
 
     text = _normalize_text(raw_type)
+    name_text = _normalize_text(fund_name)
+    if "联接" in text or "联接" in name_text or "feeder" in text or "feeder" in name_text:
+        return FundTypeProfile(
+            raw_type=raw_type or "unknown",
+            normalized_type="etf_feeder_fund",
+            family="etf_feeder",
+            equity_exposure_applicable=False,
+            sector_analysis_applicable=False,
+            bond_exposure_applicable=False,
+            asset_allocation_required=False,
+        )
+
     if not text or text == "unknown":
         return FundTypeProfile(
             raw_type=raw_type or "unknown",
@@ -153,7 +165,15 @@ def resolve_equity_analysis_applicability(
     stock-holding rows or an industry breakdown are unambiguous equity evidence.
     """
 
-    profile = profile or classify_fund_type(payload.fund_info.category)
+    profile = profile or classify_fund_type(
+        payload.fund_info.category,
+        payload.fund_info.name,
+    )
+    if profile.family in {"fof", "etf_feeder"}:
+        # Direct stock rows are not representative look-through evidence for
+        # fund-of-funds or ETF feeder structures.  Do not let a few residual
+        # holdings reactivate equity concentration analysis.
+        return False, False
     has_disclosed_equity_data = bool(payload.top_holdings) or bool(
         payload.industry_exposure
     )
@@ -215,7 +235,10 @@ def _has_asset_allocation(payload: "FundAnalysisInput") -> bool:
 
 
 def build_data_coverage(payload: "FundAnalysisInput") -> Dict[str, str]:
-    profile = classify_fund_type(payload.fund_info.category)
+    profile = classify_fund_type(
+        payload.fund_info.category,
+        payload.fund_info.name,
+    )
     equity_exposure_applicable, sector_analysis_applicable = (
         resolve_equity_analysis_applicability(payload, profile)
     )

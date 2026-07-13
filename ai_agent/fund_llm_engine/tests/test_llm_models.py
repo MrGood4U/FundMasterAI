@@ -47,8 +47,8 @@ class LLMModelsTest(unittest.TestCase):
             "opencode-go",
         )
         self.assertEqual(
-            infer_provider_label("https://generativelanguage.googleapis.com/v1beta/openai/"),
-            "gemini",
+            infer_provider_label("https://api.deepseek.com"),
+            "deepseek",
         )
 
     def test_resolve_available_models_falls_back_to_static_when_live_fetch_fails(self):
@@ -72,6 +72,7 @@ class LLMModelsTest(unittest.TestCase):
         self.assertEqual(catalog["source"], "static")
         self.assertEqual(catalog["default_model"], "deepseek-v4-flash")
         self.assertTrue(any(item["id"] == "deepseek-v4-flash" for item in catalog["models"]))
+        self.assertFalse(any("gemini" in item["id"].lower() for item in catalog["models"]))
 
     def test_resolve_available_models_uses_live_catalog_when_available(self):
         with patch.dict(

@@ -11,6 +11,25 @@ class SectorAgent(BaseAgent):
         industry_exposure = features.industry_exposure_breakdown
         sector_analysis_applicable = features.data_quality_flags.get("sector_analysis_applicable", True)
         if not sector_analysis_applicable:
+            if features.fund_family == "etf_feeder":
+                return AgentOutput(
+                    agent_name=self.name,
+                    status="skipped",
+                    score=None,
+                    stance="not_applicable",
+                    key_points=[
+                        "ETF feeder direct sector rows do not represent the tracked index exposure."
+                    ],
+                    risks=[],
+                    recommendations=[
+                        "Use target-ETF or tracked-index sector data for a look-through sector assessment."
+                    ],
+                    confidence=0.0,
+                    narrative=(
+                        "Sector analysis skipped: direct sector rows in an ETF feeder are not representative "
+                        "of the tracked exposure, and look-through analysis is not yet available."
+                    ),
+                )
             return AgentOutput(
                 agent_name=self.name,
                 status="skipped",

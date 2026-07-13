@@ -290,7 +290,10 @@ class FeatureBuilder:
 
     def build(self, payload: FundAnalysisInput) -> FundFeaturePack:
         missing_fields = payload.validate_required_fields()
-        fund_type_profile = classify_fund_type(payload.fund_info.category)
+        fund_type_profile = classify_fund_type(
+            payload.fund_info.category,
+            payload.fund_info.name,
+        )
         equity_exposure_applicable, sector_analysis_applicable = (
             resolve_equity_analysis_applicability(payload, fund_type_profile)
         )

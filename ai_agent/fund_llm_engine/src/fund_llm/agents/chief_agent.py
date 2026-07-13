@@ -14,6 +14,59 @@ def _display_fund_tags(features: FundFeaturePack) -> list[str]:
     return [tag for tag in features.fund_tags if tag and tag not in internal]
 
 
+def _build_key_thesis(
+    agent_outputs: list[AgentOutput],
+    fund_family: str,
+    limit: int = 5,
+) -> list[str]:
+    """Select investment evidence without letting coverage/status copy consume the list."""
+
+    successful_by_name = {
+        output.agent_name: output for output in agent_outputs if output.status == "success"
+    }
+    groups = []
+    performance = successful_by_name.get("PerformanceAgent")
+    if performance:
+        groups.append(performance.key_points[:2])
+
+    if fund_family == "bond":
+        priority = [
+            "BondExposureAgent",
+            "MarketAgent",
+            "RiskAgent",
+            "ExposureAgent",
+            "SectorAgent",
+            "SentimentAgent",
+        ]
+    else:
+        priority = [
+            "ExposureAgent",
+            "SectorAgent",
+            "MarketAgent",
+            "RiskAgent",
+            "BondExposureAgent",
+            "SentimentAgent",
+        ]
+    secondary_groups = []
+    for name in priority:
+        output = successful_by_name.get(name)
+        if not output:
+            continue
+        if name == "BondExposureAgent" and len(output.key_points) > 1:
+            # The first bond point only says that records are available; the
+            # concentration figure is the actual investment evidence.
+            groups.append(output.key_points[1:2])
+            secondary_groups.append(output.key_points[2:3])
+        else:
+            groups.append(output.key_points[:1])
+            secondary_groups.append(output.key_points[1:2])
+
+    if performance:
+        secondary_groups.append(performance.key_points[2:3])
+    groups.extend(secondary_groups)
+    return merge_lists(groups, limit=limit)
+
+
 def _score_to_rating(score: float) -> str:
     if score >= 75:
         return "buy"
@@ -346,23 +399,6 @@ class ChiefAgent:
 
         client_risk_profile = features.extra_context.get("client_risk_profile", "")
         display_fund_tags = _display_fund_tags(features)
-        chief_key_points = []
-        if features.data_quality_flags.get("has_benchmark"):
-            chief_key_points.append("Benchmark-relative context is available for cross-checking the agent views.")
-        if features.data_quality_flags.get("has_news_signal"):
-            chief_key_points.append("Recent news flow is available as an additional sentiment cross-check.")
-        if features.data_quality_flags.get("has_industry_exposure"):
-            chief_key_points.append("Sector exposure breakdown is available for industry-level cross-checking.")
-        if features.data_quality_flags.get("has_bond_holdings") or features.data_quality_flags.get("has_asset_allocation"):
-            chief_key_points.append("Bond or asset-allocation exposure data is available for fixed-income cross-checking.")
-        if not_applicable_outputs:
-            chief_key_points.append(
-                f"{len(not_applicable_outputs)} agent module(s) were not applicable to {features.normalized_fund_type}."
-            )
-        if display_fund_tags:
-            chief_key_points.append(f"Fund role tags include {', '.join(display_fund_tags[:3])}.")
-        if average_confidence >= 0.75:
-            chief_key_points.append("Agent confidence is broadly solid under the current input coverage.")
 
         chief_risks = []
         if error_outputs:
@@ -399,8 +435,6 @@ class ChiefAgent:
             chief_risks.append(
                 f"Input is still missing {len(features.missing_fields)} field(s), which reduces analysis coverage."
             )
-        if not features.data_quality_flags.get("has_benchmark"):
-            chief_risks.append("No benchmark series was provided, so relative performance checks remain limited.")
         if not features.data_quality_flags.get("has_news_signal"):
             chief_risks.append("No recent news flow was provided, so event-driven sentiment context remains limited.")
         if (
@@ -433,8 +467,9 @@ class ChiefAgent:
 
         user_facing_outputs = [output for output in agent_outputs if output not in not_applicable_outputs]
         actionable_outputs = [output for output in user_facing_outputs if output.status != "error"]
-        key_thesis = merge_lists(
-            [chief_key_points] + [output.key_points for output in user_facing_outputs],
+        key_thesis = _build_key_thesis(
+            user_facing_outputs,
+            fund_family=features.fund_family,
             limit=5,
         )
         main_risks = merge_lists(
@@ -542,7 +577,10 @@ class ChiefAgent:
             "fund_family": features.fund_family,
             "has_benchmark": str(features.data_quality_flags.get("has_benchmark", False)).lower(),
             "has_news_signal": str(features.data_quality_flags.get("has_news_signal", False)).lower(),
-            "has_sector_context": str(features.data_quality_flags.get("has_industry_exposure", False)).lower(),
+            "has_sector_context": str(
+                features.data_quality_flags.get("sector_analysis_applicable", True)
+                and features.data_quality_flags.get("has_industry_exposure", False)
+            ).lower(),
             "has_bond_exposure": str(
                 features.data_quality_flags.get("has_bond_holdings", False)
                 or features.data_quality_flags.get("has_asset_allocation", False)
