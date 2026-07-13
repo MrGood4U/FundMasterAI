@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="css/dashboard-widgets.css" />
     <link rel="stylesheet" href="css/page-market-flow.css" />
     <link rel="stylesheet" href="css/page-portfolio-family.css" />
-    <link rel="stylesheet" href="css/page-global-investment.css?v=20260713-1" />
+    <link rel="stylesheet" href="css/page-global-investment.css?v=20260713-2" />
   </head>
   <body>
     <div class="app">
@@ -89,6 +89,7 @@
           </div>
         </header>
         <main class="content">
+          <p id="global-quote-source" class="gi-matrix-source gi-quote-source" data-state="loading" role="status">Loading verified market data…</p>
           <!-- 🔍 1. 顶部四大指数：打上动态渲染所需的 ID 标识 -->
           <div class="mf-kpis gi-ticker">
             <div class="kpi-card">
@@ -124,14 +125,14 @@
           </header>
           <section class="glass-panel">
             <div class="gi-matrix-head">
-              <p id="global-matrix-source" class="gi-matrix-source">Loading public QDII fund returns…</p>
+              <p id="global-matrix-source" class="gi-matrix-source" data-state="loading" role="status">Loading public QDII fund returns…</p>
               <div class="gi-matrix-legend" aria-label="Return heatmap legend">
                 <span class="gi-matrix-legend__negative">Negative</span>
                 <span class="gi-matrix-legend__neutral">Neutral</span>
                 <span class="gi-matrix-legend__positive">Positive</span>
               </div>
             </div>
-            <div id="matrix-container" class="gi-matrix" role="img" aria-label="QDII fund return heatmap"></div>
+            <div id="matrix-container" class="gi-matrix" role="img" aria-label="QDII fund return heatmap"><div class="gi-data-state">Loading verified QDII return data…</div></div>
           </section>
           <section class="glass-panel ranking-panel global-ranking-panel" data-global-index-ranking>
             <div class="section-head">
@@ -143,8 +144,8 @@
             </div>
             <div class="ranking-layout">
               <!-- 🔍 3. 排行榜列表：原有组件绑定，稍后由 JS 动态清空并注入 API 接口数据 -->
-              <div class="ranking-list" id="global-ranking-list-container" data-global-ranking-list aria-label="Global index fund ranking"></div>
-              <article class="ranking-detail" id="global-ranking-detail-container" data-global-ranking-detail aria-live="polite"></article>
+              <div class="ranking-list" id="global-ranking-list-container" data-global-ranking-list aria-label="Global index fund ranking"><div class="gi-data-state">Loading verified QDII ranking…</div></div>
+              <article class="ranking-detail" id="global-ranking-detail-container" data-global-ranking-detail aria-live="polite"><div class="gi-data-state">Loading verified fund profile…</div></article>
             </div>
           </section>
         </main>
@@ -155,7 +156,7 @@
     <script src="scripts/config.js"></script>
     <script src="scripts/api.js"></script>
     <script src="scripts/search.js?v=20260713-1"></script>
-    <script src="scripts/global-index-ranking.js?v=20260713-1"></script>
+    <script src="scripts/global-index-ranking.js?v=20260713-2"></script>
     <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>

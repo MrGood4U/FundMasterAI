@@ -3,11 +3,70 @@
 
   const PAGE_SIZE = 5;
   const MATRIX_SIZE = 36;
+  const CACHE_KEY = "fundmaster:global-investment:v1";
+  const CACHE_VERSION = 1;
+  const CACHE_STALE_AFTER_MS = 6 * 60 * 60 * 1000;
   const api = window.FundMasterAPI;
   const state = {
     funds: [],
     matrixPeriod: "DAY",
+    fundSource: { mode: "loading", updatedAt: null, note: "" },
   };
+
+  function readCache() {
+    try {
+      const raw = window.localStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && parsed.version === CACHE_VERSION ? parsed : null;
+    } catch (error) {
+      console.warn("Global dashboard cache is unavailable:", error.message);
+      return null;
+    }
+  }
+
+  function writeCache(patch) {
+    try {
+      const current = readCache() || { version: CACHE_VERSION };
+      window.localStorage.setItem(CACHE_KEY, JSON.stringify({ ...current, ...patch, version: CACHE_VERSION }));
+    } catch (error) {
+      console.warn("Global dashboard cache could not be updated:", error.message);
+    }
+  }
+
+  function cacheMode(updatedAt) {
+    const timestamp = Number(updatedAt);
+    if (!Number.isFinite(timestamp)) return "stale";
+    return Date.now() - timestamp > CACHE_STALE_AFTER_MS ? "stale" : "cached";
+  }
+
+  function formatTimestamp(updatedAt) {
+    const timestamp = Number(updatedAt);
+    if (!Number.isFinite(timestamp)) return "unknown time";
+    return new Intl.DateTimeFormat("en-GB", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).format(new Date(timestamp));
+  }
+
+  function sourceLabel(meta) {
+    const mode = meta?.mode || "loading";
+    if (mode === "loading") return "Loading verified data";
+    if (mode === "unavailable") return "Unavailable";
+    const verb = mode === "stale" ? "Last updated" : "Updated";
+    const label = mode === "live" ? "Live" : mode === "cached" ? "Cached" : "Stale";
+    return `${label} · ${verb} ${formatTimestamp(meta.updatedAt)}`;
+  }
+
+  function setSourceStatus(node, meta, detail = "") {
+    if (!node) return;
+    node.dataset.state = meta?.mode || "loading";
+    node.textContent = [sourceLabel(meta), detail, meta?.note].filter(Boolean).join(" · ");
+  }
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -74,7 +133,58 @@
       : "kpi-card__hint";
   }
 
-  async function loadQuoteCards() {
+  function renderQuoteCards(market) {
+    const quotes = Array.isArray(market?.indices?.items) ? market.indices.items : [];
+    const byTicker = new Map(
+      quotes.map((quote) => [String(pick(quote, ["ticker", "symbol"], "")).toUpperCase(), quote])
+    );
+
+    setIndexCard("idx-nasdaq-val", "idx-nasdaq-change", byTicker.get("^IXIC"));
+    setIndexCard("idx-dax-val", "idx-dax-change", byTicker.get("^GDAXI"));
+    setIndexCard("idx-hk-val", "idx-hk-change", byTicker.get("^HSI"));
+
+    const fxValue = document.getElementById("idx-usdcny-val");
+    const fxHint = document.getElementById("idx-usdcny-change");
+    const rate = numberValue(market?.fx?.rate);
+    if (fxValue) fxValue.textContent = rate === null ? "—" : formatNumber(rate, 4);
+    if (fxHint) {
+      fxHint.textContent = rate === null ? "Live feed unavailable" : "USD/CNY reference rate";
+      fxHint.className = "kpi-card__hint";
+    }
+  }
+
+  function marketCacheTimestamp(market) {
+    return Math.min(
+      Number(market?.indices?.updatedAt) || Number.POSITIVE_INFINITY,
+      Number(market?.fx?.updatedAt) || Number.POSITIVE_INFINITY
+    );
+  }
+
+  function renderCachedQuoteCards(market) {
+    if (!market?.indices && !market?.fx) return false;
+    renderQuoteCards(market);
+    const updatedAt = marketCacheTimestamp(market);
+    const safeTimestamp = Number.isFinite(updatedAt)
+      ? updatedAt
+      : Number(market?.indices?.updatedAt || market?.fx?.updatedAt);
+    setSourceStatus(document.getElementById("global-quote-source"), {
+      mode: cacheMode(safeTimestamp),
+      updatedAt: safeTimestamp,
+      note: "refreshing in background",
+    }, "last successful market data");
+    return true;
+  }
+
+  function renderQuoteUnavailable(message = "Verified market sources did not return data") {
+    renderQuoteCards({});
+    setSourceStatus(document.getElementById("global-quote-source"), {
+      mode: "unavailable",
+      updatedAt: null,
+      note: message,
+    });
+  }
+
+  async function refreshQuoteCards(cachedMarket = null) {
     const quotePromise = api?.market?.getGlobalIndices
       ? api.market.getGlobalIndices()
       : Promise.resolve([]);
@@ -86,24 +196,44 @@
     const quotes = quotesResult.status === "fulfilled" && Array.isArray(quotesResult.value)
       ? quotesResult.value
       : [];
-    const byTicker = new Map(
-      quotes.map((quote) => [String(pick(quote, ["ticker", "symbol"], "")).toUpperCase(), quote])
-    );
-
-    setIndexCard("idx-nasdaq-val", "idx-nasdaq-change", byTicker.get("^IXIC"));
-    setIndexCard("idx-dax-val", "idx-dax-change", byTicker.get("^GDAXI"));
-    setIndexCard("idx-hk-val", "idx-hk-change", byTicker.get("^HSI"));
-
-    const fxValue = document.getElementById("idx-usdcny-val");
-    const fxHint = document.getElementById("idx-usdcny-change");
     const rate = fxResult.status === "fulfilled"
       ? numberValue(pick(fxResult.value, ["rate"]))
       : null;
-    if (fxValue) fxValue.textContent = rate === null ? "—" : formatNumber(rate, 4);
-    if (fxHint) {
-      fxHint.textContent = rate === null ? "Live feed unavailable" : "Live reference rate";
-      fxHint.className = "kpi-card__hint";
+
+    const now = Date.now();
+    const liveSourceCount = (quotes.length ? 1 : 0) + (rate !== null ? 1 : 0);
+    if (!liveSourceCount) {
+      if (cachedMarket) {
+        renderQuoteCards(cachedMarket);
+        const fallbackTimestamp = marketCacheTimestamp(cachedMarket);
+        setSourceStatus(document.getElementById("global-quote-source"), {
+          mode: "stale",
+          updatedAt: Number.isFinite(fallbackTimestamp) ? fallbackTimestamp : null,
+          note: "background refresh failed",
+        }, "last successful market data retained");
+      } else {
+        renderQuoteUnavailable("background refresh failed");
+      }
+      return;
     }
+
+    const market = {
+      indices: quotes.length ? { items: quotes, updatedAt: now } : cachedMarket?.indices || null,
+      fx: rate !== null ? { rate, updatedAt: now } : cachedMarket?.fx || null,
+    };
+    const retainedFallback = (!quotes.length && Boolean(cachedMarket?.indices))
+      || (rate === null && Boolean(cachedMarket?.fx));
+    renderQuoteCards(market);
+    setSourceStatus(document.getElementById("global-quote-source"), {
+      mode: "live",
+      updatedAt: now,
+      note: liveSourceCount === 2
+        ? "2/2 sources refreshed"
+        : retainedFallback
+          ? "1/2 sources refreshed; cached fallback retained"
+          : "1/2 sources refreshed; other source unavailable",
+    });
+    writeCache({ market });
   }
 
   function normalizeFund(record, index) {
@@ -153,7 +283,7 @@
 
     if (!valid.length) {
       container.innerHTML = '<div class="gi-data-state">No verified QDII return data is currently available.</div>';
-      if (source) source.textContent = `Public QDII ${label} · unavailable`;
+      setSourceStatus(source, state.fundSource, `Public QDII ${label} unavailable`);
       return;
     }
 
@@ -176,7 +306,7 @@
       })
       .join("");
     container.setAttribute("aria-label", `${selected.length} QDII funds by ${label}`);
-    if (source) source.textContent = `${selected.length} of ${valid.length} public QDII funds · ${label}`;
+    setSourceStatus(source, state.fundSource, `${selected.length} of ${valid.length} public QDII funds · ${label}`);
   }
 
   function renderRanking(section) {
@@ -249,12 +379,12 @@
         <button type="button" class="ranking-pager__btn" data-global-page-next ${page >= totalPages - 1 ? "disabled" : ""}>Next</button>`;
     }
 
-    list.addEventListener("click", (event) => {
+    list.onclick = (event) => {
       const button = event.target.closest("[data-global-ranking-index]");
       if (button) select(Number(button.dataset.globalRankingIndex));
-    });
+    };
 
-    pager.addEventListener("click", (event) => {
+    pager.onclick = (event) => {
       const totalPages = Math.ceil(state.funds.length / PAGE_SIZE);
       if (event.target.closest("[data-global-page-prev]") && page > 0) page -= 1;
       else if (event.target.closest("[data-global-page-next]") && page < totalPages - 1) page += 1;
@@ -262,7 +392,7 @@
       activeIndex = page * PAGE_SIZE;
       renderPage();
       select(activeIndex);
-    });
+    };
 
     renderPage();
     select(0);
@@ -276,7 +406,7 @@
     const detail = section && section.querySelector("[data-global-ranking-detail]");
     const safeMessage = escapeHtml(message || "Global fund data is unavailable.");
     if (matrix) matrix.innerHTML = `<div class="gi-data-state">${safeMessage}</div>`;
-    if (source) source.textContent = "Public QDII return feed unavailable";
+    setSourceStatus(source, { mode: "unavailable", updatedAt: null, note: safeMessage }, "Public QDII return feed");
     if (list) list.innerHTML = `<div class="gi-data-state">${safeMessage}</div>`;
     if (detail) detail.innerHTML = '<div class="gi-data-state">No placeholder ranking has been substituted.</div>';
   }
@@ -297,23 +427,75 @@
     });
   }
 
-  async function init() {
-    bindMatrixControls();
+  function renderFundViews() {
+    renderMatrix(state.matrixPeriod);
+    const section = document.querySelector("[data-global-index-ranking]");
+    if (section) renderRanking(section);
+  }
 
+  function renderCachedFunds(cache) {
+    const items = cache?.funds?.items;
+    if (!Array.isArray(items) || !items.length || items.length > 5000) return false;
+    state.funds = items.filter((item) => item && item.code && item.name);
+    if (!state.funds.length) return false;
+    state.fundSource = {
+      mode: cacheMode(cache.funds.updatedAt),
+      updatedAt: cache.funds.updatedAt,
+      note: "refreshing in background",
+    };
+    renderFundViews();
+    return true;
+  }
+
+  async function refreshFunds(hasCachedFunds) {
     try {
       state.funds = await loadFunds();
-      renderMatrix("DAY");
-      const section = document.querySelector("[data-global-index-ranking]");
-      if (section) renderRanking(section);
+      const updatedAt = Date.now();
+      state.fundSource = { mode: "live", updatedAt, note: "QDII feed refreshed" };
+      renderFundViews();
+      writeCache({ funds: { items: state.funds, updatedAt } });
     } catch (error) {
       console.error("Global investment data failed to load:", error);
-      renderDataError(error.message);
+      if (hasCachedFunds && state.funds.length) {
+        state.fundSource = {
+          mode: "stale",
+          updatedAt: state.fundSource.updatedAt,
+          note: "background refresh failed; cached data retained",
+        };
+        renderMatrix(state.matrixPeriod);
+      } else {
+        renderDataError(error.message);
+      }
+    }
+  }
+
+  function init() {
+    bindMatrixControls();
+    const cache = readCache();
+    const hasCachedFunds = renderCachedFunds(cache);
+    const hasCachedMarket = renderCachedQuoteCards(cache?.market);
+
+    if (!hasCachedFunds) {
+      setSourceStatus(document.getElementById("global-matrix-source"), {
+        mode: "loading",
+        updatedAt: null,
+        note: "waiting for the first verified QDII response",
+      });
+    }
+    if (!hasCachedMarket) {
+      setSourceStatus(document.getElementById("global-quote-source"), {
+        mode: "loading",
+        updatedAt: null,
+        note: "waiting for the first verified market response",
+      });
     }
 
-    // The market service may process upstream calls serially. Load the primary
-    // QDII visualization first so a slow global-index quote cannot block the
-    // matrix and ranking for 10–20 seconds.
-    void loadQuoteCards();
+    // Stale-while-revalidate: cached data paints immediately while both live
+    // sources refresh concurrently in the background.
+    void Promise.allSettled([
+      refreshFunds(hasCachedFunds),
+      refreshQuoteCards(hasCachedMarket ? cache.market : null),
+    ]);
   }
 
   if (document.readyState === "loading") {

@@ -36,6 +36,26 @@
   font-size: 13px;
 }
 
+.gi-quote-source {
+  margin: 0 0 12px;
+}
+
+.gi-matrix-source[data-state="live"] {
+  color: var(--accent-green);
+}
+
+.gi-matrix-source[data-state="cached"] {
+  color: var(--accent-cyan);
+}
+
+.gi-matrix-source[data-state="stale"] {
+  color: var(--accent-amber);
+}
+
+.gi-matrix-source[data-state="unavailable"] {
+  color: var(--accent-red);
+}
+
 .gi-matrix-legend {
   display: flex;
   align-items: center;
