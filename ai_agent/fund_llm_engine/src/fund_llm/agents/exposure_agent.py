@@ -20,6 +20,25 @@ class ExposureAgent(BaseAgent):
         top_holdings_weight = features.exposure_metrics.get("top_holdings_weight", 0.0)
         equity_exposure_applicable = features.data_quality_flags.get("equity_exposure_applicable", True)
         if not equity_exposure_applicable:
+            if features.fund_family == "etf_feeder":
+                return AgentOutput(
+                    agent_name=self.name,
+                    status="skipped",
+                    score=None,
+                    stance="not_applicable",
+                    key_points=[
+                        "ETF feeder direct holdings do not represent the underlying portfolio exposure."
+                    ],
+                    risks=[],
+                    recommendations=[
+                        "Look through the target ETF or tracked index before judging concentration."
+                    ],
+                    confidence=0.0,
+                    narrative=(
+                        "Exposure analysis skipped: direct holdings in an ETF feeder are not representative "
+                        "of its underlying exposure, and look-through analysis is not yet available."
+                    ),
+                )
             return AgentOutput(
                 agent_name=self.name,
                 status="skipped",

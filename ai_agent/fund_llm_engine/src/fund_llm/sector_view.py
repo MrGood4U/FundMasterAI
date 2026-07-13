@@ -28,7 +28,7 @@ class SectorViewFund:
 
 def classify_sector_status(fund: SectorViewFund) -> str:
     """Same semantics as SectorAgent: not_applicable / insufficient_data / available."""
-    profile = classify_fund_type(fund.fund_info.category)
+    profile = classify_fund_type(fund.fund_info.category, fund.fund_info.name)
     if not profile.sector_analysis_applicable:
         return "not_applicable"
     if not fund.industry_exposure:
@@ -46,7 +46,7 @@ def build_sector_view(funds: List[SectorViewFund], top_n_sectors: int = 15) -> D
     funds_without_data: List[str] = []
 
     for fund in funds:
-        profile = classify_fund_type(fund.fund_info.category)
+        profile = classify_fund_type(fund.fund_info.category, fund.fund_info.name)
         status = classify_sector_status(fund)
         ranked = sorted(fund.industry_exposure.items(), key=lambda item: -item[1])
         fund_rows.append(

@@ -172,7 +172,10 @@ def build_constituent_metrics(
     constituents = []
     for fund in funds:
         aligned_series = _aligned_fund_series(fund, common_dates)
-        fund_type_profile = classify_fund_type(fund.fund_info.category)
+        fund_type_profile = classify_fund_type(
+            fund.fund_info.category,
+            fund.fund_info.name,
+        )
         constituents.append(
             PortfolioConstituentMetrics(
                 code=fund.fund_info.code,

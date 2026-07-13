@@ -3,6 +3,7 @@ import sys
 import threading
 import time
 import unittest
+from statistics import mean
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -151,6 +152,62 @@ class EngineTest(unittest.TestCase):
         self.assertEqual(
             result.analysis_trace[-1].technical["analysis_status"],
             "insufficient_data",
+        )
+
+    def test_etf_feeder_rating_excludes_direct_exposure_and_sector_scores(self):
+        payload = build_sample_input()
+        payload.fund_info = FundInfo(
+            code="008163",
+            name="南方标普红利低波50ETF联接A",
+            asset_type="fund_open",
+            category="指数型-股票",
+        )
+        payload.top_holdings_weight = 0.0027
+        payload.top_holdings = [{"stock_code": "residual", "weight_fraction": 0.0027}]
+        payload.industry_exposure = {"制造业": 0.0022}
+        payload.individual_analysis = [
+            {
+                "period": "近1年",
+                "risk_return_ratio_vs_peers": 55,
+                "risk_robustness_vs_peers": 60,
+            }
+        ]
+        llm = MockLLMClient("Mock narrative")
+        engine = AnalysisEngine(
+            feature_builder=FeatureBuilder(),
+            agents=[
+                PerformanceAgent(llm),
+                ExposureAgent(llm),
+                BondExposureAgent(llm),
+                RiskAgent(llm),
+                SentimentAgent(llm),
+                SectorAgent(llm),
+                MarketAgent(llm),
+            ],
+            chief_agent=ChiefAgent(llm),
+        )
+
+        result = engine.run(payload)
+        outputs = {output.agent_name: output for output in result.agent_outputs}
+        scored_outputs = [
+            output for output in result.agent_outputs if output.status == "success" and output.score is not None
+        ]
+
+        self.assertEqual(result.metadata["normalized_fund_type"], "etf_feeder_fund")
+        self.assertEqual(result.metadata["has_sector_context"], "false")
+        self.assertEqual(outputs["ExposureAgent"].stance, "not_applicable")
+        self.assertEqual(outputs["SectorAgent"].stance, "not_applicable")
+        self.assertIsNone(outputs["ExposureAgent"].score)
+        self.assertIsNone(outputs["SectorAgent"].score)
+        self.assertEqual(result.metadata["rating_applicable_agent_count"], "4")
+        self.assertEqual(result.metadata["rating_scored_agent_count"], "4")
+        self.assertAlmostEqual(
+            result.overall_score,
+            round(mean(output.score for output in scored_outputs), 2),
+        )
+        self.assertIn(result.overall_rating, {"buy", "hold", "watch", "avoid"})
+        self.assertFalse(
+            any("acceptable for diversified allocation" in item for item in result.action_plan)
         )
 
     def test_provider_outage_preserves_deterministic_final_rating(self):

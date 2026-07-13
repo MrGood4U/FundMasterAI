@@ -40,6 +40,38 @@ class FundRoutingTest(unittest.TestCase):
         self.assertTrue(profile.equity_exposure_applicable)
         self.assertFalse(profile.bond_exposure_applicable)
 
+    def test_classifies_etf_feeder_from_fund_name(self):
+        profile = classify_fund_type(
+            "指数型-股票",
+            "南方标普红利低波50ETF联接A",
+        )
+
+        self.assertEqual(profile.normalized_type, "etf_feeder_fund")
+        self.assertEqual(profile.family, "etf_feeder")
+        self.assertFalse(profile.equity_exposure_applicable)
+        self.assertFalse(profile.sector_analysis_applicable)
+        self.assertFalse(profile.bond_exposure_applicable)
+
+    def test_etf_feeder_direct_holdings_do_not_reactivate_equity_routes(self):
+        payload = FundAnalysisInput(
+            request_id="feeder-008163",
+            fund_info=FundInfo(
+                code="008163",
+                name="南方标普红利低波50ETF联接A",
+                asset_type="fund_open",
+                category="指数型-股票",
+            ),
+            nav_series=[NavPoint(date="2026-01-01", nav=1.0)],
+            top_holdings_weight=0.0027,
+            top_holdings=[{"stock_code": "residual", "weight_fraction": 0.0027}],
+            industry_exposure={"制造业": 0.0022},
+        )
+
+        coverage = build_data_coverage(payload)
+
+        self.assertEqual(coverage["stock_holdings"], NOT_APPLICABLE)
+        self.assertEqual(coverage["industry_exposure"], NOT_APPLICABLE)
+
     def test_coverage_marks_bond_specific_backend_gaps(self):
         payload = FundAnalysisInput(
             request_id="demo-bond",

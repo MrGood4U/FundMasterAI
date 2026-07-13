@@ -577,7 +577,10 @@ class ChiefAgent:
             "fund_family": features.fund_family,
             "has_benchmark": str(features.data_quality_flags.get("has_benchmark", False)).lower(),
             "has_news_signal": str(features.data_quality_flags.get("has_news_signal", False)).lower(),
-            "has_sector_context": str(features.data_quality_flags.get("has_industry_exposure", False)).lower(),
+            "has_sector_context": str(
+                features.data_quality_flags.get("sector_analysis_applicable", True)
+                and features.data_quality_flags.get("has_industry_exposure", False)
+            ).lower(),
             "has_bond_exposure": str(
                 features.data_quality_flags.get("has_bond_holdings", False)
                 or features.data_quality_flags.get("has_asset_allocation", False)

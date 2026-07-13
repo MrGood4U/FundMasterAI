@@ -415,6 +415,34 @@ class AgentsTest(unittest.TestCase):
         self.assertEqual(result.stance, "not_applicable")
         self.assertIn("bond_index_fund", result.key_points[0])
 
+    def test_etf_feeder_agents_explain_why_direct_exposure_is_not_applicable(self):
+        payload = build_sample_input()
+        payload.fund_info = FundInfo(
+            code="008163",
+            name="南方标普红利低波50ETF联接A",
+            asset_type="fund_open",
+            category="指数型-股票",
+        )
+        payload.top_holdings_weight = 0.0027
+        payload.top_holdings = [{"stock_code": "residual", "weight_fraction": 0.0027}]
+        payload.industry_exposure = {"制造业": 0.0022}
+        features = FeatureBuilder().build(payload)
+
+        exposure = ExposureAgent(MockLLMClient("unused")).analyze(features)
+        sector = SectorAgent(MockLLMClient("unused")).analyze(features)
+        bond = BondExposureAgent(MockLLMClient("unused")).analyze(features)
+
+        self.assertEqual(features.normalized_fund_type, "etf_feeder_fund")
+        self.assertEqual(exposure.stance, "not_applicable")
+        self.assertIsNone(exposure.score)
+        self.assertIn("do not represent the underlying portfolio", exposure.key_points[0])
+        self.assertEqual(sector.stance, "not_applicable")
+        self.assertIsNone(sector.score)
+        self.assertIn("do not represent the tracked index", sector.key_points[0])
+        self.assertEqual(bond.stance, "not_applicable")
+        self.assertIsNone(bond.score)
+        self.assertIn("not assessed separately", bond.key_points[0])
+
     def test_equity_agents_run_for_secondary_bond_with_disclosed_equity_data(self):
         payload = build_sample_input()
         payload.fund_info.code = "000171"

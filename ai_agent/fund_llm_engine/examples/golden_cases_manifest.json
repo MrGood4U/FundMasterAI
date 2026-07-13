@@ -71,9 +71,15 @@
         "expected_metadata": {
           "has_benchmark": "false",
           "has_news_signal": "false",
-          "has_sector_context": "true"
+          "has_sector_context": "false",
+          "normalized_fund_type": "etf_feeder_fund"
         },
-        "expected_missing_fields": []
+        "expected_missing_fields": [],
+        "expected_text_fragments": [
+          "ETF feeder direct holdings do not represent the underlying portfolio exposure.",
+          "ETF feeder direct sector rows do not represent the tracked index exposure.",
+          "ETF feeder bond exposure is not assessed separately from the target ETF."
+        ]
       }
     },
     {
