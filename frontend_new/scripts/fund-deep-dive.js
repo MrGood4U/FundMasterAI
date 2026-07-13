@@ -1,6 +1,7 @@
 (function (window, document) {
   "use strict";
 
+  const LAST_VERIFIED_FUND_KEY = "fundmaster:last-verified-deep-dive:v1";
   const api = window.FundMasterAPI;
   const state = {
     history: [],
@@ -9,6 +10,37 @@
 
   function byId(id) {
     return document.getElementById(id);
+  }
+
+  function readLastVerifiedFund() {
+    try {
+      const saved = JSON.parse(window.sessionStorage.getItem(LAST_VERIFIED_FUND_KEY) || "null");
+      const code = String(saved?.code || "").trim();
+      if (!code) return null;
+      return { code, name: String(saved?.name || "").trim() };
+    } catch (error) {
+      console.warn("Last viewed fund could not be restored:", error.message);
+      return null;
+    }
+  }
+
+  function writeLastVerifiedFund(code, name) {
+    try {
+      window.sessionStorage.setItem(LAST_VERIFIED_FUND_KEY, JSON.stringify({
+        code: String(code || "").trim(),
+        name: String(name || "").trim(),
+      }));
+    } catch (error) {
+      console.warn("Last viewed fund could not be saved:", error.message);
+    }
+  }
+
+  function replaceFundUrl(code, name) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("code", code);
+    if (name) url.searchParams.set("name", name);
+    else url.searchParams.delete("name");
+    window.history.replaceState(null, "", url);
   }
 
   function escapeHtml(value) {
@@ -361,8 +393,17 @@
 
   async function init() {
     const params = new URLSearchParams(window.location.search);
-    const fundCode = String(params.get("code") || "").trim();
-    const requestedName = String(params.get("name") || "").trim();
+    let fundCode = String(params.get("code") || "").trim();
+    let requestedName = String(params.get("name") || "").trim();
+
+    if (!fundCode) {
+      const lastVerifiedFund = readLastVerifiedFund();
+      if (lastVerifiedFund) {
+        fundCode = lastVerifiedFund.code;
+        requestedName = lastVerifiedFund.name;
+        replaceFundUrl(fundCode, requestedName);
+      }
+    }
 
     if (!fundCode) {
       renderProfile(null, "—", requestedName);
@@ -404,6 +445,12 @@
       basic && holdingsResult.status === "fulfilled" ? holdingsResult.value : [],
     );
     setNotice(profileLoaded, state.history.length > 1, allocationLoaded, holdingsLoaded);
+
+    if (profileLoaded || state.history.length > 1) {
+      const verifiedName = String(basic?.fund_name || (requestedName !== fundCode ? requestedName : "")).trim();
+      writeLastVerifiedFund(fundCode, verifiedName);
+      replaceFundUrl(fundCode, verifiedName);
+    }
 
     [basicResult, historyResult, allocationResult, holdingsResult].forEach((result) => {
       if (result.status === "rejected") console.error("Deep Dive public-data request failed:", result.reason);
