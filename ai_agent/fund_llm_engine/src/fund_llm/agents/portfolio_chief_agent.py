@@ -196,14 +196,14 @@ class PortfolioChiefAgent:
             "Do not use outside knowledge about the funds, managers, holdings, or market narrative. "
             "Explain the diversification effect using the provided volatility comparison. "
             "If look-through evidence shows overlapping holdings or sector concentration, mention it. "
+            "Do not state an overall score, signal, rating, or BUY/HOLD/WATCH/AVOID label; "
+            "the consumer presents this output as narrative analysis only. "
             "Keep the final summary under 160 words and end with a complete sentence."
         )
         user_prompt = (
             f"Portfolio constituents:\n{constituent_lines}\n\n"
             f"Portfolio metrics: {quant_metrics}\n"
             f"Holdings look-through (quarterly top-10 disclosure basis):\n{lookthrough_block}\n"
-            f"Overall score: {overall_score:.2f}\n"
-            f"Overall rating: {overall_rating}\n"
             f"Sample size (shared NAV points): {sample_size} ({reliability} reliability)\n"
             f"Client risk profile: {client_risk_profile}\n"
             f"Key thesis candidates: {key_thesis}\n"
@@ -228,8 +228,7 @@ class PortfolioChiefAgent:
 
         if not summary:
             summary = (
-                f"The portfolio receives a {overall_rating.upper()} view with a score of "
-                f"{overall_score:.2f}/100, based on {sample_size} shared NAV observations across "
+                f"The portfolio analysis uses {sample_size} shared NAV observations across "
                 f"{len(constituents)} constituent fund(s). Total return is {total_return:.2%} with "
                 f"{annualized_volatility:.2%} annualized volatility and a {max_drawdown:.2%} max drawdown. "
                 f"Diversification lowered volatility by {diversification_benefit:.2%} versus the weighted "

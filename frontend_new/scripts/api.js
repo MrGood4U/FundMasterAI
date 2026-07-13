@@ -124,28 +124,14 @@
         body,
         timeout: 60000,
       }),
-      async getInsights(body) {
-        try {
-          const res = await request(config.aiBaseUrl, "/api/ai/portfolio-insights", {
-            method: "POST",
-            body,
-          });
-          return {
-            success: true,
-            signal: res.signal || "Yellow",
-            analysis: res.analysis || "Portfolio configuration updated successfully.",
-            rebalancing: res.rebalancing || []
-          };
-        } catch (err) {
-          console.error("API AI 模块请求失败:", err);
-          return {
-            success: false,
-            signal: "Red",
-            analysis: `Failed to fetch AI insights: ${err.message || "Unknown network error"}.`,
-            rebalancing: []
-          };
-        }
-      }
+      // 组合层 AI 分析：positions 形如 [{ code: "000834", weight: 0.4 }, ...]
+      // 真实路由是 /api/ai/portfolio/analyze（旧的 /api/ai/portfolio-insights 不存在，会 404）
+      analyzePortfolio: (positions, options = {}) =>
+        request(config.aiBaseUrl, "/api/ai/portfolio/analyze", {
+          method: "POST",
+          body: { positions, ...options },
+          timeout: 180000,
+        }),
     }
   };
 })(window);

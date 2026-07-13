@@ -135,6 +135,10 @@ class PortfolioPipelineTest(unittest.TestCase):
         self.assertEqual(result.metadata["summary_source"], "deterministic_fallback")
         self.assertTrue(result.summary)
         self.assertIn("portfolio", result.summary.lower())
+        self.assertNotIn("score", result.summary.lower())
+        self.assertNotIn("rating", result.summary.lower())
+        for label in ("buy", "hold", "watch", "avoid"):
+            self.assertNotIn(label, result.summary.lower())
 
     def test_lookthrough_fields_flow_into_result(self):
         payload = build_portfolio_input()

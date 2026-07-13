@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="css/shell.css" />
     <link rel="stylesheet" href="css/dashboard-widgets.css" />
-    <link rel="stylesheet" href="css/page-portfolio-overview.css" />
+    <link rel="stylesheet" href="css/page-portfolio-overview.css?v=20260713-2" />
   </head>
   <body>
     <div class="app">
@@ -100,31 +100,30 @@
           <section class="glass-panel po-summary">
             <h3 class="section-head__title section-head__title--compact">Total Account Assets</h3>
             <div class="po-split">
-              <div><p class="muted">Daily gain/loss</p><p class="po-big pos">+¥500.00</p></div>
-              <div class="po-table-labels muted sm">Asset / Value · Daily return · Sector · Holdings</div>
+              <div><p class="muted">Total holding value</p><p id="po-total-value" class="po-big">¥0.00</p></div>
+              <div><p class="muted">Total holding profit</p><p id="po-total-profit" class="po-big">—</p></div>
+              <div class="po-table-labels muted sm">Demo mode: holdings are stored in this browser only and are never written to the portfolio database.</div>
             </div>
           </section>
           <div class="data-table-wrap">
             <table class="data-table">
-              <thead><tr><th>Asset</th><th>Value</th><th>Daily</th><th>Return</th><th>Sector</th></tr></thead>
+              <thead><tr><th>Asset</th><th>Value</th><th>Profit</th><th>Return</th><th>Code</th><th></th></tr></thead>
               <tbody id="holdings-body">
-                <tr><td>Tianyuan Huiteng Tech ETF</td><td>¥2,000.00</td><td>+¥500.00</td><td class="pos">+1.00%</td><td class="pos">+1.2%</td></tr>
-                <tr><td>—</td><td>+¥5,000.00</td><td>—</td><td class="pos">+10.0%</td><td>—</td></tr>
-                <tr><td>Global Semiconductor Index</td><td>¥4,500.00</td><td>-¥120.00</td><td class="neg">-0.24%</td><td class="neg">-0.8%</td></tr>
-                <tr><td>Clean Energy Strategic Fund</td><td>¥3,200.00</td><td>—</td><td>—</td><td>—</td></tr>
+                <tr class="po-empty-row"><td colspan="6">No holdings yet. Click "Add New Holding" to search for a fund and add your position.</td></tr>
               </tbody>
             </table>
           </div>
           <button type="button" id="btn-add-holding" class="btn-outline" style="margin-top:12px">Add New Holding</button>
           <section class="glass-panel" style="margin-top:24px">
-            <h3 class="section-head__title section-head__title--compact">AI Portfolio Analysis</h3>
-            <p class="muted">AI Assistant Selection</p>
+            <div class="section-head">
+              <h3 class="section-head__title section-head__title--compact">AI Portfolio Analysis</h3>
+              <button type="button" id="btn-run-ai" class="btn-outline" disabled>Analyze Portfolio</button>
+            </div>
+            <p id="ai-status" class="muted">Add holdings, then click Analyze Portfolio to run the AI analysis.</p>
             <div class="po-ai">
-              <div><span class="muted sm">Signal</span><div><span id="ai-signal" class="chip chip--warn">Yellow</span></div></div>
-              <div><span class="muted sm">Detailed analysis</span><p id="ai-analysis">Balanced exposure with concentration in AI-linked names.</p></div>
+              <div><span class="muted sm">Detailed analysis</span><p id="ai-analysis" class="muted">The AI assistant will analyze your portfolio after you add holdings and click Analyze Portfolio.</p></div>
               <div><span class="muted sm">Rebalancing</span><ul id="ai-rebalancing">
-                <li>Increase Tianyuan Huiteng Tech ETF by 2.5%.</li>
-                <li>Rotate profits from infrastructure into green energy strategic sleeve.</li>
+                <li class="muted">No suggestions yet.</li>
               </ul></div>
             </div>
           </section>
@@ -141,10 +140,12 @@
         <p class="po-modal__subtitle">Add a fund position to the overview table.</p>
         <p id="add-holding-status" class="po-modal__status" hidden></p>
         <form id="add-holding-form" class="po-modal__form">
-          <label class="po-modal__field">
-            <span>Fund name</span>
-            <input id="holding-fund-name" name="fundName" type="text" placeholder="Select fund code or name" required />
-          </label>
+          <div class="po-modal__field po-modal__field--search">
+            <span id="holding-fund-label">Fund name</span>
+            <input id="holding-fund-name" name="fundName" type="text" placeholder="Type a fund code or name to search" autocomplete="off" aria-labelledby="holding-fund-label" required />
+            <div id="holding-fund-results" class="po-fund-results" hidden></div>
+          </div>
+          <p id="holding-fund-selected" class="po-fund-selected" hidden></p>
           <label class="po-modal__field">
             <span>Holding amount</span>
             <input id="holding-amount" name="amount" type="number" min="0" step="0.01" placeholder="Enter holding amount" required />
@@ -159,150 +160,10 @@
         </form>
       </section>
     </div>
-    <script>
-      (() => {
-        const modal = document.getElementById("add-holding-modal");
-        const openButton = document.getElementById("btn-add-holding");
-        const form = document.getElementById("add-holding-form");
-        const tableBody = document.getElementById("holdings-body");
-        const status = document.getElementById("add-holding-status");
-        const cancelButtons = document.querySelectorAll("[data-holding-cancel]");
-
-        const aiSignal = document.getElementById("ai-signal");
-        const aiAnalysis = document.getElementById("ai-analysis");
-        const aiRebalancing = document.getElementById("ai-rebalancing");
-
-        if (!modal || !openButton || !form || !tableBody) return;
-
-        const formatMoney = (value) => {
-          const number = Number(value || 0);
-          return `¥${number.toLocaleString("zh-CN", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`;
-        };
-
-        const formatPercent = (value) => {
-          const number = Number(value || 0);
-          const sign = number > 0 ? "+" : "";
-          return `${sign}${number.toFixed(2)}%`;
-        };
-
-        const openModal = () => {
-          modal.hidden = false;
-          document.body.classList.add("po-modal-open");
-          form.reset();
-          document.getElementById("holding-fund-name").focus();
-        };
-
-        const closeModal = () => {
-          modal.hidden = true;
-          document.body.classList.remove("po-modal-open");
-        };
-
-        const showStatus = (message, isError = false) => {
-          if (!status) return;
-          status.hidden = !message;
-          status.textContent = message;
-          status.classList.toggle("po-modal__status--error", isError);
-        };
-
-        const triggerAIAnaLysis = async () => {
-          const api = window.FundMasterAPI;
-          if (!api || !api.ai || !api.ai.getInsights) {
-            console.warn("AI API 尚未就绪或未在 api.js 中定义。");
-            return;
-          }
-
-          try {
-            if (aiAnalysis) aiAnalysis.textContent = "🔄 AI Assistant is calculating your new asset allocation...";
-            
-            const response = await api.ai.getInsights({ portfolio: "Overview" });
-            
-            if (response && response.success) {
-              if (aiSignal && response.signal) {
-                aiSignal.textContent = response.signal;
-                const sig = response.signal.toLowerCase();
-                aiSignal.className = `chip chip--${sig === 'red' ? 'danger' : sig === 'green' ? 'success' : 'warn'}`;
-              }
-              if (aiAnalysis && response.analysis) {
-                aiAnalysis.textContent = response.analysis;
-              }
-              if (aiRebalancing && response.rebalancing && Array.isArray(response.rebalancing)) {
-                aiRebalancing.innerHTML = response.rebalancing.map(item => `<li>${item}</li>`).join("");
-              }
-            }
-          } catch (error) {
-            console.error("AI 实时分析请求失败:", error);
-            if (aiAnalysis) aiAnalysis.textContent = "❌ Failed to load real-time AI insights. Please try refreshing.";
-          }
-        };
-
-        openButton.addEventListener("click", openModal);
-        cancelButtons.forEach((button) => button.addEventListener("click", closeModal));
-
-        form.addEventListener("submit", async (event) => {
-          event.preventDefault();
-          const data = new FormData(form);
-          const fundName = String(data.get("fundName") || "").trim();
-          const amount = Number(data.get("amount") || 0);
-          const profit = Number(data.get("profit") || 0);
-          if (!fundName || amount <= 0) return;
-
-          const api = window.FundMasterAPI;
-          const codeMatch = fundName.match(/\b\d{6}\b/);
-          const assetCode = codeMatch ? codeMatch[0] : fundName.replace(/\s+/g, "-").slice(0, 24);
-          const payload = {
-            asset_type: "fund",
-            asset_code: assetCode,
-            asset_name: fundName,
-            trans_type: "buy",
-            price: amount,
-            quantity: 1,
-            fee: 0,
-            trans_date: new Date().toISOString().slice(0, 10),
-            portfolio_tag: "Overview",
-            notes: `manual_holding_profit:${profit}`,
-          };
-
-          showStatus("Saving holding...");
-          let savedByBackend = false;
-
-          if (api && api.portfolio && api.portfolio.createTransaction) {
-            try {
-              await api.portfolio.createTransaction(payload);
-              savedByBackend = true;
-              showStatus("Saved successfully. Refreshing AI Analysis...");
-            } catch (error) {
-              showStatus(`Backend unavailable: ${error.message}. Previewing locally.`, true);
-            }
-          }
-
-          const returnRate = amount ? (profit / amount) * 100 : 0;
-          const tone = profit >= 0 ? "pos" : "neg";
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${fundName.replace(/[<>&"]/g, "")}</td>
-            <td>${formatMoney(amount)}</td>
-            <td class="${tone}">${formatMoney(profit)}</td>
-            <td class="${tone}">${formatPercent(returnRate)}</td>
-            <td>Manual</td>
-          `;
-          tableBody.appendChild(row);
-
-          triggerAIAnaLysis();
-
-          window.setTimeout(closeModal, savedByBackend ? 450 : 1200);
-        });
-
-        document.addEventListener("keydown", (event) => {
-          if (event.key === "Escape" && !modal.hidden) closeModal();
-        });
-      })();
-    </script>
     <script src="scripts/config.js"></script>
-    <script src="scripts/api.js"></script>
-    <script src="scripts/search.js"></script>
+    <script src="scripts/api.js?v=20260713-1"></script>
+    <script src="scripts/search.js?v=20260713-1"></script>
+    <script src="scripts/portfolio-overview.js?v=20260713-1"></script>
     <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>
