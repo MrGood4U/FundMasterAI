@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="css/shell.css" />
     <link rel="stylesheet" href="css/dashboard-widgets.css" />
-    <link rel="stylesheet" href="css/page-fund-deep-dive.css" />
+    <link rel="stylesheet" href="css/page-fund-deep-dive.css?v=20260713-1" />
   </head>
   <body>
     <div class="app">
@@ -87,72 +87,71 @@
         </div>
       </header>
         <main class="content">
+          <div id="fd-data-notice" class="fd-data-notice" data-state="loading" role="status">
+            Loading verified public fund data. Unavailable fields will remain unavailable; template values are never substituted.
+          </div>
           <nav class="breadcrumb" aria-label="面包屑">
             <a href="fund-deep-dive.html">Funds</a><span class="breadcrumb__sep">›</span>
-            <a href="#">Global Tech Equities</a><span class="breadcrumb__sep">›</span>
-            <span>MasterTech Growth Fund</span>
+            <span id="fd-breadcrumb-type">Public Fund</span><span class="breadcrumb__sep">›</span>
+            <span id="fd-breadcrumb-current">Loading…</span>
           </nav>
           <header class="page-head">
             <div>
-              <h2 id="fd-fund-name" class="page-head__title">MasterTech Growth Fund</h2>
-              <p class="page-head__sub">High-conviction global technology allocation with active risk overlays.</p>
+              <h2 id="fd-fund-name" class="page-head__title">Loading fund…</h2>
+              <p id="fd-fund-subtitle" class="page-head__sub">Verifying profile and NAV history.</p>
             </div>
-            <span class="chip chip--live">Active</span>
+            <span id="fd-data-chip" class="chip">Loading</span>
           </header>
           <div class="kpi-row">
             <div class="kpi-card">
-              <p class="kpi-card__label">Ticker</p>
-              <p id="fd-kpi-code" class="kpi-card__value">MTGF.QX</p>
+              <p class="kpi-card__label">Fund Code</p>
+              <p id="fd-kpi-code" class="kpi-card__value">—</p>
             </div>
             <div class="kpi-card">
-              <p class="kpi-card__label">NAV</p>
-              <p id="fd-kpi-nav" class="kpi-card__value">$248.12</p>
+              <p class="kpi-card__label">Latest Unit NAV</p>
+              <p id="fd-kpi-nav" class="kpi-card__value">—</p>
             </div>
             <div class="kpi-card">
-              <p class="kpi-card__label">24H Change</p>
-              <p id="fd-kpi-change" class="kpi-card__value">+2.41%</p>
-              <p class="kpi-card__hint">vs prior close</p>
+              <p class="kpi-card__label">Daily NAV Change</p>
+              <p id="fd-kpi-change" class="kpi-card__value">—</p>
+              <p class="kpi-card__hint">vs previous published NAV</p>
             </div>
           </div>
-          <div class="toolbar"><button type="button" class="btn-outline">Prospectus</button></div>
+          <div class="toolbar"><span id="fd-as-of" class="fd-as-of">Data date · —</span></div>
           <section class="glass-panel fd-matrix">
             <div class="section-head">
-              <h3 class="section-head__title"><span class="section-head__bolt" aria-hidden="true"></span>Performance Matrix</h3>
-              <div class="pill-group" role="group">
-                <button type="button" class="pill pill--ghost">1M</button>
-                <button type="button" class="pill pill--ghost">3M</button>
-                <button type="button" class="pill pill--ghost">1Y</button>
-                <button type="button" class="pill pill--ghost">ALL</button>
+              <h3 class="section-head__title"><span class="section-head__bolt" aria-hidden="true"></span>NAV Performance</h3>
+              <div class="pill-group" role="group" aria-label="NAV history period">
+                <button type="button" class="pill pill--ghost" data-history-range="1M">1M</button>
+                <button type="button" class="pill pill--ghost" data-history-range="3M">3M</button>
+                <button type="button" class="pill pill--ghost pill--active" data-history-range="1Y">1Y</button>
+                <button type="button" class="pill pill--ghost" data-history-range="ALL">5Y</button>
               </div>
             </div>
-            <p class="fd-caption">Historical NAV growth over selected period</p>
-            <div class="fd-chart" role="img" aria-label="NAV 曲线示意图"></div>
-            <div class="fd-stats">
-              <div><span class="fd-stats__k">Oct 24, 2023</span><span class="fd-stats__v">$214.85</span></div>
-              <div><span class="fd-stats__k">YTD Return</span><span class="fd-stats__v pos">+18.4%</span></div>
-              <div><span class="fd-stats__k">1Y Return</span><span class="fd-stats__v pos">+32.1%</span></div>
-              <div><span class="fd-stats__k">3Y Annualized</span><span class="fd-stats__v pos">+14.2%</span></div>
-              <div><span class="fd-stats__k">Since Inception</span><span class="fd-stats__v pos">+144.5%</span></div>
+            <p id="fd-chart-caption" class="fd-caption">Loading published NAV history…</p>
+            <div id="fd-chart" class="fd-chart" role="img" aria-label="Published NAV history chart">
+              <div class="fd-empty-state">Loading NAV history…</div>
+            </div>
+            <div id="fd-stats" class="fd-stats">
+              <div><span class="fd-stats__k">Latest NAV Date</span><span id="fd-stat-date" class="fd-stats__v">—</span></div>
+              <div><span class="fd-stats__k">YTD Return</span><span id="fd-stat-ytd" class="fd-stats__v">—</span></div>
+              <div><span class="fd-stats__k">1Y Return</span><span id="fd-stat-1y" class="fd-stats__v">—</span></div>
+              <div><span class="fd-stats__k">3Y Annualized</span><span id="fd-stat-3y" class="fd-stats__v">—</span></div>
+              <div><span class="fd-stats__k">Available Window</span><span id="fd-stat-window" class="fd-stats__v">—</span></div>
             </div>
           </section>
           <div class="two-col">
             <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Risk Assessment</h3>
-              <ul class="fd-risk">
-                <li><div><strong>Sharpe Ratio</strong><span class="muted">Risk-adjusted return quality</span></div><em>2.14</em></li>
-                <li><div><strong>Standard Deviation</strong><span class="muted">Volatility over 1 year</span></div><em>12.8%</em></li>
-                <li><div><strong>Alpha</strong><span class="muted">Excess return vs benchmark</span></div><em>4.2</em></li>
-                <li><div><strong>Beta</strong><span class="muted">Market correlation factor</span></div><em>1.08</em></li>
+              <h3 class="section-head__title section-head__title--compact">NAV-based Risk</h3>
+              <ul id="fd-risk" class="fd-risk">
+                <li><div><strong>Loading risk statistics…</strong><span class="muted">Calculated from published NAV history</span></div><em>—</em></li>
               </ul>
             </section>
             <section class="glass-panel">
               <h3 class="section-head__title section-head__title--compact">Asset Allocation</h3>
-              <p class="fd-caption">14 holdings · sector weights</p>
-              <ul class="fd-alloc">
-                <li><span>Software &amp; SaaS</span><span>65.2%</span><div class="bar-track"><div class="bar-fill" style="width:65.2%"></div></div></li>
-                <li><span>Semiconductors</span><span>18.4%</span><div class="bar-track"><div class="bar-fill" style="width:18.4%"></div></div></li>
-                <li><span>Cloud Infrastructure</span><span>12.1%</span><div class="bar-track"><div class="bar-fill" style="width:12.1%"></div></div></li>
-                <li><span>Cash / Liquid</span><span>4.3%</span><div class="bar-track"><div class="bar-fill" style="width:4.3%"></div></div></li>
+              <p id="fd-allocation-caption" class="fd-caption">Loading public allocation data…</p>
+              <ul id="fd-allocation" class="fd-alloc">
+                <li class="fd-empty-state">Loading asset allocation…</li>
               </ul>
             </section>
           </div>
@@ -161,9 +160,9 @@
             <div class="fd-mgmt__card">
               <div class="fd-avatar" aria-hidden="true"></div>
               <div>
-                <p class="fd-mgmt__name">Dr. Elena Thorne</p>
-                <p class="fd-mgmt__role">Chief Portfolio Manager</p>
-                <div class="fd-mgmt__meta"><span>Experience · 18+ Years</span><span>AUM Lead · $4.2B</span></div>
+                <p id="fd-manager-name" class="fd-mgmt__name">Loading…</p>
+                <p class="fd-mgmt__role">Fund Manager(s)</p>
+                <div id="fd-manager-meta" class="fd-mgmt__meta"><span>Public profile loading…</span></div>
               </div>
             </div>
           </section>
@@ -171,7 +170,7 @@
             <h3 class="section-head__title section-head__title--compact">Top Holdings</h3>
             <div class="data-table-wrap">
             <table class="data-table">
-              <thead><tr><th>Ticker</th><th>Name</th><th>Weight</th></tr></thead>
+              <thead><tr><th>Code</th><th>Name</th><th>Weight</th></tr></thead>
               <tbody id="fd-holdings-tbody">
                 <tr><td>-</td><td>Loading holdings...</td><td>-</td></tr>
               </tbody>
@@ -180,7 +179,11 @@
           </section>
           <section class="glass-panel">
             <h3 class="section-head__title section-head__title--compact">Investment Strategy &amp; Philosophy</h3>
-            <p class="fd-strat">The fund maintains a concentrated book in secular growth technology while using macro overlays to dampen drawdowns during liquidity shocks.</p>
+            <p id="fd-objective" class="fd-strat">Loading the public investment objective…</p>
+            <details id="fd-strategy-details" class="fd-strategy-details">
+              <summary>View public investment strategy</summary>
+              <p id="fd-strategy" class="fd-strat">Loading…</p>
+            </details>
           </section>
         </main>
 
@@ -189,100 +192,8 @@
     </div>
     <script src="scripts/config.js"></script>
     <script src="scripts/api.js"></script>
-    <script src="scripts/search.js"></script>
+    <script src="scripts/search.js?v=20260713-1"></script>
+    <script src="scripts/fund-deep-dive.js?v=20260713-1"></script>
     <script src="scripts/pro-upgrade.js"></script>
-<script>
-      document.addEventListener('DOMContentLoaded', async () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const fundCode = urlParams.get('code');
-        const fundName = urlParams.get('name');
-
-        const api = window.FundMasterAPI;
-        if (!fundCode) return;
-        try {
-          if (api && api.publicFund && api.publicFund.getBasicInfo) {
-            const res = await api.publicFund.getBasicInfo(fundCode);
-            if (res) {
-              const nameText = res.fund_name || res.jjjc || fundName || fundCode;
-              document.getElementById('fd-fund-name').textContent = nameText;
-              
-              const breadcrumb = document.querySelector('.breadcrumb span:last-child');
-              if (breadcrumb) breadcrumb.textContent = nameText;
-
-              document.getElementById('fd-kpi-code').textContent = res.fund_code || fundCode;
-
-              if (res.nav || res.dwjz) {
-                const navVal = Number(res.nav || res.dwjz).toFixed(4);
-                const currencySign = /^\d+$/.test(fundCode) ? '¥ ' : '$';
-                document.getElementById('fd-kpi-nav').textContent = `${currencySign}${navVal}`;
-              }
-
-              const changeRate = res.daily_return !== undefined ? res.daily_return : res.jzchg;
-              if (changeRate !== undefined) {
-                const rate = Number(changeRate);
-                const isPos = rate >= 0;
-                const sign = isPos ? '+' : '';
-                const changeNode = document.getElementById('fd-kpi-change');
-                
-                changeNode.textContent = `${sign}${rate.toFixed(2)}%`;
-                changeNode.className = isPos ? 'kpi-card__value pos' : 'kpi-card__value neg';
-              }
-            }
-          }
-        } catch (err) {
-          console.error("抓取基金基本信息失败:", err);
-        }
-
-        try {
-          if (api && api.publicFund && api.publicFund.getStockHolds) {
-            const tbody = document.getElementById('fd-holdings-tbody');
-
-            const holdingsData = await api.publicFund.getStockHolds(fundCode);
-            
-            if (tbody && Array.isArray(holdingsData) && holdingsData.length > 0) {
-              tbody.innerHTML = holdingsData.map(item => {
-                const ticker = item.ticker || item.stock_code || item.gudm || '-';
-                const name = item.name || item.stock_name || item.gumb || '-';
-                
-                let weightRaw = item.weight || item.ratio || item.cgbc || 0;
-                let weightNum = Number(weightRaw);
-                if (weightNum > 0 && weightNum < 1) weightNum = weightNum * 100; // 0.092 -> 9.2
-                
-                return `
-                  <tr>
-                    <td><code style="font-family: var(--font-mono); font-size: 13px;">${ticker}</code></td>
-                    <td style="font-weight: 600;">${name}</td>
-                    <td style="font-weight: bold; color: var(--color-primary, #00fff2);">${weightNum.toFixed(2)}%</td>
-                  </tr>
-                `;
-              }).join('');
-            } else if (tbody) {
-              tbody.innerHTML = `<tr><td colspan="3" class="muted" style="text-align: center;">暂无该基金的公开股票持仓数据</td></tr>`;
-            }
-          }
-        } catch (err) {
-          console.error("抓取前十大持仓接口失败:", err);
-          const tbody = document.getElementById('fd-holdings-tbody');
-          if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="3" class="neg" style="text-align: center;">持仓数据加载失败，请检查网络或后端接口</td></tr>`;
-          }
-        }
-
-        const noticeBar = document.createElement('div');
-        noticeBar.style.cssText = `
-            background-color: #fff3cd;
-            color: #856404;
-            padding: 10px 20px;
-            text-align: center;
-            font-size: 14px;
-            border-bottom: 1px solid #ffeeba;
-            position: sticky;
-            top: 0;
-            z-index: 999;
-        `;
-        noticeBar.innerHTML = `⚠️ <strong>当前处于部分联调模式：</strong>顶部 KPI 及下方 Top Holdings 已成功接入真实生产数据。其余走势图及风险指标当前仍为<b>系统静态示例</b>。`;
-        document.body.insertBefore(noticeBar, document.body.firstChild);
-      });
-    </script>
   </body>
 </html>
