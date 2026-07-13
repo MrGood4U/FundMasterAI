@@ -58,6 +58,27 @@ class TestGetFundIndividualBasicInfo:
         assert result.iloc[0]["fund_company"] == "华夏基金管理有限公司"
 
 
+class TestFundOpenFundRank:
+    def test_lowercase_qdii_is_not_downgraded_to_all_funds(self):
+        api = AksharePublicFund()
+        upstream = pd.DataFrame([{
+            "基金代码": "000834",
+            "基金简称": "大成纳斯达克100ETF联接(QDII)A",
+            "单位净值": 6.12,
+            "日增长率": 0.45,
+            "近1年": 18.2,
+            "今年来": 9.1,
+        }])
+
+        with patch("apis.akshare_public_fund_api.ak.fund_open_fund_rank_em",
+                   return_value=upstream) as mock_ak:
+            result = api.fund_open_fund_rank("qdii", "change_1y")
+
+        mock_ak.assert_called_once_with(symbol="QDII")
+        assert result.iloc[0]["fund_code"] == "000834"
+        assert result.iloc[0]["change_1y"] == 18.2
+
+
 class TestGetFundIndividualDetailHold:
     def test_returns_mapped_dataframe(self, sample_fund_individual_detail_hold_raw_df):
         api = AksharePublicFund()

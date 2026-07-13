@@ -193,9 +193,7 @@ class AksharePublicFund:
         return apply_mapping(df, FUND_VALUE_ESTIMATION_EM_MAP)
 
     def fund_open_fund_rank(self, fund_type: str, order_by: str):
-        fund_type_set = ["all", "stock", "mixed", "bond", "index", "QDII", "FOF"]
-        if fund_type not in fund_type_set:
-            fund_type = "all"
+        fund_type = str(fund_type or "all").strip().lower()
         fund_type_set_map = {
             "all": "全部",
             "stock": "股票型",
@@ -205,6 +203,8 @@ class AksharePublicFund:
             "qdii": "QDII",
             "fof": "FOF",
         }
+        if fund_type not in fund_type_set_map:
+            fund_type = "all"
         fund_type = fund_type_set_map[fund_type]
         df = ak.fund_open_fund_rank_em(symbol=fund_type)
         df = df.replace([np.nan, np.inf, -np.inf, pd.NaT], None)

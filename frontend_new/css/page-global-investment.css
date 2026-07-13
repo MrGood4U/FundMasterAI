@@ -1,4 +1,4 @@
-/* Figma 11:2106 Global Investment */
+/* Global Investment */
 
 .gi-ticker .kpi-card__hint--neg {
   color: var(--accent-red);
@@ -17,8 +17,127 @@
   text-align: right;
 }
 
+.global-ranking-panel .ranking-row__return.neg,
+.global-ranking-panel .ranking-detail__return.neg {
+  color: var(--accent-red);
+}
+
+.gi-matrix-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.gi-matrix-source {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.gi-matrix-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.gi-matrix-legend span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+}
+
+.gi-matrix-legend__negative {
+  background: rgba(255, 92, 92, 0.16);
+}
+
+.gi-matrix-legend__neutral {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.gi-matrix-legend__positive {
+  background: rgba(0, 255, 163, 0.14);
+}
+
+.gi-matrix {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(92px, 1fr));
+  gap: 8px;
+  align-content: start;
+  padding: 10px;
+  min-height: 220px;
+}
+
+.gi-matrix-cell {
+  display: flex;
+  min-width: 0;
+  min-height: 54px;
+  padding: 9px 10px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+.gi-matrix-cell--positive {
+  background: rgba(0, 255, 163, var(--cell-strength));
+}
+
+.gi-matrix-cell--negative {
+  background: rgba(255, 92, 92, var(--cell-strength));
+}
+
+.gi-matrix-cell--neutral {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.gi-matrix-cell span {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.74);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gi-matrix-cell strong {
+  font-family: var(--font-display);
+  font-size: 15px;
+}
+
+.gi-data-state {
+  display: grid;
+  place-items: center;
+  min-height: 150px;
+  padding: 20px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  text-align: center;
+}
+
 @media (max-width: 980px) {
   .global-ranking-panel .ranking-layout {
     grid-template-columns: 1fr;
+  }
+
+  .gi-matrix {
+    grid-template-columns: repeat(4, minmax(80px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .gi-matrix-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .gi-matrix {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
