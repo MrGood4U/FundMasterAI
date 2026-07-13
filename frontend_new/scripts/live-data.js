@@ -244,6 +244,14 @@
     return text(pick(item, ["news_content", "新闻内容", "内容", "摘要", "summary"], ""), "");
   }
 
+  function newsTimestamp(item) {
+    const raw = text(pick(item, ["publish_time", "发布时间", "时间", "date"], ""), "").trim();
+    if (!raw) return Number.NEGATIVE_INFINITY;
+    const normalized = raw.replace(/^(\d{4}-\d{2}-\d{2})\s+/, "$1T");
+    const timestamp = Date.parse(normalized);
+    return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+  }
+
   function newsMatchesFilter(item, signal, filter) {
     if (filter === "all") return true;
     const content = `${newsTitle(item)} ${newsBody(item)}`.toLowerCase();
@@ -403,13 +411,16 @@
     setStatus("[data-api-status='news']", "Connecting to news backend...");
     try {
       const rows = await api.news.getStockRecentNews({ symbol: DEFAULT_STOCK_SYMBOL });
-      const list = Array.isArray(rows) ? rows.slice(0, 6) : [];
+      const orderedRows = Array.isArray(rows)
+        ? rows.slice().sort((left, right) => newsTimestamp(right) - newsTimestamp(left))
+        : [];
+      const list = orderedRows.slice(0, 6);
       let analysis = null;
       if (list.length && api.ai?.summarizeNews) {
         try {
           analysis = await api.ai.summarizeNews({
             symbol: DEFAULT_STOCK_SYMBOL,
-            items: rows,
+            items: orderedRows,
             max_items: 10,
             mock: true,
           });
