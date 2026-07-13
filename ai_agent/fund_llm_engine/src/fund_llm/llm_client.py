@@ -213,7 +213,7 @@ class LLMClient:
         ).strip().lower()
 
         if not self.api_key:
-            raise ValueError("LLM API key is missing. Set LLM_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY.")
+            raise ValueError("LLM API key is missing. Set LLM_API_KEY or OPENAI_API_KEY.")
         if not self.base_url:
             raise ValueError("LLM base URL is missing. Set LLM_BASE_URL or OPENAI_BASE_URL.")
         if not self.model:

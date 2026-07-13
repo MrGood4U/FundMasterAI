@@ -86,19 +86,6 @@ AI Insights 页面会在勾选 `Use real LLM` 后启用模型下拉框，并通�
 `GET /api/ai/llm/models` 加载可选模型；分析请求会把选中的 `llm_model` 传给
 `POST /api/ai/fund/analyze`。
 
-## Gemini 示例
-
-Gemini API 适合能稳定访问 Google AI Studio / Gemini API 的环境：
-
-```env
-LLM_API_KEY=your_gemini_key
-LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
-LLM_MODEL=gemini-3-flash-preview
-LLM_TIMEOUT_SECONDS=60
-LLM_THINKING_MODE=
-LLM_REASONING_EFFORT=
-```
-
 ## DeepSeek V4 示例
 
 DeepSeek API 使用 OpenAI-compatible Chat Completions 格式。DeepSeek V4 的 `base_url`

@@ -1,5 +1,9 @@
 # Real API Parallel Execution Benchmark
 
+> Historical record only: this benchmark used a former Gemini configuration.
+> Gemini is not part of the current demo model catalog or supported setup; use
+> `provider_setup.md` for the active OpenCode Go / DeepSeek configuration.
+
 测试日期：2026-04-27
 
 历史说明：这份 benchmark 记录的是当时的 5-agent pipeline。当前状态请以

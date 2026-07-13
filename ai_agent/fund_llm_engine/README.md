@@ -88,7 +88,7 @@ cp .env.example .env
 - `LLM_BASE_URL=https://api.deepseek.com`
 - `LLM_MODEL=deepseek-v4-pro`
 
-[.env.example](.env.example) 里也保留了 Gemini 和 DeepSeek 两种 OpenAI-compatible 示例。
+[.env.example](.env.example) 默认使用当前演示支持的 OpenCode Go / DeepSeek 配置。
 
 建好环境后，建议先做一轮最小验证：
 
@@ -206,7 +206,7 @@ DeepSeek 示例：
 - `LLM_BASE_URL=https://api.deepseek.com`
 - `LLM_MODEL=deepseek-v4-pro`
 
-Gemini 示例也保留在 `.env.example` 中。
+OpenCode Go / DeepSeek 示例保留在 `.env.example` 中。
 
 也兼容旧字段：
 
@@ -240,7 +240,7 @@ python3 scripts/run_real_demo.py examples/mock_input.json --output outputs/real_
 - LLM 输出评估规则：`docs/llm_evaluation.md`
 - golden cases 设计与判断标准：`docs/golden_cases.md`
 - 本地环境与安装：`docs/environment_setup.md`
-- Gemini / DeepSeek 等模型 provider 配置：`docs/provider_setup.md`
+- OpenCode Go / DeepSeek 等 OpenAI-compatible provider 配置：`docs/provider_setup.md`
 - 版本里程碑与切换方式：`docs/version_history.md`
 
 后续判断某个 AI Agent 能力是否已经完成时，先看

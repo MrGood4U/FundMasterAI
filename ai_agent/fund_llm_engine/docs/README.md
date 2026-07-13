@@ -21,7 +21,7 @@ start with [`ai_agent_development_log.md`](./ai_agent_development_log.md).
 
 - [`environment_setup.md`](./environment_setup.md): local environment setup and validation order.
 - [`windows_startup.md`](./windows_startup.md): Windows CMD startup steps for the Agent HTTP service, complementing the frontend integration guide.
-- [`provider_setup.md`](./provider_setup.md): Gemini, DeepSeek, and OpenAI-compatible provider settings.
+- [`provider_setup.md`](./provider_setup.md): OpenCode Go, DeepSeek, and OpenAI-compatible provider settings.
 - [`dev_backend_integration_handoff.md`](./dev_backend_integration_handoff.md): historical 2026-05-30 dev-backend integration snapshot. Keep for traceability, but verify current behavior from the development log, code, and tests.
 
 ## Evaluation And Golden Cases
@@ -30,7 +30,7 @@ start with [`ai_agent_development_log.md`](./ai_agent_development_log.md).
 - [`golden_cases.md`](./golden_cases.md): golden case design and expected checks.
 - [`manual_acceptance_checklist.md`](./manual_acceptance_checklist.md): click-by-click manual acceptance checklist for the AI Insights page.
 - [`score_guardrails_zh.md`](./score_guardrails_zh.md): AI Agent score guardrails and collaboration scope checks.
-- [`real_api_parallel_benchmark.md`](./real_api_parallel_benchmark.md): real LLM parallel execution benchmark.
+- [`real_api_parallel_benchmark.md`](./real_api_parallel_benchmark.md): historical Gemini-era benchmark; not current provider setup guidance.
 
 ## Real Sample Notes
 

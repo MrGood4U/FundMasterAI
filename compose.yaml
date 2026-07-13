@@ -94,6 +94,16 @@ services:
       context: .
       dockerfile: docker/agent.Dockerfile
     image: fundmasterai/agent:local
+    env_file:
+      # Safe checked-in defaults keep a clean clone in mock mode.
+      - path: ./.env.docker.example
+        required: true
+      # Preserve the original root-.env Docker setup when present.
+      - path: ./.env
+        required: false
+      # Preferred Agent configuration; highest priority and Git-ignored.
+      - path: ./ai_agent/fund_llm_engine/.env
+        required: false
     environment:
       AGENT_HTTP_HOST: 0.0.0.0
       AGENT_HTTP_PORT: "5003"
@@ -102,10 +112,6 @@ services:
       MARKET_BACKEND_URL: http://market:5001
       NEWS_BACKEND_URL: http://news:5000
       PORTFOLIO_BACKEND_URL: http://portfolio:5002
-      LLM_MOCK_MODE: ${LLM_MOCK_MODE:-true}
-      LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_BASE_URL: ${LLM_BASE_URL:-}
-      LLM_MODEL: ${LLM_MODEL:-}
     depends_on:
       market:
         condition: service_healthy

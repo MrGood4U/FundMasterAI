@@ -31,7 +31,6 @@ DEFAULT_CHAT_COMPLETION_MODELS: List[LLMModelOption] = [
     LLMModelOption("kimi-k2.6", "Kimi K2.6"),
     LLMModelOption("mimo-v2.5", "MiMo V2.5"),
     LLMModelOption("mimo-v2.5-pro", "MiMo V2.5 Pro"),
-    LLMModelOption("gemini-3-flash-preview", "Gemini 3 Flash Preview"),
 ]
 
 _CHAT_COMPLETION_ALLOWLIST: Set[str] = {item.id for item in DEFAULT_CHAT_COMPLETION_MODELS}
@@ -80,8 +79,6 @@ def infer_provider_label(base_url: str) -> str:
         return "opencode-go"
     if "opencode.ai/zen" in normalized:
         return "opencode-zen"
-    if "generativelanguage.googleapis.com" in normalized:
-        return "gemini"
     if "deepseek.com" in normalized:
         return "deepseek"
     if "openai.com" in normalized:

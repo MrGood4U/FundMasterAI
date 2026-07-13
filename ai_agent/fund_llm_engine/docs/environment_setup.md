@@ -30,7 +30,7 @@ pip install -e .
 
 ## 配置真实模型
 
-如果你要跑真实 Gemini 模式，先复制环境变量模板：
+如果你要跑真实 LLM 模式，先复制环境变量模板：
 
 ```bash
 cp .env.example .env
@@ -45,12 +45,12 @@ cp .env.example .env
 
 默认建议值在 [.env.example](../.env.example)：
 
-- `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`
-- `LLM_MODEL=gemini-3-flash-preview`
+- `LLM_BASE_URL=https://opencode.ai/zen/go/v1`
+- `LLM_MODEL=deepseek-v4-flash`
 
 代码会在 [src/fund_llm/config.py](../src/fund_llm/config.py) 里自动读取这些变量。
 
-如果团队需要在 Gemini 和 DeepSeek 之间切换，参考
+如果团队需要在 OpenCode Go 支持的模型之间切换，参考
 [docs/provider_setup.md](./provider_setup.md)。
 
 ## 验证顺序
