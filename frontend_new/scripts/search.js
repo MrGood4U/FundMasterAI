@@ -132,30 +132,34 @@
       renderResults(results, matches, query);
     });
 
-    // 💡 升级：监听键盘回车
-    input.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter") return;
-      event.preventDefault();
+    function openSearchResult() {
       const firstResult = results.querySelector(".search-result");
       if (firstResult && !results.hidden) {
         window.location.href = firstResult.getAttribute("href");
       } else {
-        // 如果没有下拉菜单，直接强行带着当前的输入框文本跳转
         forceRedirect(input.value.trim());
       }
+    }
+
+    // 💡 升级：监听键盘回车
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      openSearchResult();
     });
 
     // 💡 升级：监听旁边的放大镜图标/按钮点击
-    const searchIcon = field.querySelector("svg") || field.querySelector("i") || field.querySelector(".search-icon");
+    const searchIcon = field.querySelector(".search-field__icon-img, .search-icon, svg, i");
     if (searchIcon) {
       searchIcon.style.cursor = "pointer";
-      searchIcon.addEventListener("click", () => {
-        const firstResult = results.querySelector(".search-result");
-        if (firstResult && !results.hidden) {
-          window.location.href = firstResult.getAttribute("href");
-        } else {
-          forceRedirect(input.value.trim());
-        }
+      searchIcon.setAttribute("role", "button");
+      searchIcon.setAttribute("tabindex", "0");
+      searchIcon.setAttribute("aria-label", "Search funds");
+      searchIcon.addEventListener("click", openSearchResult);
+      searchIcon.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        openSearchResult();
       });
     }
 
