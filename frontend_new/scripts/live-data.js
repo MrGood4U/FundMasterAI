@@ -422,7 +422,6 @@
             symbol: DEFAULT_STOCK_SYMBOL,
             items: orderedRows,
             max_items: 10,
-            mock: true,
           });
         } catch (error) {
           console.warn("News AI summary unavailable:", error.message);

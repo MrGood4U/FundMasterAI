@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from fund_llm.llm_client import MockLLMClient
 from fund_llm.news_summary import (
+    _build_summary_prompts,
     classify_news_items,
     compute_news_confidence,
     normalize_news_items,
@@ -149,6 +150,45 @@ class RunNewsSummaryTest(unittest.TestCase):
 
         prompt = client.call_log[0]["user_prompt"]
         self.assertIn("Overall tone (computed in code)", prompt)
+
+        items = normalize_news_items(backend_style_rows())
+        system_prompt, _ = _build_summary_prompts(items, classify_news_items(items), "300059")
+        self.assertIn("never convert Chinese units", system_prompt)
+
+    def test_chinese_unit_conversion_triggers_retry(self):
+        class ConvertedThenPreservedClient:
+            is_mock = False
+
+            def __init__(self):
+                self.calls = []
+
+            def chat(self, system_prompt, user_prompt, **kwargs):
+                self.calls.append(user_prompt)
+                if len(self.calls) == 1:
+                    return (
+                        "The latest report showed an outflow of 412.75 billion yuan, while the "
+                        "remaining headlines were broadly neutral and offered limited direction. "
+                        "Investors should treat the news flow as a secondary signal and continue "
+                        "monitoring subsequent company disclosures and market activity."
+                    )
+                return (
+                    "The latest report showed an outflow of 412.75亿元, while the remaining "
+                    "headlines were broadly neutral and offered limited direction. Investors "
+                    "should treat the news flow as a secondary signal and continue monitoring "
+                    "subsequent company disclosures and market activity."
+                )
+
+        rows = backend_style_rows() + [
+            {"news_title": "主力资金净流出412.75亿元", "news_content": "市场资金流出。"}
+        ]
+        client = ConvertedThenPreservedClient()
+        result = run_news_summary(rows, client, symbol="300059")
+
+        self.assertEqual(len(client.calls), 2)
+        self.assertEqual(result["metadata"]["unit_retry"], "true")
+        self.assertEqual(result["metadata"]["summary_source"], "llm")
+        self.assertIn("412.75亿元", result["summary"])
+        self.assertNotIn("billion", result["summary"])
 
     def test_chinese_answer_triggers_english_retry(self):
         class ChineseThenEnglishClient:

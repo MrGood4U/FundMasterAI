@@ -13,6 +13,7 @@ publish_time 等中英文字段都能识别），前端拿到新闻后原样转�
 
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Optional
 
 from fund_llm import config
@@ -32,6 +33,9 @@ _TITLE_KEYS = ("title", "news_title", "announcement_title", "新闻标题", "标
 _CONTENT_KEYS = ("content", "summary", "news_content", "新闻内容", "内容", "摘要")
 _TIME_KEYS = ("published_at", "publish_time", "announcement_date", "发布时间", "时间", "date")
 _SOURCE_KEYS = ("source", "文章来源", "来源")
+
+_CHINESE_NUMBER_UNIT_RE = re.compile(r"\d[\d,.]*\s*(?:万亿元|亿元|万|亿)")
+_TRANSLATED_SCALE_RE = re.compile(r"\b(?:million|billion|trillion)\b", re.IGNORECASE)
 
 
 def _first_text(row: Dict[str, Any], keys) -> str:
@@ -148,6 +152,20 @@ def _build_deterministic_summary(
     return " ".join(parts)
 
 
+def _converts_chinese_number_units(items: List[Dict[str, str]], summary: str) -> bool:
+    """Reject model-side 万/亿 conversions, which are easy to mistranslate by 10x."""
+    source_text = " ".join(
+        part
+        for item in items
+        for part in (item.get("title", ""), item.get("content", ""))
+        if part
+    )
+    return bool(
+        _CHINESE_NUMBER_UNIT_RE.search(source_text)
+        and _TRANSLATED_SCALE_RE.search(summary or "")
+    )
+
+
 def _build_summary_prompts(
     items: List[Dict[str, str]],
     sentiment: Dict[str, Any],
@@ -161,6 +179,8 @@ def _build_summary_prompts(
     system_prompt = (
         "You are a financial news summarizer. Write a concise digest of the provided news items only. "
         "Respond in English only, even though headlines may be Chinese. "
+        "Preserve every numeric value and its original unit exactly as written; never convert Chinese "
+        "units such as 万, 亿, 亿元, or 万亿元 into million, billion, or trillion. "
         "Each item is pre-labeled with a deterministic sentiment tag; do not re-score them. "
         "Do not invent facts, price targets, or ticker symbols that are not in the items. "
         "Keep the summary under 120 words and end with a complete sentence."
@@ -231,6 +251,7 @@ def run_news_summary(
 
     summary_source = "llm"
     language_retry = False
+    unit_retry = False
     system_prompt, user_prompt = _build_summary_prompts(items, sentiment, symbol)
     try:
         summary = llm_client.chat(system_prompt, user_prompt, max_tokens=700)
@@ -238,25 +259,26 @@ def run_news_summary(
         summary = ""
         summary_source = "deterministic_fallback"
 
-    if (
-        summary
-        and not getattr(llm_client, "is_mock", False)
-        and _summary_looks_incomplete(summary)
-    ):
-        # 输入是纯中文新闻时，模型偶尔无视指令用中文作答；英文输出是硬要求
-        # （质量门按英文词数判断），这里做一次显式纠偏重试，仍不合格才回退。
-        language_retry = True
+    if summary and not getattr(llm_client, "is_mock", False):
+        language_retry = _summary_looks_incomplete(summary)
+        unit_retry = _converts_chinese_number_units(items, summary)
+
+    if summary and (language_retry or unit_retry):
+        # 中文新闻摘要有两类高风险输出：模型改用中文，或把“亿元”等单位换算错。
+        # 统一做一次显式纠偏重试；仍不合格就回退到不改写数值的确定性摘要。
         try:
             summary = llm_client.chat(
                 system_prompt,
                 user_prompt
                 + "\n\nIMPORTANT: Your answer MUST be written in English only. "
-                "Do not answer in Chinese; translate the key facts into English.",
+                "Do not answer in Chinese; translate the key facts into English. "
+                "Keep numeric values and Chinese units exactly as provided. Never convert 万, 亿, "
+                "亿元, or 万亿元 into million, billion, or trillion.",
                 max_tokens=700,
             )
         except Exception:
             summary = ""
-        if _summary_looks_incomplete(summary):
+        if _summary_looks_incomplete(summary) or _converts_chinese_number_units(items, summary):
             summary = ""
             summary_source = "deterministic_fallback"
 
@@ -270,6 +292,7 @@ def run_news_summary(
         "items_used": str(len(items)),
         "summary_source": summary_source,
         "language_retry": str(language_retry).lower(),
+        "unit_retry": str(unit_retry).lower(),
         "prompt_version": config.PROMPT_VERSION,
     }
 
