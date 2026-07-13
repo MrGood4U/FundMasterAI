@@ -1,14 +1,22 @@
 /* Fund Deep Dive */
 
 .fd-data-notice {
+  width: fit-content;
+  max-width: 100%;
   margin-bottom: 18px;
-  padding: 12px 16px;
+  padding: 9px 13px;
   border: 1px solid rgba(129, 236, 255, 0.24);
   border-radius: var(--radius-md);
   background: rgba(129, 236, 255, 0.08);
   color: var(--text-muted);
   font-size: 13px;
   line-height: 1.5;
+}
+
+.fd-data-notice[data-state="empty"] {
+  border-color: rgba(129, 236, 255, 0.2);
+  background: rgba(129, 236, 255, 0.05);
+  color: var(--text-muted);
 }
 
 .fd-data-notice[data-state="success"] {
@@ -32,6 +40,16 @@
 .fd-data-chip--partial {
   border-color: rgba(255, 193, 92, 0.42);
   color: #f4c46e;
+}
+
+.fd-data-chip--empty {
+  border-color: rgba(129, 236, 255, 0.32);
+  color: var(--accent-cyan);
+}
+
+.fd-data-chip--error {
+  border-color: rgba(255, 92, 92, 0.42);
+  color: #ff9b9b;
 }
 
 .fd-as-of {

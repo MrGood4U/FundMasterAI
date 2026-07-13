@@ -142,7 +142,7 @@
     const rows = rowsForRange(range);
     if (rows.length < 2) {
       chart.innerHTML = '<div class="fd-empty-state">Published NAV history is unavailable for this period.</div>';
-      if (caption) caption.textContent = "No template chart has been substituted.";
+      if (caption) caption.textContent = "No published NAV observations were returned for this period.";
       return;
     }
 
@@ -364,11 +364,50 @@
     return normalize(profileCode) === normalize(String(requestedCode).trim()) ? basic : null;
   }
 
-  function setNotice(profileLoaded, historyLoaded, allocationLoaded, holdingsLoaded) {
+  function renderEmptySelection() {
+    state.history = [];
+    const notice = byId("fd-data-notice");
+    const chip = byId("fd-data-chip");
+    if (notice) {
+      notice.dataset.state = "empty";
+      notice.textContent = "Search for a fund by code or name to view its analytics.";
+    }
+    if (chip) {
+      chip.textContent = "SELECT FUND";
+      chip.className = "chip fd-data-chip--empty";
+    }
+
+    if (byId("fd-fund-name")) byId("fd-fund-name").textContent = "Fund Analytics";
+    if (byId("fd-fund-subtitle")) byId("fd-fund-subtitle").textContent = "Search by fund code or name to view verified public information.";
+    if (byId("fd-breadcrumb-type")) byId("fd-breadcrumb-type").textContent = "Public Funds";
+    if (byId("fd-breadcrumb-current")) byId("fd-breadcrumb-current").textContent = "No fund selected";
+    if (byId("fd-kpi-code")) byId("fd-kpi-code").textContent = "—";
+    if (byId("fd-kpi-nav")) byId("fd-kpi-nav").textContent = "—";
+    if (byId("fd-kpi-change")) {
+      byId("fd-kpi-change").textContent = "—";
+      byId("fd-kpi-change").className = "kpi-card__value";
+    }
+    if (byId("fd-as-of")) byId("fd-as-of").textContent = "No fund selected";
+    if (byId("fd-chart-caption")) byId("fd-chart-caption").textContent = "Search for a fund to load published NAV history.";
+    if (byId("fd-chart")) byId("fd-chart").innerHTML = '<div class="fd-empty-state">No fund selected.</div>';
+    ["fd-stat-date", "fd-stat-ytd", "fd-stat-1y", "fd-stat-3y", "fd-stat-window"].forEach((id) => {
+      if (byId(id)) byId(id).textContent = "—";
+    });
+    if (byId("fd-risk")) byId("fd-risk").innerHTML = '<li><div><strong>No fund selected</strong><span class="muted">Search for a fund to calculate NAV-based risk.</span></div><em>—</em></li>';
+    if (byId("fd-allocation-caption")) byId("fd-allocation-caption").textContent = "No fund selected";
+    if (byId("fd-allocation")) byId("fd-allocation").innerHTML = '<li class="fd-empty-state">Search for a fund to view asset allocation.</li>';
+    if (byId("fd-manager-name")) byId("fd-manager-name").textContent = "No fund selected";
+    if (byId("fd-manager-meta")) byId("fd-manager-meta").innerHTML = "<span>Search for a fund to view management information.</span>";
+    if (byId("fd-holdings-tbody")) byId("fd-holdings-tbody").innerHTML = '<tr><td colspan="3" class="muted fd-table-state">Search for a fund to view top holdings.</td></tr>';
+    if (byId("fd-objective")) byId("fd-objective").textContent = "Select a fund to view its public investment objective.";
+    if (byId("fd-strategy")) byId("fd-strategy").textContent = "Select a fund to view its public investment strategy.";
+  }
+
+  function setNotice(profileLoaded, historyLoaded, allocationLoaded, holdingsLoaded, requestedCode) {
     const notice = byId("fd-data-notice");
     const chip = byId("fd-data-chip");
     const sources = [
-      profileLoaded && "fund profile",
+      profileLoaded && "profile",
       historyLoaded && "NAV history",
       allocationLoaded && "asset allocation",
       holdingsLoaded && "top holdings",
@@ -377,13 +416,19 @@
 
     if (notice) {
       notice.dataset.state = sources.length ? (complete ? "success" : "partial") : "error";
-      notice.textContent = sources.length
-        ? `Verified public data loaded: ${sources.join(", ")}. Missing fields are shown as unavailable; no template values are substituted.`
-        : "No verified fund data was returned. The page is showing unavailable states instead of template values.";
+      notice.textContent = complete
+        ? `Public fund data · ${sources.join(", ")} available.`
+        : sources.length
+          ? `Some public fund details are unavailable. Available: ${sources.join(", ")}.`
+          : `We couldn't load public data for fund ${requestedCode}. Check the code or try another fund.`;
     }
     if (chip) {
-      chip.textContent = complete ? "PUBLIC DATA" : sources.length ? "PARTIAL DATA" : "NO DATA";
-      chip.className = complete ? "chip chip--live" : "chip fd-data-chip--partial";
+      chip.textContent = complete ? "PUBLIC DATA" : sources.length ? "PARTIAL DATA" : "UNAVAILABLE";
+      chip.className = complete
+        ? "chip chip--live"
+        : sources.length
+          ? "chip fd-data-chip--partial"
+          : "chip fd-data-chip--error";
     }
   }
 
@@ -406,8 +451,7 @@
     }
 
     if (!fundCode) {
-      renderProfile(null, "—", requestedName);
-      setNotice(false, false, false, false);
+      renderEmptySelection();
       return;
     }
 
@@ -444,7 +488,7 @@
     const holdingsLoaded = renderHoldings(
       basic && holdingsResult.status === "fulfilled" ? holdingsResult.value : [],
     );
-    setNotice(profileLoaded, state.history.length > 1, allocationLoaded, holdingsLoaded);
+    setNotice(profileLoaded, state.history.length > 1, allocationLoaded, holdingsLoaded, fundCode);
 
     if (profileLoaded || state.history.length > 1) {
       const verifiedName = String(basic?.fund_name || (requestedName !== fundCode ? requestedName : "")).trim();
