@@ -704,11 +704,6 @@
     }
     setBarList(allocation?.querySelector(".fd-alloc"), sectors);
 
-    const alert = Array.from(page.querySelectorAll(".glass-panel")).find((panel) =>
-      /AI Rebalancing Alert/.test(panel.textContent || "")
-    );
-    updateText(alert?.querySelector("p"), item.signal);
-
     const curve = item.curve?.length ? item.curve : await loadCurve(item);
     renderCurve(page.querySelector("[data-return-chart]"), curve, `${item.name} return curve`);
   }
