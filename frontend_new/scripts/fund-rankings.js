@@ -694,7 +694,7 @@
     try {
       const rows = await api.publicFund.getIndustryAllocation(item.code);
       if (Array.isArray(rows) && rows.length) {
-        sectors = rows.slice(0, 6).map((row) => [
+        sectors = rows.map((row) => [
           pick(row, ["industry_category", "industry", "行业类别"], "Other"),
           numberValue(pick(row, ["pct", "percentage", "占净值比例"], 0)),
         ]);
@@ -702,7 +702,18 @@
     } catch (error) {
       console.warn(`Industry allocation unavailable for ${item.code}:`, error.message);
     }
-    setBarList(allocation?.querySelector(".fd-alloc"), sectors);
+    const visibleSectors = sectors
+      .map(([label, value]) => [label, numberValue(value)])
+      .filter(([, value]) => value > 0)
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 6)
+      .map(([label, value]) => [label, `${Number(value.toFixed(2))}%`]);
+    const allocationList = allocation?.querySelector(".fd-alloc");
+    if (visibleSectors.length) {
+      setBarList(allocationList, visibleSectors);
+    } else if (allocationList) {
+      allocationList.innerHTML = '<li class="data-unavailable">No positive sector allocation was disclosed.</li>';
+    }
 
     const curve = item.curve?.length ? item.curve : await loadCurve(item);
     renderCurve(page.querySelector("[data-return-chart]"), curve, `${item.name} return curve`);
