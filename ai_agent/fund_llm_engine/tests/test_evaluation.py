@@ -338,6 +338,22 @@ class EvaluationTest(unittest.TestCase):
         )
         self.assertFalse(any(output.status == "success" for output in result.agent_outputs))
 
+    def test_missing_data_handling_uses_coverage_metadata_not_user_facing_risks(self):
+        payload = build_mock_input()
+        payload.benchmark = None
+        payload.benchmark_nav_series = []
+        payload.news_summary = []
+        payload.news_items = []
+        payload.industry_exposure = {}
+
+        result = run_mock_analysis_for_input(payload)
+        result.main_risks = []
+        report = evaluate_analysis_result(payload, result)
+
+        missing_data_check = get_check(report, "missing_data_handling")
+        self.assertTrue(missing_data_check.passed)
+        self.assertEqual(missing_data_check.score_awarded, missing_data_check.max_score)
+
     def test_hybrid_bond_uses_same_seven_agent_denominator_in_evaluator(self):
         payload = build_rating_eligible_input()
         payload.fund_info.code = "000171"

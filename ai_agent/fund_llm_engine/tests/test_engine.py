@@ -101,6 +101,12 @@ class EngineTest(unittest.TestCase):
         self.assertIn("Evaluated performance", [event.title for event in result.analysis_trace])
         self.assertIn("Checked bond exposure", [event.title for event in result.analysis_trace])
         self.assertIn("Combined specialist views", [event.title for event in result.analysis_trace])
+        bond_trace = next(
+            event
+            for event in result.analysis_trace
+            if event.technical.get("agent_name") == "BondExposureAgent"
+        )
+        self.assertEqual(bond_trace.status, "success")
 
     def test_two_point_nav_jump_abstains_instead_of_publishing_a_rating(self):
         payload = build_sample_input()
@@ -135,6 +141,12 @@ class EngineTest(unittest.TestCase):
             self.assertEqual(outputs[agent_name].status, "skipped")
             self.assertIsNone(outputs[agent_name].score)
             self.assertEqual(outputs[agent_name].stance, "insufficient_data")
+            trace = next(
+                event
+                for event in result.analysis_trace
+                if event.technical.get("agent_name") == agent_name
+            )
+            self.assertEqual(trace.status, "warning")
         self.assertEqual(result.analysis_trace[-1].status, "warning")
         self.assertEqual(
             result.analysis_trace[-1].technical["analysis_status"],

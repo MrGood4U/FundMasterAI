@@ -469,6 +469,15 @@ function agentStatusCounts(agents) {
   return counts;
 }
 
+function agentCountSummary(counts) {
+  return (
+    `${counts.success} completed` +
+    `${counts.notApplicable ? ` · ${counts.notApplicable} not applicable` : ""}` +
+    `${counts.insufficient ? ` · ${counts.insufficient} skipped` : ""}` +
+    `${counts.error ? ` · ${counts.error} failed` : ""}`
+  );
+}
+
 function buildStageStats(payload, groups) {
   const analysis = payload.data || {};
   const coverage = payload.coverage || {};
@@ -485,13 +494,12 @@ function buildStageStats(payload, groups) {
     Number(featureTechnical.risk_metric_count || 0) +
     Number(featureTechnical.benchmark_metric_count || 0);
 
-  const skippedTotal = counts.insufficient + counts.notApplicable;
   const summarySource = metadata.summary_source === "llm" ? "LLM explains the evidence" : "deterministic summary";
 
   return {
     backend: `${successTools.length} backend tools · ${coverage.nav_points || 0} NAV points`,
     feature: metricCount ? `${metricCount} return/risk metrics in code` : "return & risk metrics in code",
-    agent: `${agents.length} agents · ${counts.success} completed${skippedTotal ? ` · ${skippedTotal} skipped` : ""}${counts.error ? ` · ${counts.error} failed` : ""}`,
+    agent: `${agents.length} agents · ${agentCountSummary(counts)}`,
     aggregation: `score → ${String(analysis.overall_rating || "--").toUpperCase()} · ${summarySource}`,
   };
 }
@@ -631,8 +639,7 @@ function renderAgents(payload) {
   }
 
   const counts = agentStatusCounts(agents);
-  fields.agentCount.textContent =
-    `${counts.success} completed · ${counts.insufficient + counts.notApplicable} skipped${counts.error ? ` · ${counts.error} failed` : ""}`;
+  fields.agentCount.textContent = agentCountSummary(counts);
 
   agents.forEach((agent, index) => {
     const { meta, stance } = agentDisplay(agent);
@@ -772,6 +779,10 @@ function renderDevPanel(payload) {
     "min_rating_coverage_ratio",
     "specialist_narrative_fallback_count",
     "narrative_health",
+    "has_benchmark",
+    "has_news_signal",
+    "has_sector_context",
+    "has_bond_exposure",
     "prompt_version",
     "average_confidence",
     "quant_metrics_sample_size",

@@ -105,8 +105,7 @@
           "Top holdings weight is 84.79%.",
           "Top sector is 白酒 at 94.34%.",
           "Single-sector exposure is relatively concentrated.",
-          "No recent news signal was provided.",
-          "No benchmark series was provided, so relative performance checks remain limited."
+          "No recent news signal was provided."
         ]
       }
     },
@@ -143,8 +142,7 @@
           "Disclosed bond holdings sum to 83.64% of NAV.",
           "Asset allocation is missing, so bond/cash/other exposure cannot be fully verified.",
           "Duration and credit-rating fields were not provided",
-          "No recent news signal was provided.",
-          "No benchmark series was provided, so relative performance checks remain limited."
+          "No recent news signal was provided."
         ]
       }
     },

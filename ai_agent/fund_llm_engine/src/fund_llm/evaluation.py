@@ -530,32 +530,32 @@ def evaluate_analysis_result(payload: FundAnalysisInput, result: FinalAnalysisRe
     missing_data_details = []
     if not features.data_quality_flags.get("has_benchmark"):
         missing_data_total += 1
-        if result.metadata.get("has_benchmark") == "false" and "benchmark" in _joined_text(result.main_risks):
+        if result.metadata.get("has_benchmark") == "false":
             missing_data_passed += 1
         else:
-            missing_data_details.append("Missing benchmark context was not clearly surfaced in final risks/metadata.")
+            missing_data_details.append("Missing benchmark context was not recorded in coverage metadata.")
     if not features.data_quality_flags.get("has_news_signal"):
         missing_data_total += 1
-        if result.metadata.get("has_news_signal") == "false" and "news" in _joined_text(result.main_risks):
+        if result.metadata.get("has_news_signal") == "false":
             missing_data_passed += 1
         else:
-            missing_data_details.append("Missing news context was not clearly surfaced in final risks/metadata.")
+            missing_data_details.append("Missing news context was not recorded in coverage metadata.")
     if not features.data_quality_flags.get("has_industry_exposure"):
         missing_data_total += 1
-        if result.metadata.get("has_sector_context") == "false" and "sector" in _joined_text(result.main_risks):
+        if result.metadata.get("has_sector_context") == "false":
             missing_data_passed += 1
         else:
-            missing_data_details.append("Missing sector context was not clearly surfaced in final risks/metadata.")
+            missing_data_details.append("Missing sector context was not recorded in coverage metadata.")
     if (
         features.data_quality_flags.get("bond_exposure_applicable", False)
         and not features.data_quality_flags.get("has_bond_holdings")
         and not features.data_quality_flags.get("has_asset_allocation")
     ):
         missing_data_total += 1
-        if result.metadata.get("has_bond_exposure") == "false" and "bond" in _joined_text(result.main_risks):
+        if result.metadata.get("has_bond_exposure") == "false":
             missing_data_passed += 1
         else:
-            missing_data_details.append("Missing bond exposure context was not clearly surfaced in final risks/metadata.")
+            missing_data_details.append("Missing bond exposure context was not recorded in coverage metadata.")
     if missing_data_total == 0:
         missing_data_total = 1
         missing_data_passed = 1

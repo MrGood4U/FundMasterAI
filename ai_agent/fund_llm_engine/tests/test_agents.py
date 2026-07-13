@@ -862,10 +862,96 @@ class ChiefAgentTest(unittest.TestCase):
         self.assertEqual(result.metadata["has_sector_context"], "true")
         self.assertEqual(result.metadata["news_item_count"], "2")
         self.assertEqual(result.metadata["client_risk_profile"], "balanced")
-        self.assertTrue(any("Benchmark-relative context is available" in item for item in result.key_thesis))
-        self.assertTrue(any("Recent news flow is available" in item for item in result.key_thesis))
-        self.assertTrue(any("Sector exposure breakdown is available" in item for item in result.key_thesis))
+        self.assertIn("收益表现较强。", result.key_thesis)
+        self.assertIn("行业集中度中等。", result.key_thesis)
+        self.assertIn("Top sector is 科技 at 32.00%.", result.key_thesis)
+        self.assertFalse(any("is available" in item for item in result.key_thesis))
         self.assertTrue(any("balanced risk profile" in item for item in result.action_plan))
+
+    def test_chief_key_thesis_prioritizes_specialist_investment_evidence(self):
+        features = build_sample_features()
+        chief = ChiefAgent(MockLLMClient("chief summary"))
+        agent_outputs = [
+            AgentOutput(
+                agent_name="PerformanceAgent",
+                status="success",
+                score=70.0,
+                stance="positive",
+                key_points=["Total return is 90.00%.", "Max drawdown is -15.89%."],
+                risks=[],
+                recommendations=[],
+                confidence=0.8,
+                narrative="performance narrative",
+            ),
+            AgentOutput(
+                agent_name="ExposureAgent",
+                status="success",
+                score=60.0,
+                stance="neutral",
+                key_points=["Industry concentration is 61.00%."],
+                risks=[],
+                recommendations=[],
+                confidence=0.8,
+                narrative="exposure narrative",
+            ),
+            self._successful_output("RiskAgent", 65.0),
+            self._successful_output("SentimentAgent", 55.0),
+            AgentOutput(
+                agent_name="SectorAgent",
+                status="success",
+                score=50.0,
+                stance="neutral",
+                key_points=["Top sector is Technology at 61.00%."],
+                risks=[],
+                recommendations=[],
+                confidence=0.8,
+                narrative="sector narrative",
+            ),
+            AgentOutput(
+                agent_name="MarketAgent",
+                status="success",
+                score=68.0,
+                stance="neutral",
+                key_points=["Risk-adjusted return outperforms 83% of peers over 1 year."],
+                risks=[],
+                recommendations=[],
+                confidence=0.8,
+                narrative="market narrative",
+            ),
+            self._not_applicable_output("BondExposureAgent"),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(
+            result.key_thesis,
+            [
+                "Total return is 90.00%.",
+                "Max drawdown is -15.89%.",
+                "Industry concentration is 61.00%.",
+                "Top sector is Technology at 61.00%.",
+                "Risk-adjusted return outperforms 83% of peers over 1 year.",
+            ],
+        )
+        self.assertFalse(any("not applicable" in item for item in result.key_thesis))
+
+    def test_chief_keeps_missing_benchmark_in_metadata_not_main_risks(self):
+        features = build_sample_features()
+        chief = ChiefAgent(MockLLMClient("chief summary"))
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 70.0),
+            self._successful_output("RiskAgent", 65.0),
+            self._successful_output("ExposureAgent", 60.0),
+            self._successful_output("SentimentAgent", 55.0),
+            self._successful_output("SectorAgent", 50.0),
+            self._successful_output("MarketAgent", 50.0),
+            self._not_applicable_output("BondExposureAgent"),
+        ]
+
+        result = chief.aggregate(features, agent_outputs)
+
+        self.assertEqual(result.metadata["has_benchmark"], "false")
+        self.assertFalse(any("benchmark" in item.lower() for item in result.main_risks))
 
     def test_chief_publishes_partial_rating_for_one_non_core_error_without_penalty(self):
         features = build_sample_features()
@@ -1206,7 +1292,8 @@ class ChiefAgentTest(unittest.TestCase):
         self.assertEqual(result.metadata["not_applicable_agent_count"], "2")
         self.assertEqual(result.metadata["skipped_agent_count"], "0")
         self.assertEqual(result.metadata["agent_health"], "healthy")
-        self.assertTrue(any("not applicable" in item for item in result.key_thesis))
+        rendered = " ".join(result.key_thesis + result.main_risks + result.action_plan)
+        self.assertNotIn("not applicable", rendered)
 
     def test_chief_excludes_bond_fund_not_applicable_copy_from_three_columns(self):
         payload = build_bond_input_with_exposure()
@@ -1234,7 +1321,7 @@ class ChiefAgentTest(unittest.TestCase):
             "Use asset-class or bond-holding exposure data instead of equity industry buckets.",
             rendered,
         )
-        self.assertTrue(any("not applicable" in item for item in result.key_thesis))
+        self.assertNotIn("not applicable", rendered)
 
     def test_chief_excludes_mixed_fund_bond_not_applicable_copy_from_three_columns(self):
         features = build_sample_features()
@@ -1287,7 +1374,7 @@ class ChiefAgentTest(unittest.TestCase):
             "backend-function-registry,open-fund,mixed_fund",
         )
 
-    def test_chief_keeps_meaningful_style_tags_in_key_thesis(self):
+    def test_chief_keeps_meaningful_style_tags_in_metadata_not_key_thesis(self):
         payload = build_sample_input()
         payload.fund_tags = ["core_holding", "active_equity"]
         features = FeatureBuilder().build(payload)
@@ -1304,7 +1391,7 @@ class ChiefAgentTest(unittest.TestCase):
 
         result = chief.aggregate(features, agent_outputs)
 
-        self.assertTrue(any("core_holding" in item for item in result.key_thesis))
+        self.assertFalse(any("core_holding" in item for item in result.key_thesis))
         self.assertEqual(result.metadata["fund_tags"], "core_holding,active_equity")
 
 
