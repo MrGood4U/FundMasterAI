@@ -110,12 +110,27 @@
       const tickers = ["^GSPC", "^IXIC", "^FTSE", "^N225"];
       const rows = await api.global.getIndexQuotesFromList(tickers);
       const batchQuotes = Array.isArray(rows) ? rows : [];
-      const details = await Promise.allSettled(tickers.map((ticker) => api.global.getIndexInfo(ticker)));
-      const quotes = tickers.map((ticker, index) => {
-        const batch = batchQuotes.find((item) => pick(item, ["ticker"], "") === ticker) || batchQuotes[index];
-        const detail = details[index]?.status === "fulfilled" ? details[index].value : null;
-        return batch || detail || null;
-      }).filter(Boolean);
+      const batchByTicker = new Map(
+        batchQuotes
+          .map((item) => [String(pick(item, ["ticker", "symbol"], "")).toUpperCase(), item])
+          .filter(([ticker]) => ticker)
+      );
+
+      // The batch endpoint normally contains every requested quote. Only call
+      // the slower detail endpoint for genuinely missing tickers instead of
+      // blocking the whole page on four redundant upstream requests.
+      const missingTickers = tickers.filter((ticker) => !batchByTicker.has(ticker));
+      const detailResults = await Promise.allSettled(
+        missingTickers.map((ticker) => api.global.getIndexInfo(ticker))
+      );
+      const detailByTicker = new Map();
+      missingTickers.forEach((ticker, index) => {
+        const result = detailResults[index];
+        if (result?.status === "fulfilled" && result.value) detailByTicker.set(ticker, result.value);
+      });
+      const quotes = tickers
+        .map((ticker, index) => batchByTicker.get(ticker) || detailByTicker.get(ticker) || batchQuotes[index] || null)
+        .filter(Boolean);
       if (!quotes.length) {
         document.querySelectorAll(".mh-indices .mh-index").forEach((card) => {
           const price = card.querySelector(".mh-index__v");
@@ -125,8 +140,12 @@
         });
         const heat = document.querySelector("[data-market-heat]");
         const movers = document.querySelector("[data-market-movers]");
+        const coverage = document.querySelector(".mh-sectors");
+        const clock = document.querySelector(".mh-clock__time");
         if (heat) heat.innerHTML = '<p class="muted">No global index data returned.</p>';
         if (movers) movers.innerHTML = '<p class="muted">No mover data returned.</p>';
+        if (coverage) coverage.innerHTML = '<span>No verified index coverage returned</span>';
+        if (clock) clock.textContent = "Unavailable";
         setStatus("[data-api-status='market']", "Global index APIs returned no data", true);
         return;
       }
@@ -142,6 +161,7 @@
         if (price) price.textContent = value ? value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "--";
         if (percent) {
           percent.textContent = formatPercent(change);
+          percent.classList.remove("muted");
           percent.classList.toggle("pos", numberValue(change) >= 0);
           percent.classList.toggle("neg", numberValue(change) < 0);
         }
@@ -156,12 +176,33 @@
         stock_name: pick(quote, ["name", "ticker"], "Global Index"),
         change_pct: pick(quote, ["change_pct", "changePercent"], 0),
       })));
+      const legend = document.querySelector(".mh-legend__vol");
+      const coverage = document.querySelector(".mh-sectors");
+      const clock = document.querySelector(".mh-clock__time");
+      if (legend) legend.textContent = `${quotes.length} live quotes`;
+      if (coverage) coverage.innerHTML = `<span>${quotes.length} verified indices</span><span>Not a stock-level heatmap</span>`;
+      if (clock) clock.textContent = "Live";
       setStatus(
         "[data-api-status='market']",
         `Global index API live · ${quotes.length} quotes`,
         false
       );
     } catch (error) {
+      document.querySelectorAll(".mh-indices .mh-index").forEach((card) => {
+        const price = card.querySelector(".mh-index__v");
+        const percent = card.querySelector(".mh-index__p");
+        if (price) price.textContent = "--";
+        if (percent) {
+          percent.textContent = "Unavailable";
+          percent.className = "mh-index__p muted";
+        }
+      });
+      const heat = document.querySelector("[data-market-heat]");
+      const movers = document.querySelector("[data-market-movers]");
+      const clock = document.querySelector(".mh-clock__time");
+      if (heat) heat.innerHTML = '<div class="data-loading-state">Global index data is unavailable.</div>';
+      if (movers) movers.innerHTML = '<div class="data-loading-state data-loading-state--compact">No verified index movers available.</div>';
+      if (clock) clock.textContent = "Unavailable";
       setStatus("[data-api-status='market']", `Market backend unavailable: ${error.message}`, true);
     }
   }
@@ -471,7 +512,7 @@
     const list = document.querySelector(".cal-list");
     if (!list) return;
     if (header) header.textContent = "Latest macro data";
-    const visible = rows.filter(Boolean).slice(0, 3);
+    const visible = rows.filter((item) => item && item.row).slice(0, 3);
     if (!visible.length) {
       list.innerHTML = '<li class="cal-row"><div class="cal-row__main"><div class="cal-row__info"><span class="cal-row__title">No macro data returned</span></div></div></li>';
       return;

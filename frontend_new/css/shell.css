@@ -956,3 +956,71 @@ body.pro-modal-open {
     grid-template-columns: 1fr;
   }
 }
+
+/* Honest loading states for pages that hydrate from live backend data. */
+.data-skeleton {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  width: 100%;
+  min-height: 1em;
+  border-radius: 4px;
+  background: rgba(129, 236, 255, 0.08);
+  vertical-align: middle;
+}
+
+.data-skeleton::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(129, 236, 255, 0.14), transparent);
+  transform: translateX(-100%);
+  animation: data-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.data-skeleton--value {
+  width: min(132px, 72%);
+  min-height: 1.05em;
+}
+
+.data-skeleton--line {
+  width: min(260px, 84%);
+  min-height: 0.8em;
+}
+
+.data-loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88px;
+  padding: 18px;
+  border: 1px dashed rgba(129, 236, 255, 0.16);
+  border-radius: var(--radius-md);
+  background: rgba(129, 236, 255, 0.025);
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.data-loading-state--compact {
+  min-height: 52px;
+  padding: 12px;
+}
+
+.data-unavailable {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@keyframes data-skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .data-skeleton::after {
+    animation: none;
+  }
+}

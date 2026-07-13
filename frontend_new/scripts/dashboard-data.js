@@ -172,10 +172,11 @@
 
   function resetPage() {
     document.querySelectorAll(".kpi-card__value").forEach((node) => {
-      node.textContent = "--";
+      node.innerHTML = '<span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span>';
     });
     document.querySelectorAll(".data-table tbody").forEach((tbody) => {
-      tbody.replaceChildren();
+      const columnCount = tbody.closest("table")?.querySelectorAll("thead th").length || 1;
+      tbody.innerHTML = `<tr><td colspan="${columnCount}"><div class="data-loading-state data-loading-state--compact">Loading verified backend data…</div></td></tr>`;
     });
     setStatus("Connecting to backend...");
   }
@@ -360,6 +361,14 @@
       );
       setStatus(`Market flow API live · ${rows.length} equity funds`);
     } catch (error) {
+      document.querySelectorAll(".mf-kpis .kpi-card").forEach((card) => {
+        setCard(card, card.querySelector(".kpi-card__label")?.textContent || "Fund metric", "—", "Verified backend data unavailable");
+      });
+      const heat = document.querySelector(".mf-heat");
+      if (heat) heat.innerHTML = '<li class="data-unavailable">Verified equity fund moves are unavailable.</li>';
+      const movers = document.querySelector(".mf-list");
+      if (movers) movers.innerHTML = '<li class="data-unavailable">Verified movers are unavailable.</li>';
+      replaceTable(document.querySelector(".data-table"), ["Fund", "Direction", "NAV", "Daily", "1Y"], []);
       setStatus(`Market flow backend unavailable: ${error.message}`, true);
     }
   }

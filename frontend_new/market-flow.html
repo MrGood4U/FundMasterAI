@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="css/shell.css" />
+    <link rel="stylesheet" href="css/shell.css?v=20260713-2" />
     <link rel="stylesheet" href="css/dashboard-widgets.css" />
     <link rel="stylesheet" href="css/page-market-flow.css" />
   </head>
@@ -89,53 +89,39 @@
         <main class="content">
           <header class="page-head">
             <div>
-              <h2 class="page-head__title">Market Liquidity &amp; Flow</h2>
-              <p class="page-head__sub">Buying vs selling pressure, heatmap and block trades.</p>
+              <h2 class="page-head__title">Equity Fund Momentum</h2>
+              <p class="page-head__sub">Verified public-fund breadth, daily momentum and largest moves.</p>
             </div>
             <div class="pill-group"><button type="button" class="pill pill--ghost">Daily</button><button type="button" class="pill pill--ghost">Intraday</button><button type="button" class="pill pill--ghost">Custom</button></div>
           </header>
           <section class="glass-panel">
-            <div class="section-head"><h3 class="section-head__title">Aggregate Liquidity Flow</h3><span class="muted">Last 24h</span></div>
+            <div class="section-head"><h3 class="section-head__title">Equity Fund Momentum</h3><span class="muted">Latest backend observation</span></div>
             <div class="mf-kpis">
-              <div class="kpi-card"><p class="kpi-card__label">Buy vol</p><p class="kpi-card__value">62%</p></div>
-              <div class="kpi-card"><p class="kpi-card__label">Sell vol</p><p class="kpi-card__value">38%</p></div>
-              <div class="kpi-card"><p class="kpi-card__label">Net inflow</p><p class="kpi-card__value pos">+$12.4B</p></div>
-              <div class="kpi-card"><p class="kpi-card__label">Volatility index</p><p class="kpi-card__value">14.2</p><p class="kpi-card__hint">H</p></div>
-              <div class="kpi-card"><p class="kpi-card__label">Whale moves</p><p class="kpi-card__value">248</p><p class="kpi-card__hint">Significant</p></div>
-              <div class="kpi-card"><p class="kpi-card__label">Slippage avg</p><p class="kpi-card__value">0.02%</p><p class="kpi-card__hint">Optimal</p></div>
+              <div class="kpi-card"><p class="kpi-card__label">Advancing Funds</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
+              <div class="kpi-card"><p class="kpi-card__label">Declining Funds</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
+              <div class="kpi-card"><p class="kpi-card__label">Net Momentum</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
+              <div class="kpi-card"><p class="kpi-card__label">Average Daily Move</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
+              <div class="kpi-card"><p class="kpi-card__label">Large Movers</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
+              <div class="kpi-card"><p class="kpi-card__label">Tracked Funds</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
             </div>
           </section>
           <div class="two-col">
             <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Liquidity Heatmap</h3>
-              <ul class="mf-heat">
-                <li><span>Equities (US)</span><div class="bar-track"><div class="bar-fill" style="width:82%"></div></div><span>82%</span></li>
-                <li><span>Fixed Income</span><div class="bar-track"><div class="bar-fill" style="width:24%"></div></div><span>24%</span></li>
-                <li><span>Forex (G10)</span><div class="bar-track"><div class="bar-fill" style="width:71%"></div></div><span>71%</span></li>
-                <li><span>Digital Assets</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><span>38%</span></li>
-              </ul>
-              <button type="button" class="btn-outline mf-btn">Investigate flow</button>
+              <h3 class="section-head__title section-head__title--compact">Active Fund Heatmap</h3>
+              <ul class="mf-heat"><li class="data-loading-state data-loading-state--compact">Loading verified equity fund moves…</li></ul>
+              <button type="button" class="btn-outline mf-btn">Refresh momentum</button>
             </section>
             <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Sector Inflow Distribution</h3>
-              <ul class="mf-list">
-                <li class="pos"><span>Technology</span><span>+$4.2B</span></li>
-                <li class="neg"><span>Energy &amp; Utilities</span><span>-$1.8B</span></li>
-                <li class="pos"><span>Healthcare</span><span>+$0.9B</span></li>
-              </ul>
+              <h3 class="section-head__title section-head__title--compact">Largest Daily Moves</h3>
+              <ul class="mf-list"><li class="data-loading-state data-loading-state--compact">Loading verified movers…</li></ul>
             </section>
           </div>
           <section class="glass-panel">
-            <div class="section-head"><h3 class="section-head__title">Institutional Large-Scale Orders</h3><span class="muted">Refreshed 4s ago</span></div>
+            <div class="section-head"><h3 class="section-head__title">Equity Fund Momentum Table</h3><span class="muted">Public-fund data proxy</span></div>
             <div class="data-table-wrap">
               <table class="data-table">
-                <thead><tr><th>Asset</th><th>Flow</th><th>Size</th><th>Move</th><th>Time</th></tr></thead>
-                <tbody>
-                  <tr><td>NVDA.O</td><td>LARGE BUY</td><td>$142,500,000</td><td class="pos">+0.42%</td><td>14:22:01</td></tr>
-                  <tr><td>AAPL.O</td><td>BLOCK SELL</td><td>$89,200,000</td><td class="neg">-0.15%</td><td>14:21:44</td></tr>
-                  <tr><td>TSLA.O</td><td>INSTITUTIONAL BUY</td><td>$210,000,000</td><td class="pos">+1.12%</td><td>14:21:10</td></tr>
-                  <tr><td>EUR/USD</td><td>ARBITRAGE</td><td>$450,000,000</td><td>0.00%</td><td>14:20:55</td></tr>
-                </tbody>
+                <thead><tr><th>Fund</th><th>Direction</th><th>NAV</th><th>Daily</th><th>1Y</th></tr></thead>
+                <tbody><tr><td colspan="5"><div class="data-loading-state data-loading-state--compact">Loading verified equity fund table…</div></td></tr></tbody>
               </table>
             </div>
           </section>
@@ -145,7 +131,7 @@
     </div>
     <script src="scripts/config.js"></script>
     <script src="scripts/api.js"></script>
-    <script src="scripts/dashboard-data.js"></script>
+    <script src="scripts/dashboard-data.js?v=20260713-2"></script>
     <script src="scripts/search.js"></script>
     <script src="scripts/pro-upgrade.js"></script>
   </body>

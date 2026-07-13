@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="css/shell.css" />
+    <link rel="stylesheet" href="css/shell.css?v=20260713-2" />
     <link rel="stylesheet" href="css/dashboard-widgets.css" />
     <link rel="stylesheet" href="css/page-fund-deep-dive.css" />
     <link rel="stylesheet" href="css/page-portfolio-family.css" />
@@ -112,22 +112,22 @@
               <span class="chip chip--warn">Debt</span>
             </div>
             <div class="ranking-layout">
-              <div class="ranking-list" data-ranking-list aria-label="Debt fund yield ranking"></div>
-              <article class="ranking-detail" data-ranking-detail aria-live="polite"></article>
+              <div class="ranking-list" data-ranking-list aria-label="Debt fund yield ranking"><div class="data-loading-state">Loading verified debt fund ranking…</div></div>
+              <article class="ranking-detail" data-ranking-detail aria-live="polite"><div class="data-loading-state">Loading verified fund profile…</div></article>
             </div>
           </section>
           <div class="kpi-row">
-            <div class="kpi-card"><p class="kpi-card__label">Total Value</p><p class="kpi-card__value">$2,482,900</p><p class="kpi-card__hint">+4.2% YoY</p></div>
-            <div class="kpi-card"><p class="kpi-card__label">Average Yield</p><p class="kpi-card__value">5.82%</p><p class="muted sm">Target 6.00%</p></div>
-            <div class="kpi-card"><p class="kpi-card__label">Weighted Maturity</p><p class="kpi-card__value">4.2 yrs</p><p class="muted sm">Short-term focus</p></div>
-            <div class="kpi-card"><p class="kpi-card__label">Risk Rating</p><p class="kpi-card__value">AA-</p><p class="muted sm">Investment grade</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">Tracked Debt Funds</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">Average 1Y Return</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="muted sm">Loading verified fund data…</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">Best 1Y Fund</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="muted sm">Loading verified fund data…</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">Best 1Y Return</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="muted sm">Loading verified fund data…</p></div>
           </div>
           <div>
             <section class="glass-panel">
               <h3 class="section-head__title section-head__title--compact">Return Curve</h3>
               <p class="muted sm">Historical net value / return trend</p>
-              <div class="debt-chart return-chart" data-return-chart role="img" aria-label="Fund return curve"></div>
-              <div class="debt-legend"><span>Stable Income</span><span>High-Yield</span></div>
+              <div class="debt-chart return-chart" data-return-chart role="img" aria-label="Fund return curve"><div class="data-loading-state">Loading verified return history…</div></div>
+              <div class="debt-legend"><span>Loading verified fund history…</span><span>—</span></div>
             </section>
           </div>
         </main>
@@ -137,7 +137,7 @@
     <script src="scripts/config.js"></script>
     <script src="scripts/api.js"></script>
     <script src="scripts/search.js"></script>
-    <script src="scripts/fund-rankings.js"></script>
+    <script src="scripts/fund-rankings.js?v=20260713-2"></script>
     <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>

@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="css/shell.css" />
+    <link rel="stylesheet" href="css/shell.css?v=20260713-2" />
     <link rel="stylesheet" href="css/dashboard-widgets.css" />
     <link rel="stylesheet" href="css/page-fund-deep-dive.css" />
     <link rel="stylesheet" href="css/page-portfolio-family.css" />
@@ -111,42 +111,36 @@
               <span class="chip chip--live">Equity</span>
             </div>
             <div class="ranking-layout">
-              <div class="ranking-list" data-ranking-list aria-label="Equity fund return ranking"></div>
-              <article class="ranking-detail" data-ranking-detail aria-live="polite"></article>
+              <div class="ranking-list" data-ranking-list aria-label="Equity fund return ranking"><div class="data-loading-state">Loading verified equity fund ranking…</div></div>
+              <article class="ranking-detail" data-ranking-detail aria-live="polite"><div class="data-loading-state">Loading verified fund profile…</div></article>
             </div>
           </section>
           <div class="kpi-row eq-kpis">
-            <div class="kpi-card"><p class="kpi-card__label">Total Equity Value</p><p class="kpi-card__value">$1,420,582.40</p><p class="kpi-card__hint">+12.4% MTD</p></div>
-            <div class="kpi-card"><p class="kpi-card__label">Annualized Yield</p><p class="kpi-card__value">18.2%</p><p class="kpi-card__hint">Top 5% performance</p></div>
-            <div class="kpi-card"><p class="kpi-card__label">Risk Rating</p><p class="kpi-card__value">Mod-High</p></div>
-            <div class="kpi-card"><p class="kpi-card__label">AI Strategy Score</p><p class="kpi-card__value">94/100</p><p class="kpi-card__hint">Highly optimized</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">Tracked Equity Funds</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">Average 1Y Return</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">Best 1Y Fund</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
+            <div class="kpi-card"><p class="kpi-card__label">Best 1Y Return</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
           </div>
           <section class="glass-panel">
             <h3 class="section-head__title section-head__title--compact">Return Curve</h3>
             <div class="pill-group" style="margin-bottom:12px"><button class="pill pill--ghost">1M</button><button class="pill pill--ghost">3M</button><button class="pill pill--ghost">YTD</button><button class="pill pill--ghost">MAX</button></div>
-            <div class="eq-chart return-chart" data-return-chart role="img" aria-label="Fund return curve"></div>
+            <div class="eq-chart return-chart" data-return-chart role="img" aria-label="Fund return curve"><div class="data-loading-state">Loading verified return history…</div></div>
             <div class="fd-stats eq-mini">
-              <div><span class="fd-stats__k">Oct 24, 2023</span><span class="fd-stats__v">$1,142,000 (+8.2%)</span></div>
-              <div><span class="fd-stats__k">Std Dev</span><span class="fd-stats__v">14.22%</span></div>
-              <div><span class="fd-stats__k">Sharpe</span><span class="fd-stats__v">2.84</span></div>
-              <div><span class="fd-stats__k">Beta vs S&amp;P 500</span><span class="fd-stats__v">1.12</span></div>
-              <div><span class="fd-stats__k">Alpha</span><span class="fd-stats__v pos">+4.15%</span></div>
+              <div><span class="fd-stats__k">Latest NAV</span><span class="fd-stats__v">—</span></div>
+              <div><span class="fd-stats__k">Daily</span><span class="fd-stats__v">—</span></div>
+              <div><span class="fd-stats__k">1 Month</span><span class="fd-stats__v">—</span></div>
+              <div><span class="fd-stats__k">6 Months</span><span class="fd-stats__v">—</span></div>
+              <div><span class="fd-stats__k">Year to Date</span><span class="fd-stats__v">—</span></div>
             </div>
           </section>
           <div class="two-col">
             <section class="glass-panel">
               <h3 class="section-head__title section-head__title--compact">Sector Allocation</h3>
-              <ul class="fd-alloc">
-                <li><span>Technology</span><span>42.5%</span><div class="bar-track"><div class="bar-fill" style="width:42.5%"></div></div></li>
-                <li><span>Energy &amp; Renewables</span><span>18.2%</span><div class="bar-track"><div class="bar-fill" style="width:18.2%"></div></div></li>
-                <li><span>Financials</span><span>12.8%</span><div class="bar-track"><div class="bar-fill" style="width:12.8%"></div></div></li>
-                <li><span>Healthcare</span><span>10.5%</span><div class="bar-track"><div class="bar-fill" style="width:10.5%"></div></div></li>
-                <li><span>Consumer Disc.</span><span>16.0%</span><div class="bar-track"><div class="bar-fill" style="width:16%"></div></div></li>
-              </ul>
+              <ul class="fd-alloc"><li class="data-loading-state data-loading-state--compact">Loading verified ranking leaders…</li></ul>
             </section>
             <section class="glass-panel">
               <h3 class="section-head__title section-head__title--compact">AI Rebalancing Alert</h3>
-              <p class="muted">Tilt toward quality growth and reduce cyclical beta before CPI print.</p>
+              <p class="muted">Loading verified fund details…</p>
             </section>
           </div>
         </main>
@@ -156,7 +150,7 @@
     <script src="scripts/config.js"></script>
     <script src="scripts/api.js"></script>
     <script src="scripts/search.js"></script>
-    <script src="scripts/fund-rankings.js"></script>
+    <script src="scripts/fund-rankings.js?v=20260713-2"></script>
     <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>

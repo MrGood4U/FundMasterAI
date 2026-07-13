@@ -7,8 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="css/shell.css" />
-    <link rel="stylesheet" href="css/dashboard-widgets.css" />
+    <link rel="stylesheet" href="css/shell.css?v=20260713-2" />
+    <link rel="stylesheet" href="css/dashboard-widgets.css?v=20260713-2" />
     <link rel="stylesheet" href="css/page-market-hub.css" />
   </head>
   <body>
@@ -90,50 +90,43 @@
           <header class="page-head">
             <div>
               <h2 class="page-head__title">Market Hub</h2>
-              <p class="page-head__sub">Live indices, sentiment, heatmap and capital flow.</p>
+              <p class="page-head__sub">Verified global index quotes with clearly labelled proxy and source-coverage panels.</p>
             </div>
-            <div class="mh-clock"><span class="mh-clock__label">NASDAQ OPEN</span><span class="mh-clock__time">14:23:05 EST</span></div>
+            <div class="mh-clock"><span class="mh-clock__label">MARKET DATA</span><span class="mh-clock__time">Refreshing…</span></div>
           </header>
-          <p class="muted" data-api-status="market" role="status"></p>
+          <p class="muted" data-api-status="market" role="status">Connecting to market backend…</p>
           <section class="mh-indices">
-            <article class="mh-index"><h4>S&amp;P 500</h4><p class="mh-index__v">5,147.22</p><p class="mh-index__p pos">+0.82%</p></article>
-            <article class="mh-index"><h4>NASDAQ 100</h4><p class="mh-index__v">18,103.44</p><p class="mh-index__p pos">+1.45%</p></article>
-            <article class="mh-index"><h4>FTSE 100</h4><p class="mh-index__v">7,820.30</p><p class="mh-index__p neg">-0.12%</p></article>
-            <article class="mh-index"><h4>NIKKEI 225</h4><p class="mh-index__v">38,707.95</p><p class="mh-index__p pos">+0.54%</p></article>
+            <article class="mh-index"><h4>S&amp;P 500</h4><p class="mh-index__v"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading quote</span></p><p class="mh-index__p muted">Loading…</p></article>
+            <article class="mh-index"><h4>NASDAQ Composite</h4><p class="mh-index__v"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading quote</span></p><p class="mh-index__p muted">Loading…</p></article>
+            <article class="mh-index"><h4>FTSE 100</h4><p class="mh-index__v"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading quote</span></p><p class="mh-index__p muted">Loading…</p></article>
+            <article class="mh-index"><h4>Nikkei 225</h4><p class="mh-index__v"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading quote</span></p><p class="mh-index__p muted">Loading…</p></article>
           </section>
           <div class="two-col">
             <section class="glass-panel">
-              <div class="section-head"><h3 class="section-head__title">Market Sentiment</h3><span class="muted">Greed Index Analysis</span></div>
-              <div class="mh-greed"><span class="mh-greed__n">74</span><div><p class="mh-greed__lbl">GREED</p><div class="bar-track"><div class="bar-fill" style="width:74%"></div></div><div class="mh-greed__ticks"><span>Extreme Fear</span><span>Neutral</span><span>Extreme Greed</span></div></div></div>
+              <div class="section-head"><h3 class="section-head__title">Market Sentiment</h3><span class="muted">Source status</span></div>
+              <div class="mh-greed"><span class="mh-greed__n">—</span><div><p class="mh-greed__lbl">UNAVAILABLE</p><p class="data-unavailable">No verified live sentiment index is connected on this page.</p></div></div>
             </section>
             <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Global Market Heatmap</h3>
-              <div class="mh-legend"><span>U.S. Tech</span><span>A-Shares</span><span>EU Broad</span><span class="mh-legend__vol">Volatility: Low</span></div>
+              <h3 class="section-head__title section-head__title--compact">Global Index Move Proxy</h3>
+              <div class="mh-legend"><span>Verified index quotes</span><span class="mh-legend__vol">Refreshing…</span></div>
               <div class="mh-heat" data-market-heat>
-                <div class="mh-cell pos"><span>AAPL</span><em>+2.84%</em><small>Apple Inc.</small></div>
-                <div class="mh-cell pos"><span>MSFT</span><em>+1.15%</em><small>MICROSOFT</small></div>
-                <div class="mh-cell pos"><span>GOOGL</span><em>+0.42%</em></div>
-                <div class="mh-cell neg"><span>AMZN</span><em>-0.88%</em></div>
-                <div class="mh-cell pos"><span>NVDA</span><em>+4.12%</em><small>NEW ATH</small></div>
-                <div class="mh-cell neg"><span>TSLA</span><em>-3.21%</em></div>
-                <div class="mh-cell pos"><span>META</span><em>+0.22%</em></div>
+                <div class="data-loading-state">Loading verified global index quotes…</div>
               </div>
-              <p class="mh-sectors-title">Sectors (avg)</p>
-              <div class="mh-sectors"><span>Health +0.14%</span><span>Energy -1.05%</span></div>
+              <p class="mh-sectors-title">Coverage</p>
+              <div class="mh-sectors"><span>Waiting for backend response</span></div>
             </section>
           </div>
           <section class="glass-panel">
             <h3 class="section-head__title section-head__title--compact">Capital Flow Analysis</h3>
             <div class="mh-flow">
-              <div><p class="muted">Northbound Inflow (CNY)</p><p class="mh-flow__big pos">+12.4B</p><div class="mh-dow">Mon Tue Wed Thu Fri Sat Sun</div></div>
-              <div><p class="muted">Institutional Liquidity</p><p class="mh-flow__big">Stable</p><div class="mh-split"><span>Retail 42%</span><span>Institutional 58%</span></div></div>
+              <div><p class="muted">Northbound Inflow (CNY)</p><p class="mh-flow__big">—</p><div class="data-unavailable">No verified capital-flow source connected.</div></div>
+              <div><p class="muted">Institutional Liquidity</p><p class="mh-flow__big">—</p><div class="data-unavailable">Unavailable until a live institutional-flow feed is added.</div></div>
             </div>
           </section>
           <section class="glass-panel">
-            <div class="section-head"><h3 class="section-head__title">Top Gaining / Declining</h3><button type="button" class="btn-outline">View all 18 sectors</button></div>
+            <div class="section-head"><h3 class="section-head__title">Top Gaining / Declining Indices</h3><span class="muted sm">Global index quote proxy</span></div>
             <div class="mh-movers" data-market-movers>
-              <ul><li class="pos">Semiconductors +5.82%</li><li class="pos">Cloud Computing +3.44%</li><li class="pos">Clean Energy +1.20%</li></ul>
-              <ul><li class="neg">Real Estate -2.15%</li><li class="neg">Consumer Staples -4.88%</li></ul>
+              <div class="data-loading-state data-loading-state--compact">Loading verified index movers…</div>
             </div>
           </section>
         </main>
@@ -143,7 +136,7 @@
     </div>
     <script src="scripts/config.js"></script>
     <script src="scripts/api.js"></script>
-    <script src="scripts/live-data.js"></script>
+    <script src="scripts/live-data.js?v=20260713-2"></script>
     <script src="scripts/search.js"></script>
     <script src="scripts/pro-upgrade.js"></script>
   </body>

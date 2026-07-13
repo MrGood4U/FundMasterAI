@@ -443,15 +443,6 @@
     return fallback;
   }
 
-  function fallbackCurve(seed = 1) {
-    const base = 100 + seed * 2;
-    return Array.from({ length: 16 }, (_, index) => {
-      const wave = Math.sin((index + seed) / 2) * 2.8;
-      const trend = index * (0.8 + seed * 0.08);
-      return Math.round((base + trend + wave) * 100) / 100;
-    });
-  }
-
   function normalizeRankRecord(record, type, index) {
     const code = String(pick(record, ["基金代码", "fund_code", "code", "symbol"], `FUND-${index + 1}`));
     const name = String(pick(record, ["基金简称", "基金名称", "name", "fund_name", "short_name"], code));
@@ -761,8 +752,19 @@
     try {
       rows = await loadRankRows(type);
     } catch (error) {
-      list.innerHTML = `<p class="muted">${error.message}</p>`;
-      detail.innerHTML = "";
+      list.innerHTML = `<div class="data-unavailable">${error.message}</div>`;
+      detail.innerHTML = '<div class="data-unavailable">No verified fund profile is available.</div>';
+      const page = section.closest("main");
+      page?.querySelectorAll(".kpi-row .kpi-card").forEach((card) => {
+        updateText(card.querySelector(".kpi-card__value"), "—");
+        updateText(card.querySelector(".kpi-card__hint, .muted.sm"), "Verified backend data unavailable");
+      });
+      const chart = page?.querySelector("[data-return-chart]");
+      if (chart) chart.innerHTML = '<div class="data-unavailable">Verified return history is unavailable.</div>';
+      const allocation = page?.querySelector(".fd-alloc");
+      if (allocation) allocation.innerHTML = '<li class="data-unavailable">Verified allocation data is unavailable.</li>';
+      const legend = page?.querySelector(".debt-legend");
+      if (legend) legend.innerHTML = '<span>Verified fund history unavailable</span><span>—</span>';
       return;
     }
 

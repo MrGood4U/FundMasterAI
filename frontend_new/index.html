@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="css/shell.css" />
+    <link rel="stylesheet" href="css/shell.css?v=20260713-2" />
     <link rel="stylesheet" href="css/page-news.css" />
   </head>
   <body>
@@ -141,81 +141,8 @@
                 </div>
               </div>
 
-              <p class="news-card__source" data-api-status="news" role="status"></p>
-              <div data-news-feed>
-              <!-- 新闻卡片 1：Breaking / Bearish -->
-              <article class="news-card news-card--flash">
-                <div class="news-card__meta">
-                  <div class="news-card__tags">
-                    <span class="tag tag--breaking">BREAKING</span>
-                    <span class="news-card__source">2M AGO • REUTERS</span>
-                  </div>
-                  <span class="news-card__ext" aria-hidden="true">↗</span>
-                </div>
-                <h4 class="news-card__headline">
-                  Fed Official Hints at Sustained Rates Amid Core Inflation Resilience
-                </h4>
-                <p class="news-card__body">
-                  Chicago Fed President emphasizes that while progress has been made, the 'last mile' of
-                  inflation control may require restrictive policy for longer than…
-                </p>
-                <div class="news-card__footer">
-                  <span class="sentiment-pill sentiment-pill--bear">
-                    <span class="sentiment-pill__dot"></span>
-                    BEARISH SENTIMENT
-                  </span>
-                  <span class="news-card__related">Related: SPY, TLT, DXY</span>
-                </div>
-              </article>
-
-              <!-- 新闻卡片 2：Earnings / Bullish -->
-              <article class="news-card">
-                <div class="news-card__meta">
-                  <div class="news-card__tags">
-                    <span class="tag tag--earnings">EARNINGS</span>
-                    <span class="news-card__source">14M AGO • BLOOMBERG</span>
-                  </div>
-                  <span class="news-card__ext" aria-hidden="true">↗</span>
-                </div>
-                <h4 class="news-card__headline">
-                  NVDA Data Center Revenue Forecast Shatters Expectations
-                </h4>
-                <p class="news-card__body">
-                  The chip giant reports a 265% year-over-year increase in data center sales, signaling
-                  continued robust demand for AI infrastructure in the enterprise…
-                </p>
-                <div class="news-card__footer">
-                  <span class="sentiment-pill sentiment-pill--bull">
-                    <span class="sentiment-pill__dot"></span>
-                    STRONG BULLISH
-                  </span>
-                  <span class="news-card__related">Related: NVDA, AMD, TSM</span>
-                </div>
-              </article>
-
-              <!-- 新闻卡片 3：Tech / Neutral -->
-              <article class="news-card">
-                <div class="news-card__meta">
-                  <div class="news-card__tags">
-                    <span class="tag tag--tech">TECH</span>
-                    <span class="news-card__source">38M AGO • WSJ</span>
-                  </div>
-                  <span class="news-card__ext" aria-hidden="true">↗</span>
-                </div>
-                <h4 class="news-card__headline">Apple Explores Strategic Pivot into Household Robotics</h4>
-                <p class="news-card__body">
-                  Following the cancellation of its electric vehicle project, engineers at Cupertino are
-                  reportedly pivoting toward personal robotics for home…
-                </p>
-                <div class="news-card__footer">
-                  <span class="sentiment-pill sentiment-pill--neutral">
-                    <span class="sentiment-pill__dot"></span>
-                    NEUTRAL / SPECULATIVE
-                  </span>
-                  <span class="news-card__related">Related: AAPL, IRBT</span>
-                </div>
-              </article>
-              </div>
+              <p class="news-card__source" data-api-status="news" role="status">Connecting to verified news source…</p>
+              <div data-news-feed><div class="data-loading-state">Loading verified market news…</div></div>
             </section>
 
             <!-- 右栏：板块情绪、宏观日历、AI 摘要 -->
@@ -227,38 +154,16 @@
                   Sector Sentiment
                 </h3>
                 <div class="panel__body panel__body--glass">
-                  <div class="sector-grid">
-                    <div class="sector-tile sector-tile--greed">
-                      <p class="sector-tile__name">TECHNOLOGY</p>
-                      <p class="sector-tile__score">+0.82</p>
-                      <p class="sector-tile__mood">EXTREME GREED</p>
-                    </div>
-                    <div class="sector-tile sector-tile--fear">
-                      <p class="sector-tile__name">ENERGY</p>
-                      <p class="sector-tile__score sector-tile__score--neg">-0.45</p>
-                      <p class="sector-tile__mood">MODERATE FEAR</p>
-                    </div>
-                    <div class="sector-tile sector-tile--neutral">
-                      <p class="sector-tile__name">FINANCIALS</p>
-                      <p class="sector-tile__score sector-tile__score--amber">+0.12</p>
-                      <p class="sector-tile__mood">NEUTRAL</p>
-                    </div>
-                    <div class="sector-tile sector-tile--bull">
-                      <p class="sector-tile__name">HEALTHCARE</p>
-                      <p class="sector-tile__score">+0.38</p>
-                      <p class="sector-tile__mood">BULLISH</p>
-                    </div>
-                  </div>
+                  <div class="sector-grid"><div class="data-loading-state data-loading-state--compact">Calculating sentiment from verified news…</div></div>
 
-                  <!-- 综合恐惧贪婪指数模拟条 -->
                   <div class="gauge">
                     <div class="gauge__head">
                       <span class="gauge__label">AGGREGATE FEAR &amp; GREED</span>
-                      <span class="gauge__value">68 / Greed</span>
+                      <span class="gauge__value">— / Loading</span>
                     </div>
-                    <div class="gauge__track" role="img" aria-label="综合指数约 68，偏向贪婪">
+                    <div class="gauge__track" role="img" aria-label="Loading aggregate sentiment">
                       <div class="gauge__fill"></div>
-                      <div class="gauge__marker" style="left: 68%"></div>
+                      <div class="gauge__marker" style="left: 50%"></div>
                     </div>
                     <div class="gauge__ticks">
                       <span>FEAR</span>
@@ -277,49 +182,10 @@
                 </h3>
                 <div class="panel__body panel__body--glass panel__body--flush">
                   <div class="cal-header">
-                    <span class="cal-header__date">Tomorrow, Oct 14</span>
-                    <a class="cal-header__link" href="#calendar">Full Calendar</a>
+                    <span class="cal-header__date">Loading verified macro data…</span>
+                    <a class="cal-header__link" href="#calendar">Data sources</a>
                   </div>
-                  <ul class="cal-list">
-                    <li class="cal-row">
-                      <div class="cal-row__main">
-                        <time class="cal-time">08:30</time>
-                        <div class="cal-row__info">
-                          <span class="cal-row__title">Core CPI (MoM)</span>
-                          <span class="cal-row__bars" aria-hidden="true">▮▮▮</span>
-                        </div>
-                      </div>
-                      <div class="cal-row__nums">
-                        <span>Est: 0.3%</span>
-                        <span>Prev: 0.4%</span>
-                      </div>
-                    </li>
-                    <li class="cal-row cal-row--border">
-                      <div class="cal-row__main">
-                        <time class="cal-time">10:30</time>
-                        <div class="cal-row__info">
-                          <span class="cal-row__title">Crude Oil Inventories</span>
-                          <span class="cal-row__bars cal-row__bars--short" aria-hidden="true">▮▮</span>
-                        </div>
-                      </div>
-                      <div class="cal-row__nums">
-                        <span>Est: -1.2M</span>
-                        <span>Prev: 3.2M</span>
-                      </div>
-                    </li>
-                    <li class="cal-row cal-row--border">
-                      <div class="cal-row__main">
-                        <time class="cal-time">14:00</time>
-                        <div class="cal-row__info">
-                          <span class="cal-row__title">FOMC Meeting Minutes</span>
-                          <span class="cal-row__bars" aria-hidden="true">▮▮▮</span>
-                        </div>
-                      </div>
-                      <div class="cal-row__nums cal-row__nums--end">
-                        <span class="chip-vol">High Volatility</span>
-                      </div>
-                    </li>
-                  </ul>
+                  <ul class="cal-list"><li class="cal-row"><div class="data-loading-state data-loading-state--compact">Loading verified macro observations…</div></li></ul>
                 </div>
               </section>
 
@@ -329,14 +195,10 @@
                   <span class="section-head__ai" aria-hidden="true"></span>
                   AI SIGNAL SUMMARY
                 </h3>
-                <p class="ai-copy">
-                  "The convergence of hawkish Fed rhetoric and robust tech earnings creates a polarized risk
-                  environment. While NVDA anchors bullish momentum, CPI data tomorrow acts as the primary
-                  tail-risk for equity valuations."
-                </p>
+                <p class="ai-copy">Waiting for verified news before generating a signal summary…</p>
                 <div class="ai-foot">
-                  <span class="ai-conf">Confidence: 88%</span>
-                  <button type="button" class="ai-btn">Read Analysis</button>
+                  <span class="ai-conf">Confidence: —</span>
+                  <button type="button" class="ai-btn" disabled>Loading</button>
                 </div>
               </section>
             </aside>
@@ -351,7 +213,7 @@
     </div>
     <script src="scripts/config.js"></script>
     <script src="scripts/api.js"></script>
-    <script src="scripts/live-data.js"></script>
+    <script src="scripts/live-data.js?v=20260713-2"></script>
     <script src="scripts/search.js"></script>
     <script src="scripts/pro-upgrade.js"></script>
   </body>
