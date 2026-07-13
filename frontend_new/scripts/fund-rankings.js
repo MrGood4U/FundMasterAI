@@ -329,6 +329,14 @@
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
+  function optionalNumberValue(value) {
+    if (value === null || value === undefined) return null;
+    const normalized = String(value).trim();
+    if (!normalized || normalized === "--" || normalized === "—") return null;
+    const parsed = Number(normalized.replace(/[%+,$]/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
   function formatPercent(value) {
     if (value === null || value === undefined || value === "" || value === "--") return "--";
     const n = numberValue(value);
@@ -446,7 +454,10 @@
   function normalizeRankRecord(record, type, index) {
     const code = String(pick(record, ["基金代码", "fund_code", "code", "symbol"], `FUND-${index + 1}`));
     const name = String(pick(record, ["基金简称", "基金名称", "name", "fund_name", "short_name"], code));
-    const return1y = formatPercent(pick(record, ["change_1y", "近1年", "近一年", "1年", "return1y", "year_return", "收益率"], "--"));
+    const return1yValue = optionalNumberValue(
+      pick(record, ["change_1y", "近1年", "近一年", "1年", "return1y", "year_return", "收益率"], null)
+    );
+    const return1y = return1yValue === null ? "--" : formatPercent(return1yValue);
     const returnYtd = formatPercent(pick(record, ["change_ytd", "今年来", "近今年", "returnYtd", "ytd_return"], "--"));
     const curve = Array.isArray(record.curve) ? record.curve : [];
 
@@ -455,6 +466,7 @@
         code,
         name,
         return1y,
+        return1yValue,
         returnYtd,
         duration: String(pick(record, ["duration", "久期"], "--")),
         rating: String(pick(record, ["rating", "评级"], "--")),
@@ -476,6 +488,7 @@
       code,
       name,
       return1y,
+      return1yValue,
       returnYtd,
       mtd: `${formatPercent(pick(record, ["change_1m", "近1月", "近一月", "mtd"], "--"))} MTD`,
       totalValue: String(pick(record, ["totalValue", "规模", "aum"], "--")),
@@ -589,7 +602,6 @@
       </div>
       <div class="ranking-detail__copy">
         <p><strong>Focus:</strong> ${item.focus}</p>
-        <p><strong>AI note:</strong> ${item.signal}</p>
       </div>
     `;
   }
@@ -643,32 +655,30 @@
     `;
   }
 
-  function updateKpis(page, item, type) {
+  function updateUniverseKpis(page, rows, type) {
     const cards = page.querySelectorAll(".kpi-row .kpi-card");
-    if (type === "equity") {
-      updateText(cards[0]?.querySelector(".kpi-card__value"), item.totalValue);
-      updateText(cards[0]?.querySelector(".kpi-card__hint"), item.mtd);
-      updateText(cards[1]?.querySelector(".kpi-card__value"), item.annualizedYield);
-      updateText(cards[1]?.querySelector(".kpi-card__hint"), `${item.return1y} 1Y return`);
-      updateText(cards[2]?.querySelector(".kpi-card__value"), item.risk);
-      updateText(cards[3]?.querySelector(".kpi-card__value"), item.score);
-      updateText(cards[3]?.querySelector(".kpi-card__hint"), item.scoreHint);
-      return;
-    }
+    const validRows = rows.filter((item) => Number.isFinite(item.return1yValue));
+    const averageReturn = validRows.length
+      ? validRows.reduce((sum, item) => sum + item.return1yValue, 0) / validRows.length
+      : null;
+    const bestFund = validRows.reduce(
+      (best, item) => (!best || item.return1yValue > best.return1yValue ? item : best),
+      null
+    );
+    const sourceLabel = type === "debt" ? "Public bond-fund ranking" : "Public stock-fund ranking";
+    const hintSelector = ".kpi-card__hint, .muted.sm";
 
-    updateText(cards[0]?.querySelector(".kpi-card__value"), item.totalValue);
-    updateText(cards[0]?.querySelector(".kpi-card__hint"), `${item.return1y} YoY`);
-    updateText(cards[1]?.querySelector(".kpi-card__value"), item.averageYield);
-    updateText(cards[1]?.querySelector(".muted, .kpi-card__hint"), `YTD ${item.returnYtd}`);
-    updateText(cards[2]?.querySelector(".kpi-card__value"), item.weightedMaturity);
-    updateText(cards[2]?.querySelector(".muted, .kpi-card__hint"), "Fund duration");
-    updateText(cards[3]?.querySelector(".kpi-card__value"), item.risk);
-    updateText(cards[3]?.querySelector(".muted, .kpi-card__hint"), item.rating);
+    updateText(cards[0]?.querySelector(".kpi-card__value"), rows.length.toLocaleString("en-US"));
+    updateText(cards[0]?.querySelector(hintSelector), sourceLabel);
+    updateText(cards[1]?.querySelector(".kpi-card__value"), averageReturn === null ? "--" : formatPercent(averageReturn));
+    updateText(cards[1]?.querySelector(hintSelector), `${validRows.length.toLocaleString("en-US")} funds with 1Y data`);
+    updateText(cards[2]?.querySelector(".kpi-card__value"), bestFund?.code || "--");
+    updateText(cards[2]?.querySelector(hintSelector), bestFund?.name || "No valid 1Y return");
+    updateText(cards[3]?.querySelector(".kpi-card__value"), bestFund ? bestFund.return1y : "--");
+    updateText(cards[3]?.querySelector(hintSelector), bestFund ? "Highest reported 1Y return" : "No valid 1Y return");
   }
 
   async function updateEquityPage(page, item) {
-    updateKpis(page, item, "equity");
-
     const stats = page.querySelectorAll(".fd-stats.eq-mini > div");
     updateText(stats[0]?.querySelector(".fd-stats__k"), item.latestDate);
     updateText(stats[0]?.querySelector(".fd-stats__v"), item.latestValue);
@@ -704,8 +714,6 @@
   }
 
   async function updateDebtPage(page, item) {
-    updateKpis(page, item, "debt");
-
     const comparison = Array.from(page.querySelectorAll(".glass-panel")).find((panel) =>
       /Return Curve/.test(panel.textContent || "")
     );
@@ -770,6 +778,9 @@
 
     let page = 0;
     let activeIndex = 0;
+
+    const pageRoot = section.closest("main");
+    if (pageRoot) updateUniverseKpis(pageRoot, rows, type);
 
     const pager = document.createElement("div");
     pager.className = "ranking-pager";
