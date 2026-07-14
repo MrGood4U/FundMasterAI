@@ -386,30 +386,15 @@
 
   function renderAiSummary(items, analysis) {
     const summary = document.querySelector(".panel--ai .ai-copy");
-    const confidence = document.querySelector(".panel--ai .ai-conf");
-    const button = document.querySelector(".panel--ai .ai-btn");
-    if (!summary && !confidence && !button) return;
+    if (!summary) return;
 
     if (analysis) {
-      if (summary) summary.textContent = analysis.summary || "No AI summary returned.";
-      if (confidence) {
-        const label = text(analysis.sentiment?.label, "neutral").toUpperCase();
-        confidence.textContent = `Confidence: ${Math.round(numberValue(analysis.confidence) * 100)}% · ${label}`;
-      }
-      if (button) {
-        button.textContent = "Read Analysis";
-        button.disabled = false;
-      }
+      summary.textContent = analysis.summary || "No AI summary returned.";
       return;
     }
 
     if (!items.length) {
-      if (summary) summary.textContent = "No live news returned from the backend, so no signal summary is available.";
-      if (confidence) confidence.textContent = "Confidence: --";
-      if (button) {
-        button.textContent = "No Analysis";
-        button.disabled = true;
-      }
+      summary.textContent = "No live news returned from the backend, so no signal summary is available.";
       return;
     }
 
@@ -418,14 +403,7 @@
     const neutral = Math.max(0, items.length - positive - negative);
     const topTitle = newsTitle(items[0]) || "latest headline";
     const tone = positive > negative ? "positive" : negative > positive ? "negative" : "mixed";
-    if (summary) {
-      summary.textContent = `Live news fallback summary: ${items.length} headline(s) loaded. Tone is ${tone} (${positive} positive / ${negative} negative / ${neutral} neutral). Latest: ${topTitle}`;
-    }
-    if (confidence) confidence.textContent = "Confidence: rules fallback";
-    if (button) {
-      button.textContent = "Live Feed Basis";
-      button.disabled = false;
-    }
+    summary.textContent = `Live news fallback summary: ${items.length} headline(s) loaded. Tone is ${tone} (${positive} positive / ${negative} negative / ${neutral} neutral). Latest: ${topTitle}`;
   }
 
   async function loadNewsFeed(symbol) {
