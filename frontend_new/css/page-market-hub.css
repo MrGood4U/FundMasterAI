@@ -194,33 +194,6 @@
   font-size: 12px;
 }
 
-.mh-flow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 24px;
-}
-
-.mh-flow__big {
-  margin: 8px 0;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 28px;
-}
-
-.mh-dow {
-  margin-top: 12px;
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  color: var(--text-muted);
-}
-
-.mh-split {
-  margin-top: 12px;
-  display: flex;
-  gap: 16px;
-  font-size: 13px;
-}
-
 .mh-movers {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
