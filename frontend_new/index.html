@@ -12,7 +12,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/shell.css?v=20260713-2" />
-    <link rel="stylesheet" href="css/page-news.css?v=20260714-1" />
+    <link rel="stylesheet" href="css/page-news.css?v=20260714-2" />
   </head>
   <body>
     <!-- 整页容器：深色背景，与设计 Frame「News Feed」一致 -->
@@ -156,10 +156,32 @@
                 </h3>
                 <div class="panel__body panel__body--glass panel__body--flush">
                   <div class="cal-header">
-                    <span class="cal-header__date">Loading latest released data…</span>
-                    <span class="cal-header__link">AKShare via backend</span>
+                    <span class="cal-header__date">Latest official data</span>
+                    <span class="cal-header__link">China macro</span>
                   </div>
-                  <ul class="cal-list"><li class="cal-row"><div class="data-loading-state data-loading-state--compact">Loading verified macro releases…</div></li></ul>
+                  <ul class="cal-list cal-list--loading" aria-busy="true" aria-label="Loading latest macro releases">
+                    <li class="cal-row cal-row--loading" aria-hidden="true">
+                      <span class="data-skeleton cal-skeleton--date"></span>
+                      <span class="data-skeleton cal-skeleton--title"></span>
+                      <span class="data-skeleton cal-skeleton--value"></span>
+                    </li>
+                    <li class="cal-row cal-row--loading" aria-hidden="true">
+                      <span class="data-skeleton cal-skeleton--date"></span>
+                      <span class="data-skeleton cal-skeleton--title"></span>
+                      <span class="data-skeleton cal-skeleton--value"></span>
+                    </li>
+                    <li class="cal-row cal-row--loading" aria-hidden="true">
+                      <span class="data-skeleton cal-skeleton--date"></span>
+                      <span class="data-skeleton cal-skeleton--title"></span>
+                      <span class="data-skeleton cal-skeleton--value"></span>
+                    </li>
+                    <li class="cal-row cal-row--loading" aria-hidden="true">
+                      <span class="data-skeleton cal-skeleton--date"></span>
+                      <span class="data-skeleton cal-skeleton--title"></span>
+                      <span class="data-skeleton cal-skeleton--value"></span>
+                    </li>
+                    <li class="visually-hidden">Loading latest macro releases…</li>
+                  </ul>
                 </div>
               </section>
 

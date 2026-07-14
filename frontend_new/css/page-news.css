@@ -323,12 +323,44 @@
   padding: 0;
 }
 
+.cal-list--loading {
+  min-height: 304px;
+}
+
 .cal-row {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 12px;
   padding: 16px;
+}
+
+.cal-row--loading {
+  min-height: 76px;
+  flex-wrap: nowrap;
+  align-items: center;
+  border-top: 1px solid rgba(68, 72, 79, 0.1);
+}
+
+.cal-row--loading:first-child {
+  border-top: 0;
+}
+
+.cal-skeleton--date {
+  width: 86px;
+  min-height: 12px;
+  flex: 0 0 86px;
+}
+
+.cal-skeleton--title {
+  width: min(170px, 42%);
+  min-height: 16px;
+}
+
+.cal-skeleton--value {
+  width: 92px;
+  min-height: 24px;
+  margin-left: auto;
 }
 
 .cal-row--border {

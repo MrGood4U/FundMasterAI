@@ -551,6 +551,9 @@
     const list = document.querySelector(".cal-list");
     if (!list) return;
     if (header) header.textContent = "Latest released data";
+    list.classList.remove("cal-list--loading");
+    list.setAttribute("aria-busy", "false");
+    list.setAttribute("aria-label", "Latest macro releases");
     const visible = rows.filter((item) => item && item.row).slice(0, 4);
     if (!visible.length) {
       list.innerHTML = '<li class="cal-row"><div class="cal-row__main"><div class="cal-row__info"><span class="cal-row__title">No macro data returned</span></div></div></li>';
