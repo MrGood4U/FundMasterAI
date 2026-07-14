@@ -131,63 +131,6 @@
   color: var(--text-primary);
 }
 
-.news-symbol-form {
-  display: grid;
-  grid-template-columns: auto minmax(120px, 180px) auto;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: rgba(17, 24, 32, 0.72);
-}
-
-.news-symbol-form__label {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.news-symbol-form__input {
-  min-width: 0;
-  padding: 8px 10px;
-  border: 1px solid rgba(129, 236, 255, 0.22);
-  border-radius: var(--radius-sm);
-  outline: none;
-  background: var(--bg-chip);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-}
-
-.news-symbol-form__input:focus {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 2px rgba(129, 236, 255, 0.08);
-}
-
-.news-symbol-form__button {
-  padding: 8px 12px;
-  border: 1px solid rgba(129, 236, 255, 0.3);
-  border-radius: var(--radius-sm);
-  background: rgba(129, 236, 255, 0.1);
-  color: var(--accent-cyan);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.news-symbol-form__button:hover {
-  background: rgba(129, 236, 255, 0.16);
-}
-
-.news-symbol-form__help {
-  grid-column: 1 / -1;
-  color: var(--text-muted);
-  font-size: 10px;
-  line-height: 1.4;
-}
-
 /* 新闻卡片：毛玻璃 + 左上渐变（Breaking 卡额外渐变） */
 .news-card {
   padding: 20px;
@@ -611,16 +554,5 @@
 @media (max-width: 1100px) {
   .news-grid {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 640px) {
-  .news-symbol-form {
-    grid-template-columns: 1fr auto;
-  }
-
-  .news-symbol-form__label,
-  .news-symbol-form__help {
-    grid-column: 1 / -1;
   }
 }

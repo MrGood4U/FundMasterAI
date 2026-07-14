@@ -4,7 +4,14 @@
   const api = window.FundMasterAPI;
   if (!api) return;
 
-  const NEWS_SYMBOL_STORAGE_KEY = "fundmaster.news.symbol";
+  const NEWS_LEADER_BASKET = [
+    { symbol: "600036", sector: "FINANCIALS" },
+    { symbol: "600519", sector: "CONSUMER" },
+    { symbol: "300750", sector: "NEW ENERGY" },
+    { symbol: "600030", sector: "BROKERAGE" },
+    { symbol: "601857", sector: "ENERGY" },
+    { symbol: "600276", sector: "HEALTHCARE" },
+  ];
   const DEFAULT_FUND_CODE = "510300";
 
   function text(value, fallback = "--") {
@@ -207,33 +214,47 @@
     }
   }
 
-  function normalizeStockSymbol(value) {
-    const symbol = text(value, "").trim();
-    return /^\d{6}$/.test(symbol) ? symbol : "";
+  function newsSymbols(item) {
+    return Array.isArray(item?.source_symbols)
+      ? item.source_symbols.filter((symbol) => /^\d{6}$/.test(String(symbol)))
+      : [];
   }
 
-  function savedNewsSymbol() {
-    const querySymbol = normalizeStockSymbol(new URLSearchParams(window.location.search).get("symbol"));
-    if (querySymbol) return querySymbol;
-    try {
-      return normalizeStockSymbol(window.localStorage.getItem(NEWS_SYMBOL_STORAGE_KEY));
-    } catch (error) {
-      return "";
-    }
+  function newsSectors(item) {
+    return Array.isArray(item?.source_sectors)
+      ? item.source_sectors.filter(Boolean)
+      : [];
   }
 
-  function saveNewsSymbol(symbol) {
-    try {
-      window.localStorage.setItem(NEWS_SYMBOL_STORAGE_KEY, symbol);
-    } catch (error) {
-      // URL state still keeps the selected symbol usable when storage is blocked.
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.set("symbol", symbol);
-    window.history.replaceState({}, "", url);
+  function newsKey(item) {
+    return text(pick(item, ["新闻链接", "链接", "url"], ""), "")
+      || `${newsTitle(item)}|${newsTimestamp(item)}`;
   }
 
-  function newsCard(item, index, signal = {}, relatedSymbol = "") {
+  function mergeLeaderNews(results) {
+    const merged = new Map();
+    NEWS_LEADER_BASKET.forEach((leader, index) => {
+      const result = results[index];
+      const rows = result?.status === "fulfilled" && Array.isArray(result.value) ? result.value : [];
+      rows.forEach((item) => {
+        const key = newsKey(item);
+        const existing = merged.get(key);
+        if (existing) {
+          if (!existing.source_symbols.includes(leader.symbol)) existing.source_symbols.push(leader.symbol);
+          if (!existing.source_sectors.includes(leader.sector)) existing.source_sectors.push(leader.sector);
+          return;
+        }
+        merged.set(key, {
+          ...item,
+          source_symbols: [leader.symbol],
+          source_sectors: [leader.sector],
+        });
+      });
+    });
+    return Array.from(merged.values());
+  }
+
+  function newsCard(item, index, signal = {}) {
     const title = pick(item, ["news_title", "新闻标题", "标题", "title"], "Untitled market update");
     const body = pick(item, ["news_content", "新闻内容", "内容", "摘要", "summary"], "");
     const source = pick(item, ["文章来源", "来源", "source"], "MARKET NEWS");
@@ -243,7 +264,7 @@
     const sentiment = text(signal.sentiment, "neutral").toLowerCase();
     const sentimentClass = sentiment === "positive" ? "bull" : sentiment === "negative" ? "bear" : "neutral";
     const sentimentLabel = sentiment === "positive" ? "BULLISH" : sentiment === "negative" ? "BEARISH" : "NEUTRAL";
-    const related = normalizeStockSymbol(relatedSymbol);
+    const related = newsSymbols(item).join(", ");
 
     return `<article class="news-card ${hot ? "news-card--flash" : ""}">
       <div class="news-card__meta">
@@ -257,7 +278,7 @@
       <p class="news-card__body">${escapeHtml(body || title)}</p>
       <div class="news-card__footer">
         <span class="sentiment-pill sentiment-pill--${sentimentClass}"><span class="sentiment-pill__dot"></span>${sentimentLabel}${signal.risk_event ? " · RISK EVENT" : ""}</span>
-        <span class="news-card__related">Related: ${escapeHtml(related)}</span>
+        ${related ? `<span class="news-card__related">Related: ${escapeHtml(related)}</span>` : ""}
       </div>
     </article>`;
   }
@@ -291,7 +312,7 @@
     return true;
   }
 
-  function renderNewsList(feed, items, analysis, relatedSymbol, filter = "all") {
+  function renderNewsList(feed, items, analysis, filter = "all") {
     const signals = Array.isArray(analysis?.item_signals) ? analysis.item_signals : [];
     const signalByTitle = new Map(signals.map((item) => [text(item.title, ""), item]));
     const rows = items
@@ -308,12 +329,12 @@
     }
 
     feed.innerHTML = rows
-      .map((entry, visibleIndex) => newsCard(entry.item, visibleIndex, entry.signal, relatedSymbol))
+      .map((entry, visibleIndex) => newsCard(entry.item, visibleIndex, entry.signal))
       .join("");
     return rows.length;
   }
 
-  function setupNewsFilters(feed, items, analysis, relatedSymbol) {
+  function setupNewsFilters(feed, items, analysis) {
     const buttons = Array.from(document.querySelectorAll("#news .pill-group .pill"));
     if (!buttons.length) return;
 
@@ -321,7 +342,7 @@
       const filter = text(button.dataset.newsFilter || button.textContent, "all").trim().toLowerCase();
       buttons.forEach((item) => item.classList.add("pill--ghost"));
       button.classList.remove("pill--ghost");
-      const count = renderNewsList(feed, items, analysis, relatedSymbol, filter);
+      const count = renderNewsList(feed, items, analysis, filter);
       setStatus("[data-api-status='news']", `Live terminal · ${count} ${filter} news · AI ${analysis ? "ready" : "unavailable"}`, !analysis);
     };
 
@@ -332,15 +353,6 @@
 
     const active = buttons.find((button) => !button.classList.contains("pill--ghost")) || buttons[0];
     if (active) applyFilter(active);
-  }
-
-  function sectorFromNews(item) {
-    const content = `${newsTitle(item)} ${newsBody(item)}`.toLowerCase();
-    if (/nvda|chip|semiconductor|ai|cloud|software|data center|technology|tech|芯片|半导体|人工智能|科技/.test(content)) return "TECHNOLOGY";
-    if (/oil|crude|energy|gas|opec|eia|能源|原油|石油|天然气/.test(content)) return "ENERGY";
-    if (/fed|rate|bank|yield|treasury|credit|loan|inflation|cpi|financial|金融|银行|利率|通胀|债券/.test(content)) return "FINANCIALS";
-    if (/health|pharma|biotech|drug|medical|healthcare|医药|医疗|生物/.test(content)) return "HEALTHCARE";
-    return "MARKET NEWS";
   }
 
   function fallbackNewsScore(item) {
@@ -367,14 +379,15 @@
     const buckets = new Map();
 
     items.forEach((item, index) => {
-      const sector = sectorFromNews(item);
       const signal = signalByTitle.get(newsTitle(item)) || signals[index] || {};
       const score = signalScore(signal, item);
       const normalizedScore = Number.isFinite(score) ? score : 0;
-      const current = buckets.get(sector) || { name: sector, total: 0, count: 0 };
-      current.total += normalizedScore;
-      current.count += 1;
-      buckets.set(sector, current);
+      newsSectors(item).forEach((sector) => {
+        const current = buckets.get(sector) || { name: sector, total: 0, count: 0 };
+        current.total += normalizedScore;
+        current.count += 1;
+        buckets.set(sector, current);
+      });
     });
 
     const rows = Array.from(buckets.values())
@@ -406,31 +419,23 @@
     summary.textContent = `Live news fallback summary: ${items.length} headline(s) loaded. Tone is ${tone} (${positive} positive / ${negative} negative / ${neutral} neutral). Latest: ${topTitle}`;
   }
 
-  async function loadNewsFeed(symbol) {
+  async function loadNewsFeed() {
     const feed = document.querySelector("[data-news-feed]");
     if (!feed) return;
 
-    const selectedSymbol = normalizeStockSymbol(symbol);
-    if (!selectedSymbol) {
-      feed.innerHTML = '<div class="data-loading-state">Enter a valid six-digit A-share code above.</div>';
-      renderSectorSentiment([]);
-      renderAiSummary([], null);
-      setStatus("[data-api-status='news']", "Choose an A-share code to load verified news.");
-      return;
-    }
-
-    setStatus("[data-api-status='news']", `Loading verified news for ${selectedSymbol}...`);
+    setStatus("[data-api-status='news']", "Loading verified sector-leader news...");
     try {
-      const rows = await api.news.getStockRecentNews({ symbol: selectedSymbol });
-      const orderedRows = Array.isArray(rows)
-        ? rows.slice().sort((left, right) => newsTimestamp(right) - newsTimestamp(left))
-        : [];
+      const results = await Promise.allSettled(
+        NEWS_LEADER_BASKET.map((leader) => api.news.getStockRecentNews({ symbol: leader.symbol }))
+      );
+      const successfulSources = results.filter((result) => result.status === "fulfilled" && Array.isArray(result.value)).length;
+      const orderedRows = mergeLeaderNews(results)
+        .sort((left, right) => newsTimestamp(right) - newsTimestamp(left));
       const list = orderedRows.slice(0, 6);
       let analysis = null;
       if (list.length && api.ai?.summarizeNews) {
         try {
           analysis = await api.ai.summarizeNews({
-            symbol: selectedSymbol,
             items: orderedRows,
             max_items: 10,
           });
@@ -439,48 +444,25 @@
         }
       }
       if (list.length) {
-        renderNewsList(feed, list, analysis, selectedSymbol, "all");
-        setupNewsFilters(feed, list, analysis, selectedSymbol);
+        renderNewsList(feed, list, analysis, "all");
+        setupNewsFilters(feed, list, analysis);
         renderNewsSectorSentiment(list, analysis);
       } else {
         feed.innerHTML = '<p class="muted">No live news returned from backend.</p>';
         renderSectorSentiment([]);
       }
       renderAiSummary(list, analysis);
-      setStatus("[data-api-status='news']", `${selectedSymbol} · ${list.length} recent news · AI ${analysis ? "ready" : "unavailable"}`, !analysis);
+      setStatus(
+        "[data-api-status='news']",
+        `Sector leaders · ${successfulSources}/${NEWS_LEADER_BASKET.length} sources · ${list.length} news · AI ${analysis ? "ready" : "unavailable"}`,
+        successfulSources === 0
+      );
     } catch (error) {
       feed.innerHTML = '<p class="muted">News backend unavailable.</p>';
       renderSectorSentiment([]);
       renderAiSummary([], null);
-      setStatus("[data-api-status='news']", `${selectedSymbol} news unavailable: ${error.message}`, true);
+      setStatus("[data-api-status='news']", `News backend unavailable: ${error.message}`, true);
     }
-  }
-
-  function initNewsFeed() {
-    const form = document.querySelector("[data-news-symbol-form]");
-    const input = document.querySelector("[data-news-symbol-input]");
-    if (!form || !input) return;
-
-    const initialSymbol = savedNewsSymbol();
-    if (initialSymbol) {
-      input.value = initialSymbol;
-      loadNewsFeed(initialSymbol);
-    } else {
-      loadNewsFeed("");
-    }
-
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const symbol = normalizeStockSymbol(input.value);
-      if (!symbol) {
-        input.setAttribute("aria-invalid", "true");
-        setStatus("[data-api-status='news']", "Enter a valid six-digit A-share stock code.", true);
-        return;
-      }
-      input.removeAttribute("aria-invalid");
-      saveNewsSymbol(symbol);
-      loadNewsFeed(symbol);
-    });
   }
 
   function sentimentLabel(score) {
@@ -754,7 +736,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     loadMarketHub();
-    initNewsFeed();
+    loadNewsFeed();
     loadFundDetail();
     loadHomeSidebars();
   });
