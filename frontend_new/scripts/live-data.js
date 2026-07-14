@@ -230,12 +230,6 @@
       : [];
   }
 
-  function newsSectors(item) {
-    return Array.isArray(item?.source_sectors)
-      ? item.source_sectors.filter(Boolean)
-      : [];
-  }
-
   function readNewsCache() {
     try {
       const raw = window.sessionStorage.getItem(NEWS_CACHE_KEY);
@@ -424,38 +418,6 @@
     return null;
   }
 
-  function signalScore(signal, item) {
-    const label = text(signal?.sentiment || signal?.sentiment_label || "", "").toLowerCase();
-    if (label === "positive" || label === "bullish") return 1;
-    if (label === "negative" || label === "bearish") return -1;
-    if (label === "neutral" || label === "mixed") return 0;
-    return fallbackNewsScore(item);
-  }
-
-  function renderNewsSectorSentiment(items, analysis) {
-    const signals = Array.isArray(analysis?.item_signals) ? analysis.item_signals : [];
-    const signalByTitle = new Map(signals.map((item) => [text(item.title, ""), item]));
-    const buckets = new Map();
-
-    items.forEach((item, index) => {
-      const signal = signalByTitle.get(newsTitle(item)) || signals[index] || {};
-      const score = signalScore(signal, item);
-      const normalizedScore = Number.isFinite(score) ? score : 0;
-      newsSectors(item).forEach((sector) => {
-        const current = buckets.get(sector) || { name: sector, total: 0, count: 0 };
-        current.total += normalizedScore;
-        current.count += 1;
-        buckets.set(sector, current);
-      });
-    });
-
-    const rows = Array.from(buckets.values())
-      .map((bucket) => ({ name: bucket.name, score: bucket.count ? bucket.total / bucket.count : null }))
-      .sort((a, b) => Math.abs(b.score || 0) - Math.abs(a.score || 0));
-
-    renderSectorSentiment(rows);
-  }
-
   function renderAiSummary(items, analysis) {
     const summary = document.querySelector(".panel--ai .ai-copy");
     if (!summary) return;
@@ -487,10 +449,8 @@
     if (list.length) {
       renderNewsList(feed, list, analysis, "all");
       setupNewsFilters(feed, list, analysis, sourceLabel);
-      renderNewsSectorSentiment(list, analysis);
     } else {
       feed.innerHTML = '<p class="muted">No live news returned from backend.</p>';
-      renderSectorSentiment([]);
     }
     renderAiSummary(list, analysis);
     setStatus(
@@ -540,7 +500,6 @@
         return;
       }
       feed.innerHTML = '<p class="muted">News backend unavailable.</p>';
-      renderSectorSentiment([]);
       renderAiSummary([], null);
       setStatus("[data-api-status='news']", `News backend unavailable: ${error.message}`, true);
     }
@@ -561,69 +520,6 @@
 
     setStatus("[data-api-status='news']", "Loading verified sector-leader news...");
     await refreshNewsFeed(feed, false);
-  }
-
-  function sentimentLabel(score) {
-    if (score >= 0.55) return "EXTREME GREED";
-    if (score >= 0.18) return "BULLISH";
-    if (score <= -0.35) return "FEAR";
-    if (score <= -0.12) return "CAUTIOUS";
-    return "NEUTRAL";
-  }
-
-  function sentimentClass(score) {
-    if (score >= 0.18) return "sector-tile--greed";
-    if (score <= -0.12) return "sector-tile--fear";
-    return "sector-tile--neutral";
-  }
-
-  function formatScore(score) {
-    if (!Number.isFinite(score)) return "--";
-    const value = score;
-    return `${value > 0 ? "+" : ""}${value.toFixed(2)}`;
-  }
-
-  function averageChange(rows, field = "change_1y") {
-    const valid = rows
-      .map((item) => pick(item, [field], undefined))
-      .filter((value) => value !== undefined && value !== null && value !== "")
-      .map(numberValue)
-      .filter(Number.isFinite);
-    if (!valid.length) return null;
-    return valid.reduce((sum, value) => sum + value, 0) / valid.length;
-  }
-
-  function renderSectorSentiment(items) {
-    const grid = document.querySelector(".sector-grid");
-    if (!grid) return;
-    const validItems = items.filter((item) => Number.isFinite(item.score));
-    if (!validItems.length) {
-      grid.innerHTML = '<p class="muted">No backend sentiment inputs returned.</p>';
-      const valueNode = document.querySelector(".gauge__value");
-      const marker = document.querySelector(".gauge__marker");
-      const track = document.querySelector(".gauge__track");
-      if (valueNode) valueNode.textContent = "-- / No data";
-      if (marker) marker.style.left = "50%";
-      if (track) track.setAttribute("aria-label", "No backend sentiment data returned");
-      return;
-    }
-    grid.innerHTML = validItems.slice(0, 4).map((item) => {
-      const score = Math.max(-1, Math.min(1, item.score));
-      return `<div class="sector-tile ${sentimentClass(score)}">
-        <p class="sector-tile__name">${escapeHtml(item.name)}</p>
-        <p class="sector-tile__score ${score < 0 ? "sector-tile__score--neg" : score < 0.18 ? "sector-tile__score--amber" : ""}">${formatScore(score)}</p>
-        <p class="sector-tile__mood">${sentimentLabel(score)}</p>
-      </div>`;
-    }).join("");
-    const aggregate = validItems.reduce((sum, item) => sum + item.score, 0) / validItems.length;
-    const gaugeValue = Math.max(0, Math.min(100, Math.round(50 + aggregate * 50)));
-    const gaugeLabel = gaugeValue >= 60 ? "Greed" : gaugeValue <= 40 ? "Fear" : "Neutral";
-    const valueNode = document.querySelector(".gauge__value");
-    const marker = document.querySelector(".gauge__marker");
-    const track = document.querySelector(".gauge__track");
-    if (valueNode) valueNode.textContent = `${gaugeValue} / ${gaugeLabel}`;
-    if (marker) marker.style.left = `${gaugeValue}%`;
-    if (track) track.setAttribute("aria-label", `Aggregate sentiment ${gaugeValue}, ${gaugeLabel}`);
   }
 
   function latestMacroRow(rows) {
@@ -664,38 +560,14 @@
   }
 
   async function loadHomeSidebars() {
-    const needsSentiment = document.querySelector(".sector-grid");
     const needsMacro = document.querySelector(".cal-list");
-    if (!needsSentiment && !needsMacro) return;
-    const newsPageOwnsSentiment = Boolean(document.querySelector("[data-news-feed]"));
+    if (!needsMacro) return;
 
-    const [equityRank, debtRank, globalQuotes, cpiData, pmiData, oilData] = await Promise.allSettled([
-      api.publicFund.getRank({ fund_type: "stock" }),
-      api.publicFund.getRank({ fund_type: "bond" }),
-      api.global.getIndexQuotesFromList(["^IXIC", "^GSPC", "^HSI"]),
+    const [cpiData, pmiData, oilData] = await Promise.allSettled([
       api.macro.getData({ country: "usa", indicator: "core_cpi_monthly" }),
       api.macro.getData({ country: "china", indicator: "pmi" }),
       api.macro.getData({ country: "usa", indicator: "eia_crude_rate" }),
     ]);
-
-    const equityRows = equityRank.status === "fulfilled" && Array.isArray(equityRank.value) ? equityRank.value : [];
-    const debtRows = debtRank.status === "fulfilled" && Array.isArray(debtRank.value) ? debtRank.value : [];
-    const quoteRows = globalQuotes.status === "fulfilled" && Array.isArray(globalQuotes.value) ? globalQuotes.value : [];
-    const equityChange = averageChange(equityRows, "change_1m");
-    const debtChange = averageChange(debtRows, "change_1m");
-    const indexChange = averageChange(quoteRows, "change_pct");
-    const breadthValues = equityRows
-      .map((item) => pick(item, ["daily_growth_rate"], undefined))
-      .filter((value) => value !== undefined && value !== null && value !== "")
-      .map(numberValue);
-    if (!newsPageOwnsSentiment) {
-      renderSectorSentiment([
-        { name: "EQUITY FUNDS", score: equityChange === null ? null : equityChange / 10 },
-        { name: "BOND FUNDS", score: debtChange === null ? null : debtChange / 5 },
-        { name: "GLOBAL INDEX", score: indexChange === null ? null : indexChange / 3 },
-        { name: "FUND BREADTH", score: breadthValues.length ? breadthValues.filter((value) => value > 0).length / breadthValues.length * 2 - 1 : null },
-      ]);
-    }
 
     const cpi = cpiData.status === "fulfilled" ? latestMacroRow(cpiData.value) : null;
     const pmi = pmiData.status === "fulfilled" ? latestMacroRow(pmiData.value) : null;
