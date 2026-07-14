@@ -6,6 +6,12 @@
   const CACHE_KEY = "fundmaster:global-investment:v1";
   const CACHE_VERSION = 1;
   const CACHE_STALE_AFTER_MS = 6 * 60 * 60 * 1000;
+  const FX_PAIRS = [
+    { from: "USD", to: "CNY", valueId: "fx-usdcny-val", hintId: "fx-usdcny-hint" },
+    { from: "EUR", to: "CNY", valueId: "fx-eurcny-val", hintId: "fx-eurcny-hint" },
+    { from: "HKD", to: "CNY", valueId: "fx-hkdcny-val", hintId: "fx-hkdcny-hint" },
+    { from: "JPY", to: "CNY", valueId: "fx-jpycny-val", hintId: "fx-jpycny-hint" },
+  ];
   const api = window.FundMasterAPI;
   const state = {
     funds: [],
@@ -119,119 +125,111 @@
     }).format(date);
   }
 
-  function setIndexCard(valueId, changeId, quote) {
-    const valueNode = document.getElementById(valueId);
-    const changeNode = document.getElementById(changeId);
-    if (!valueNode || !changeNode) return;
-
-    const price = numberValue(quote && pick(quote, ["price", "latest_price", "last_price"]));
-    const change = numberValue(quote && pick(quote, ["change_pct", "change_percent", "daily_return"]));
-    valueNode.textContent = price === null ? "—" : formatNumber(price, price >= 100 ? 2 : 4);
-    changeNode.textContent = change === null ? "Live feed unavailable" : formatPercent(change);
-    changeNode.className = change !== null && change < 0
-      ? "kpi-card__hint kpi-card__hint--neg"
-      : "kpi-card__hint";
+  function fxPairKey(from, to) {
+    return `${String(from || "").toUpperCase()}/${String(to || "").toUpperCase()}`;
   }
 
-  function renderQuoteCards(market) {
-    const quotes = Array.isArray(market?.indices?.items) ? market.indices.items : [];
-    const byTicker = new Map(
-      quotes.map((quote) => [String(pick(quote, ["ticker", "symbol"], "")).toUpperCase(), quote])
+  function renderFxCards(market) {
+    const rates = Array.isArray(market?.fx?.items) ? market.fx.items : [];
+    const byPair = new Map(
+      rates.map((item) => [fxPairKey(item.from, item.to), item])
     );
 
-    setIndexCard("idx-nasdaq-val", "idx-nasdaq-change", byTicker.get("^IXIC"));
-    setIndexCard("idx-dax-val", "idx-dax-change", byTicker.get("^GDAXI"));
-    setIndexCard("idx-hk-val", "idx-hk-change", byTicker.get("^HSI"));
-
-    const fxValue = document.getElementById("idx-usdcny-val");
-    const fxHint = document.getElementById("idx-usdcny-change");
-    const rate = numberValue(market?.fx?.rate);
-    if (fxValue) fxValue.textContent = rate === null ? "—" : formatNumber(rate, 4);
-    if (fxHint) {
-      fxHint.textContent = rate === null ? "Live feed unavailable" : "USD/CNY reference rate";
-      fxHint.className = "kpi-card__hint";
-    }
+    FX_PAIRS.forEach((pair) => {
+      const valueNode = document.getElementById(pair.valueId);
+      const hintNode = document.getElementById(pair.hintId);
+      const rate = numberValue(byPair.get(fxPairKey(pair.from, pair.to))?.rate);
+      if (valueNode) valueNode.textContent = rate === null ? "—" : formatNumber(rate, 4);
+      if (hintNode) {
+        hintNode.textContent = rate === null ? "Live feed unavailable" : `CNY per 1 ${pair.from}`;
+        hintNode.className = "kpi-card__hint";
+      }
+    });
   }
 
-  function marketCacheTimestamp(market) {
-    return Math.min(
-      Number(market?.indices?.updatedAt) || Number.POSITIVE_INFINITY,
-      Number(market?.fx?.updatedAt) || Number.POSITIVE_INFINITY
-    );
+  function fxCacheTimestamp(market) {
+    const timestamps = Array.isArray(market?.fx?.items)
+      ? market.fx.items.map((item) => Number(item.updatedAt)).filter(Number.isFinite)
+      : [];
+    return timestamps.length ? Math.min(...timestamps) : null;
   }
 
-  function renderCachedQuoteCards(market) {
-    if (!market?.indices && !market?.fx) return false;
-    renderQuoteCards(market);
-    const updatedAt = marketCacheTimestamp(market);
-    const safeTimestamp = Number.isFinite(updatedAt)
-      ? updatedAt
-      : Number(market?.indices?.updatedAt || market?.fx?.updatedAt);
-    setSourceStatus(document.getElementById("global-quote-source"), {
-      mode: cacheMode(safeTimestamp),
-      updatedAt: safeTimestamp,
+  function renderCachedFxCards(market) {
+    if (!Array.isArray(market?.fx?.items) || !market.fx.items.length) return false;
+    renderFxCards(market);
+    const updatedAt = fxCacheTimestamp(market);
+    setSourceStatus(document.getElementById("global-fx-source"), {
+      mode: cacheMode(updatedAt),
+      updatedAt,
       note: "refreshing in background",
-    }, "last successful market data");
+    }, `${market.fx.items.length}/${FX_PAIRS.length} cached CNY rates`);
     return true;
   }
 
-  function renderQuoteUnavailable(message = "Verified market sources did not return data") {
-    renderQuoteCards({});
-    setSourceStatus(document.getElementById("global-quote-source"), {
+  function renderFxUnavailable(message = "Verified exchange-rate sources did not return data") {
+    renderFxCards({});
+    setSourceStatus(document.getElementById("global-fx-source"), {
       mode: "unavailable",
       updatedAt: null,
       note: message,
     });
   }
 
-  async function refreshQuoteCards(cachedMarket = null) {
-    const quotePromise = api?.market?.getGlobalIndices
-      ? api.market.getGlobalIndices()
-      : Promise.resolve([]);
-    const fxPromise = api?.global?.getExchangeRate
-      ? api.global.getExchangeRate("USD", "CNY")
-      : Promise.resolve(null);
-
-    const [quotesResult, fxResult] = await Promise.allSettled([quotePromise, fxPromise]);
-    const quotes = quotesResult.status === "fulfilled" && Array.isArray(quotesResult.value)
-      ? quotesResult.value
-      : [];
-    const rate = fxResult.status === "fulfilled"
-      ? numberValue(pick(fxResult.value, ["rate"]))
-      : null;
-
+  async function refreshFxCards(cachedMarket = null) {
+    const cachedItems = Array.isArray(cachedMarket?.fx?.items) ? cachedMarket.fx.items : [];
+    const cachedByPair = new Map(
+      cachedItems.map((item) => [fxPairKey(item.from, item.to), item])
+    );
+    const requests = FX_PAIRS.map((pair) => (
+      api?.global?.getExchangeRate
+        ? api.global.getExchangeRate(pair.from, pair.to)
+        : Promise.resolve(null)
+    ));
+    const results = await Promise.allSettled(requests);
     const now = Date.now();
-    const liveSourceCount = (quotes.length ? 1 : 0) + (rate !== null ? 1 : 0);
-    if (!liveSourceCount) {
-      if (cachedMarket) {
-        renderQuoteCards(cachedMarket);
-        const fallbackTimestamp = marketCacheTimestamp(cachedMarket);
-        setSourceStatus(document.getElementById("global-quote-source"), {
+    let liveRateCount = 0;
+    const items = FX_PAIRS
+      .map((pair, index) => {
+        const result = results[index];
+        const rate = result.status === "fulfilled"
+          ? numberValue(pick(result.value, ["rate"]))
+          : null;
+        if (rate !== null) {
+          liveRateCount += 1;
+          return { from: pair.from, to: pair.to, rate, updatedAt: now };
+        }
+        return cachedByPair.get(fxPairKey(pair.from, pair.to)) || null;
+      })
+      .filter(Boolean);
+
+    if (!liveRateCount) {
+      if (items.length) {
+        const market = { fx: { items } };
+        renderFxCards(market);
+        const fallbackTimestamp = fxCacheTimestamp(market);
+        setSourceStatus(document.getElementById("global-fx-source"), {
           mode: "stale",
-          updatedAt: Number.isFinite(fallbackTimestamp) ? fallbackTimestamp : null,
+          updatedAt: fallbackTimestamp,
           note: "background refresh failed",
-        }, "last successful market data retained");
+        }, `${items.length}/${FX_PAIRS.length} cached CNY rates retained`);
       } else {
-        renderQuoteUnavailable("background refresh failed");
+        renderFxUnavailable("background refresh failed");
       }
       return;
     }
 
-    const market = {
-      indices: quotes.length ? { items: quotes, updatedAt: now } : cachedMarket?.indices || null,
-      fx: rate !== null ? { rate, updatedAt: now } : cachedMarket?.fx || null,
-    };
-    const retainedFallback = (!quotes.length && Boolean(cachedMarket?.indices))
-      || (rate === null && Boolean(cachedMarket?.fx));
-    renderQuoteCards(market);
-    setSourceStatus(document.getElementById("global-quote-source"), {
-      mode: "live",
-      updatedAt: now,
-      note: liveSourceCount === 2
-        ? "2/2 sources refreshed"
+    const market = { fx: { items } };
+    const retainedFallback = items.length > liveRateCount;
+    const updatedAt = fxCacheTimestamp(market);
+    renderFxCards(market);
+    setSourceStatus(document.getElementById("global-fx-source"), {
+      mode: retainedFallback ? "stale" : "live",
+      updatedAt,
+      note: liveRateCount === FX_PAIRS.length
+        ? "4/4 CNY rates refreshed"
         : retainedFallback
-          ? "1/2 sources refreshed; cached fallback retained"
-          : "1/2 sources refreshed; other source unavailable",
+          ? `${liveRateCount}/4 rates refreshed; cached fallback retained`
+          : `${liveRateCount}/4 rates refreshed; other rates unavailable`,
     });
     writeCache({ market });
   }
@@ -473,7 +471,7 @@
     bindMatrixControls();
     const cache = readCache();
     const hasCachedFunds = renderCachedFunds(cache);
-    const hasCachedMarket = renderCachedQuoteCards(cache?.market);
+    const hasCachedFx = renderCachedFxCards(cache?.market);
 
     if (!hasCachedFunds) {
       setSourceStatus(document.getElementById("global-matrix-source"), {
@@ -482,11 +480,11 @@
         note: "waiting for the first verified QDII response",
       });
     }
-    if (!hasCachedMarket) {
-      setSourceStatus(document.getElementById("global-quote-source"), {
+    if (!hasCachedFx) {
+      setSourceStatus(document.getElementById("global-fx-source"), {
         mode: "loading",
         updatedAt: null,
-        note: "waiting for the first verified market response",
+        note: "waiting for the first verified CNY-rate response",
       });
     }
 
@@ -494,7 +492,7 @@
     // sources refresh concurrently in the background.
     void Promise.allSettled([
       refreshFunds(hasCachedFunds),
-      refreshQuoteCards(hasCachedMarket ? cache.market : null),
+      refreshFxCards(hasCachedFx ? cache.market : null),
     ]);
   }
 

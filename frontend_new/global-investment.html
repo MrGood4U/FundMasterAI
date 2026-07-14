@@ -89,28 +89,27 @@
           </div>
         </header>
         <main class="content">
-          <p id="global-quote-source" class="gi-matrix-source gi-quote-source" data-state="loading" role="status">Loading verified market data…</p>
-          <!-- 🔍 1. 顶部四大指数：打上动态渲染所需的 ID 标识 -->
+          <p id="global-fx-source" class="gi-matrix-source gi-quote-source" data-state="loading" role="status">Loading verified CNY exchange rates…</p>
           <div class="mf-kpis gi-ticker">
             <div class="kpi-card">
-              <p class="kpi-card__label">NASDAQ Composite</p>
-              <p id="idx-nasdaq-val" class="kpi-card__value">—</p>
-              <p id="idx-nasdaq-change" class="kpi-card__hint">Loading live quote…</p>
-            </div>
-            <div class="kpi-card">
-              <p class="kpi-card__label">DAX</p>
-              <p id="idx-dax-val" class="kpi-card__value">—</p>
-              <p id="idx-dax-change" class="kpi-card__hint">Loading live quote…</p>
-            </div>
-            <div class="kpi-card">
-              <p class="kpi-card__label">Hang Seng</p>
-              <p id="idx-hk-val" class="kpi-card__value">—</p>
-              <p id="idx-hk-change" class="kpi-card__hint">Loading live quote…</p>
-            </div>
-            <div class="kpi-card">
               <p class="kpi-card__label">USD/CNY</p>
-              <p id="idx-usdcny-val" class="kpi-card__value">—</p>
-              <p id="idx-usdcny-change" class="kpi-card__hint">Loading live rate…</p>
+              <p id="fx-usdcny-val" class="kpi-card__value">—</p>
+              <p id="fx-usdcny-hint" class="kpi-card__hint">Loading live rate…</p>
+            </div>
+            <div class="kpi-card">
+              <p class="kpi-card__label">EUR/CNY</p>
+              <p id="fx-eurcny-val" class="kpi-card__value">—</p>
+              <p id="fx-eurcny-hint" class="kpi-card__hint">Loading live rate…</p>
+            </div>
+            <div class="kpi-card">
+              <p class="kpi-card__label">HKD/CNY</p>
+              <p id="fx-hkdcny-val" class="kpi-card__value">—</p>
+              <p id="fx-hkdcny-hint" class="kpi-card__hint">Loading live rate…</p>
+            </div>
+            <div class="kpi-card">
+              <p class="kpi-card__label">JPY/CNY</p>
+              <p id="fx-jpycny-val" class="kpi-card__value">—</p>
+              <p id="fx-jpycny-hint" class="kpi-card__hint">Loading live rate…</p>
             </div>
           </div>
           <header class="page-head">
@@ -156,7 +155,7 @@
     <script src="scripts/config.js"></script>
     <script src="scripts/api.js"></script>
     <script src="scripts/search.js?v=20260713-1"></script>
-    <script src="scripts/global-index-ranking.js?v=20260713-2"></script>
+    <script src="scripts/global-index-ranking.js?v=20260714-1"></script>
     <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>
