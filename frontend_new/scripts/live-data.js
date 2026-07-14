@@ -12,6 +12,10 @@
     { symbol: "601857", sector: "ENERGY" },
     { symbol: "600276", sector: "HEALTHCARE" },
   ];
+  const NEWS_CACHE_KEY = "fundmaster:news-feed:v1";
+  const NEWS_CACHE_VERSION = 1;
+  const NEWS_CACHE_TTL_MS = 5 * 60 * 1000;
+  const NEWS_BASKET_KEY = NEWS_LEADER_BASKET.map((leader) => `${leader.symbol}:${leader.sector}`).join("|");
   const DEFAULT_FUND_CODE = "510300";
 
   function text(value, fallback = "--") {
@@ -232,6 +236,43 @@
       : [];
   }
 
+  function readNewsCache() {
+    try {
+      const raw = window.sessionStorage.getItem(NEWS_CACHE_KEY);
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      if (
+        cached?.version !== NEWS_CACHE_VERSION
+        || cached?.basketKey !== NEWS_BASKET_KEY
+        || !Array.isArray(cached?.items)
+        || !Number.isFinite(Number(cached?.updatedAt))
+      ) {
+        return null;
+      }
+      return cached;
+    } catch (error) {
+      console.warn("News cache is unavailable:", error.message);
+      return null;
+    }
+  }
+
+  function writeNewsCache(payload) {
+    try {
+      window.sessionStorage.setItem(NEWS_CACHE_KEY, JSON.stringify({
+        ...payload,
+        version: NEWS_CACHE_VERSION,
+        basketKey: NEWS_BASKET_KEY,
+      }));
+    } catch (error) {
+      console.warn("News cache could not be updated:", error.message);
+    }
+  }
+
+  function newsCacheIsFresh(cached) {
+    const age = Date.now() - Number(cached?.updatedAt);
+    return Number.isFinite(age) && age >= 0 && age < NEWS_CACHE_TTL_MS;
+  }
+
   function newsKey(item) {
     return text(pick(item, ["新闻链接", "链接", "url"], ""), "")
       || `${newsTitle(item)}|${newsTimestamp(item)}`;
@@ -340,7 +381,7 @@
     return rows.length;
   }
 
-  function setupNewsFilters(feed, items, analysis) {
+  function setupNewsFilters(feed, items, analysis, sourceLabel = "Live terminal") {
     const buttons = Array.from(document.querySelectorAll("#news .pill-group .pill"));
     if (!buttons.length) return;
 
@@ -349,7 +390,7 @@
       buttons.forEach((item) => item.classList.add("pill--ghost"));
       button.classList.remove("pill--ghost");
       const count = renderNewsList(feed, items, analysis, filter);
-      setStatus("[data-api-status='news']", `Live terminal · ${count} ${filter} news · AI ${analysis ? "ready" : "unavailable"}`, !analysis);
+      setStatus("[data-api-status='news']", `${sourceLabel} · ${count} ${filter} news · AI ${analysis ? "ready" : "unavailable"}`, !analysis);
     };
 
     buttons.forEach((button) => {
@@ -425,11 +466,29 @@
     summary.textContent = `Live news fallback summary: ${items.length} headline(s) loaded. Tone is ${tone} (${positive} positive / ${negative} negative / ${neutral} neutral). Latest: ${topTitle}`;
   }
 
-  async function loadNewsFeed() {
-    const feed = document.querySelector("[data-news-feed]");
-    if (!feed) return;
+  function renderNewsPayload(feed, payload, mode = "live") {
+    const list = Array.isArray(payload?.items) ? payload.items.slice(0, 6) : [];
+    const analysis = payload?.analysis || null;
+    const successfulSources = Number(payload?.successfulSources) || 0;
+    const sourceLabel = mode === "cached" ? "Cached terminal" : "Live terminal";
 
-    setStatus("[data-api-status='news']", "Loading verified sector-leader news...");
+    if (list.length) {
+      renderNewsList(feed, list, analysis, "all");
+      setupNewsFilters(feed, list, analysis, sourceLabel);
+      renderNewsSectorSentiment(list, analysis);
+    } else {
+      feed.innerHTML = '<p class="muted">No live news returned from backend.</p>';
+      renderSectorSentiment([]);
+    }
+    renderAiSummary(list, analysis);
+    setStatus(
+      "[data-api-status='news']",
+      `${mode === "cached" ? "Cached sector leaders" : "Sector leaders"} · ${successfulSources}/${NEWS_LEADER_BASKET.length} sources · ${list.length} news · AI ${analysis ? "ready" : "unavailable"}`,
+      successfulSources === 0
+    );
+  }
+
+  async function refreshNewsFeed(feed, hasCachedFeed = false) {
     try {
       const results = await Promise.allSettled(
         NEWS_LEADER_BASKET.map((leader) => api.news.getStockRecentNews({ symbol: leader.symbol }))
@@ -449,26 +508,47 @@
           console.warn("News AI summary unavailable:", error.message);
         }
       }
-      if (list.length) {
-        renderNewsList(feed, list, analysis, "all");
-        setupNewsFilters(feed, list, analysis);
-        renderNewsSectorSentiment(list, analysis);
-      } else {
-        feed.innerHTML = '<p class="muted">No live news returned from backend.</p>';
-        renderSectorSentiment([]);
+
+      if (!list.length && hasCachedFeed) {
+        setStatus("[data-api-status='news']", "Cached sector-leader news retained · live refresh returned no news", true);
+        return;
       }
-      renderAiSummary(list, analysis);
-      setStatus(
-        "[data-api-status='news']",
-        `Sector leaders · ${successfulSources}/${NEWS_LEADER_BASKET.length} sources · ${list.length} news · AI ${analysis ? "ready" : "unavailable"}`,
-        successfulSources === 0
-      );
+
+      const payload = {
+        items: list,
+        analysis,
+        successfulSources,
+        updatedAt: Date.now(),
+      };
+      renderNewsPayload(feed, payload, "live");
+      if (list.length) writeNewsCache(payload);
     } catch (error) {
+      if (hasCachedFeed) {
+        setStatus("[data-api-status='news']", `Cached sector-leader news retained · refresh unavailable: ${error.message}`, true);
+        return;
+      }
       feed.innerHTML = '<p class="muted">News backend unavailable.</p>';
       renderSectorSentiment([]);
       renderAiSummary([], null);
       setStatus("[data-api-status='news']", `News backend unavailable: ${error.message}`, true);
     }
+  }
+
+  async function loadNewsFeed() {
+    const feed = document.querySelector("[data-news-feed]");
+    if (!feed) return;
+
+    const cached = readNewsCache();
+    if (cached) {
+      renderNewsPayload(feed, cached, "cached");
+      if (newsCacheIsFresh(cached)) return;
+      setStatus("[data-api-status='news']", "Cached sector-leader news shown · refreshing stale data...");
+      await refreshNewsFeed(feed, true);
+      return;
+    }
+
+    setStatus("[data-api-status='news']", "Loading verified sector-leader news...");
+    await refreshNewsFeed(feed, false);
   }
 
   function sentimentLabel(score) {
