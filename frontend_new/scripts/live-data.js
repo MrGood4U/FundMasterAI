@@ -346,32 +346,37 @@
     return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
   }
 
-  function newsMatchesFilter(item, signal, filter) {
-    if (filter === "all") return true;
+  function newsCategory(item, signal) {
     const content = `${newsTitle(item)} ${newsBody(item)}`.toLowerCase();
-    if (filter === "breaking") {
-      return booleanValue(signal?.risk_event)
-        || /breaking|latest|alert|risk|regulat|policy|fed|cpi|突发|最新|风险|监管|政策|加息|降息/.test(content);
-    }
-    if (filter === "earnings") {
-      return /earnings|revenue|profit|eps|guidance|财报|业绩|利润|营收|盈利|指引/.test(content);
-    }
-    return true;
+    const isRisk = booleanValue(signal?.risk_event)
+      || /breaking|latest|alert|risk|regulat|policy|fed|cpi|突发|最新|风险|监管|政策|加息|降息/.test(content);
+    if (isRisk) return "risk";
+    if (/earnings|revenue|profit|eps|guidance|财报|业绩|利润|营收|盈利|指引/.test(content)) return "earnings";
+    return "other";
+  }
+
+  function newsFilterLabel(filter) {
+    if (filter === "risk") return "Risk & Policy";
+    if (filter === "earnings") return "Earnings";
+    if (filter === "other") return "Other";
+    return "All";
+  }
+
+  function newsEntries(items, analysis) {
+    const signals = Array.isArray(analysis?.item_signals) ? analysis.item_signals : [];
+    const signalByTitle = new Map(signals.map((item) => [text(item.title, ""), item]));
+    return items.map((item, index) => {
+      const signal = signalByTitle.get(newsTitle(item)) || signals[index] || {};
+      return { item, index, signal, category: newsCategory(item, signal) };
+    });
   }
 
   function renderNewsList(feed, items, analysis, filter = "all") {
-    const signals = Array.isArray(analysis?.item_signals) ? analysis.item_signals : [];
-    const signalByTitle = new Map(signals.map((item) => [text(item.title, ""), item]));
-    const rows = items
-      .map((item, index) => ({
-        item,
-        index,
-        signal: signalByTitle.get(newsTitle(item)) || signals[index] || {},
-      }))
-      .filter((entry) => newsMatchesFilter(entry.item, entry.signal, filter));
+    const rows = newsEntries(items, analysis)
+      .filter((entry) => filter === "all" || entry.category === filter);
 
     if (!rows.length) {
-      feed.innerHTML = `<p class="muted">No ${escapeHtml(filter)} news matched the current live feed.</p>`;
+      feed.innerHTML = `<p class="muted">No ${escapeHtml(newsFilterLabel(filter).toLowerCase())} news matched the current live feed.</p>`;
       return 0;
     }
 
@@ -384,17 +389,24 @@
   function setupNewsFilters(feed, items, analysis, sourceLabel = "Live terminal") {
     const buttons = Array.from(document.querySelectorAll("#news .pill-group .pill"));
     if (!buttons.length) return;
+    const counts = { all: items.length, risk: 0, earnings: 0, other: 0 };
+    newsEntries(items, analysis).forEach((entry) => {
+      counts[entry.category] += 1;
+    });
 
     const applyFilter = (button) => {
-      const filter = text(button.dataset.newsFilter || button.textContent, "all").trim().toLowerCase();
+      const filter = text(button.dataset.newsFilter, "all").trim().toLowerCase();
+      const label = text(button.dataset.newsFilterLabel, newsFilterLabel(filter));
       buttons.forEach((item) => item.classList.add("pill--ghost"));
       button.classList.remove("pill--ghost");
       const count = renderNewsList(feed, items, analysis, filter);
-      setStatus("[data-api-status='news']", `${sourceLabel} · ${count} ${filter} news · AI ${analysis ? "ready" : "unavailable"}`, !analysis);
+      setStatus("[data-api-status='news']", `${sourceLabel} · ${count} ${label.toLowerCase()} news · AI ${analysis ? "ready" : "unavailable"}`, !analysis);
     };
 
     buttons.forEach((button) => {
-      button.dataset.newsFilter = text(button.dataset.newsFilter || button.textContent, "all").trim().toLowerCase();
+      const filter = text(button.dataset.newsFilter, "all").trim().toLowerCase();
+      const label = text(button.dataset.newsFilterLabel, newsFilterLabel(filter));
+      button.textContent = `${label} ${counts[filter] ?? 0}`;
       button.onclick = () => applyFilter(button);
     });
 

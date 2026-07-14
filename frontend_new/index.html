@@ -135,9 +135,10 @@
                   Flash Feed
                 </h3>
                 <div class="pill-group" role="group" aria-label="快讯筛选">
-                  <button type="button" class="pill pill--ghost">All</button>
-                  <button type="button" class="pill pill--ghost">Breaking</button>
-                  <button type="button" class="pill pill--ghost">Earnings</button>
+                  <button type="button" class="pill pill--ghost" data-news-filter="all" data-news-filter-label="All">All</button>
+                  <button type="button" class="pill pill--ghost" data-news-filter="risk" data-news-filter-label="Risk &amp; Policy">Risk &amp; Policy</button>
+                  <button type="button" class="pill pill--ghost" data-news-filter="earnings" data-news-filter-label="Earnings">Earnings</button>
+                  <button type="button" class="pill pill--ghost" data-news-filter="other" data-news-filter-label="Other">Other</button>
                 </div>
               </div>
 
@@ -209,7 +210,7 @@
     </div>
     <script src="scripts/config.js"></script>
     <script src="scripts/api.js"></script>
-    <script src="scripts/live-data.js?v=20260714-6"></script>
+    <script src="scripts/live-data.js?v=20260714-7"></script>
     <script src="scripts/search.js"></script>
     <script src="scripts/pro-upgrade.js"></script>
   </body>
