@@ -13,6 +13,50 @@
     return `${base}${path}`;
   }
 
+  function replaceNonFiniteJsonNumbers(text) {
+    const source = String(text || "");
+    const tokens = ["-Infinity", "Infinity", "NaN"];
+    const isBoundary = (character) => character === undefined || /[\s,:\[\]{}]/.test(character);
+    let result = "";
+    let inString = false;
+    let escaped = false;
+
+    for (let index = 0; index < source.length; index += 1) {
+      const character = source[index];
+      if (inString) {
+        result += character;
+        if (escaped) {
+          escaped = false;
+        } else if (character === "\\") {
+          escaped = true;
+        } else if (character === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (character === '"') {
+        inString = true;
+        result += character;
+        continue;
+      }
+
+      const token = tokens.find((candidate) => source.startsWith(candidate, index));
+      if (
+        token
+        && isBoundary(source[index - 1])
+        && isBoundary(source[index + token.length])
+      ) {
+        result += "null";
+        index += token.length - 1;
+      } else {
+        result += character;
+      }
+    }
+
+    return result;
+  }
+
   async function request(baseUrl, path, options = {}) {
     const headers = new Headers(options.headers || {});
     const init = {
@@ -39,7 +83,12 @@
     let payload = null;
 
     try {
-      payload = await response.json();
+      if (options.allowNonFiniteJsonNumbers) {
+        const responseText = await response.text();
+        payload = JSON.parse(replaceNonFiniteJsonNumbers(responseText));
+      } else {
+        payload = await response.json();
+      }
     } catch (error) {
       payload = { message: response.statusText || "Invalid JSON response" };
     }
@@ -58,6 +107,7 @@
       method: "POST",
       body,
       timeout: 180000,
+      allowNonFiniteJsonNumbers: true,
     }),
     getRank: (body = {}) => postMarket("/api/market/fund_public/rank", { order_by: "change_1y", ...body }),
     getHist: (body = {}) => postMarket("/api/market/fund_public/hist", body),
