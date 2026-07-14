@@ -581,7 +581,7 @@
     const candidates = [
       { indicator: "pmi", title: "China Manufacturing PMI", keys: ["manufacturing_index", "制造业-指数", "value"], suffix: "", importance: 3 },
       { indicator: "cpi", title: "China CPI (YoY)", keys: ["national_yoy", "全国-同比增长", "value"], suffix: "%", importance: 3 },
-      { indicator: "ppi", title: "China PPI (YoY)", keys: ["ppi_yoy", "当月-同比增长", "value"], suffix: "%", importance: 2 },
+      { indicator: "ppi", title: "China PPI (YoY)", keys: ["ppi_yoy", "当月同比增长", "当月-同比增长", "value"], suffix: "%", importance: 2 },
       { indicator: "money_supply", title: "China M2 (YoY)", keys: ["m2_yoy", "货币和准货币(M2)-同比增长", "value"], suffix: "%", importance: 2 },
       { indicator: "lpr", title: "China 1Y LPR", keys: ["lpr_1y", "1年期", "value"], suffix: "%", importance: 2 },
       { indicator: "gdp", title: "China GDP (YoY)", keys: ["gdp_yoy", "国内生产总值-同比增长", "value"], suffix: "%", importance: 3 },
