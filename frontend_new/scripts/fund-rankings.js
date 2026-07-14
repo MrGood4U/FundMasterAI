@@ -3,6 +3,7 @@
 
   const PAGE_SIZE = 5;
   const api = window.FundMasterAPI;
+  const equityCurveStates = new WeakMap();
 
   const DATA = {
     equity: [
@@ -337,6 +338,11 @@
     return Number.isFinite(parsed) ? parsed : null;
   }
 
+  function sourcePercentToRatio(value) {
+    const parsed = optionalNumberValue(value);
+    return parsed === null ? null : parsed / 100;
+  }
+
   function formatPercent(value) {
     if (value === null || value === undefined || value === "" || value === "--") return "--";
     const n = numberValue(value);
@@ -412,13 +418,59 @@
   function histPoint(record) {
     const value = numberValue(pick(record, ["unit_net_value", "accumulated_net_value", "单位净值", "累计净值", "close", "净值"]));
     const date = parseDate(pick(record, ["date", "净值日期", "日期"], ""));
-    return Number.isFinite(value) && value > 0 ? { value, date, raw: record } : null;
+    return Number.isFinite(value) && value > 0 && date ? { value, date, raw: record } : null;
+  }
+
+  function normalizeHistoryPoints(rows) {
+    return rows
+      .map(histPoint)
+      .filter(Boolean)
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+  }
+
+  function monthsBefore(date, months) {
+    const shifted = new Date(date);
+    const day = shifted.getDate();
+    shifted.setDate(1);
+    shifted.setMonth(shifted.getMonth() - months);
+    const lastDay = new Date(shifted.getFullYear(), shifted.getMonth() + 1, 0).getDate();
+    shifted.setDate(Math.min(day, lastDay));
+    return shifted;
+  }
+
+  function cutoffForRange(points, range) {
+    if (!points.length || range === "MAX") return null;
+    const latest = points[points.length - 1].date;
+    if (range === "1M") return monthsBefore(latest, 1);
+    if (range === "3M") return monthsBefore(latest, 3);
+    if (range === "6M") return monthsBefore(latest, 6);
+    const cutoff = new Date(latest);
+    if (range === "YTD") cutoff.setMonth(0, 1);
+    return cutoff;
+  }
+
+  function historyForRange(points, range) {
+    const cutoff = cutoffForRange(points, range);
+    if (!cutoff) return points.slice();
+
+    let baselineIndex = -1;
+    for (let index = 0; index < points.length; index += 1) {
+      if (points[index].date <= cutoff) baselineIndex = index;
+      else break;
+    }
+    if (baselineIndex >= 0) return points.slice(baselineIndex);
+    return points.filter((point) => point.date >= cutoff);
+  }
+
+  function returnForRange(points, range) {
+    const selected = historyForRange(points, range);
+    if (selected.length < 2 || !selected[0].value) return null;
+    return selected[selected.length - 1].value / selected[0].value - 1;
   }
 
   function calculateMetrics(rows) {
-    const points = rows.map(histPoint).filter(Boolean);
+    const points = normalizeHistoryPoints(rows);
     if (points.length < 2) return null;
-    points.sort((a, b) => (a.date?.getTime() || 0) - (b.date?.getTime() || 0));
     const first = points[0];
     const last = points[points.length - 1];
     const days = first.date && last.date ? Math.max(1, (last.date - first.date) / 86400000) : points.length;
@@ -429,15 +481,22 @@
     const variance = returns.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / Math.max(returns.length - 1, 1);
     const volatility = Math.sqrt(variance) * Math.sqrt(252);
     const sharpe = volatility ? annualized / volatility : NaN;
-    const monthStart = points.find((point) => last.date && point.date && (last.date - point.date) <= 31 * 86400000) || first;
-    const mtd = monthStart.value ? last.value / monthStart.value - 1 : NaN;
+    const dailyReturn = points.length > 1 ? last.value / points[points.length - 2].value - 1 : null;
+    const oneMonthReturn = returnForRange(points, "1M");
+    const sixMonthReturn = returnForRange(points, "6M");
+    const ytdReturn = returnForRange(points, "YTD");
     return {
       latestDate: last.date ? last.date.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }) : "Latest NAV",
       latestValue: String(last.value),
       annualized,
       volatility,
       sharpe,
-      mtd,
+      mtd: oneMonthReturn,
+      dailyReturn,
+      oneMonthReturn,
+      sixMonthReturn,
+      ytdReturn,
+      history: points,
       curve: points.slice(-32).map((point) => point.value),
     };
   }
@@ -500,6 +559,12 @@
       aum: String(pick(record, ["aum", "规模"], "--")),
       latestDate: String(pick(record, ["date", "latestDate", "净值日期"], "--")),
       latestValue: String(pick(record, ["unit_net_value", "latestValue", "单位净值"], "--")),
+      dailyReturn: sourcePercentToRatio(pick(record, ["daily_growth_rate", "日增长率", "dailyReturn"], null)),
+      oneMonthReturn: sourcePercentToRatio(pick(record, ["change_1m", "近1月", "近一月", "oneMonthReturn"], null)),
+      sixMonthReturn: sourcePercentToRatio(pick(record, ["change_6m", "近6月", "近六月", "sixMonthReturn"], null)),
+      ytdReturn: sourcePercentToRatio(pick(record, ["change_ytd", "今年来", "近今年", "ytdReturn"], null)),
+      history: [],
+      historyLoaded: false,
       stdDev: "--",
       sharpe: "--",
       beta: "--",
@@ -546,6 +611,10 @@
     ]);
     const histRows = histResult.status === "fulfilled" && Array.isArray(histResult.value) ? histResult.value : [];
     const metrics = calculateMetrics(histRows);
+    if (type === "equity") {
+      enriched.historyLoaded = true;
+      enriched.history = metrics?.history || normalizeHistoryPoints(histRows);
+    }
     if (metrics) {
       enriched.curve = metrics.curve;
       enriched.latestDate = metrics.latestDate;
@@ -561,6 +630,11 @@
       if (type === "equity") {
         enriched.annualizedYield = formatPercent2(metrics.annualized);
         enriched.mtd = `${formatPercent2(metrics.mtd)} MTD`;
+        enriched.dailyReturn = metrics.dailyReturn;
+        enriched.oneMonthReturn = metrics.oneMonthReturn;
+        enriched.sixMonthReturn = metrics.sixMonthReturn;
+        enriched.ytdReturn = metrics.ytdReturn;
+        enriched.returnYtd = formatPercent2(metrics.ytdReturn);
       } else {
         enriched.averageYield = formatPercent2(metrics.annualized);
       }
@@ -655,6 +729,70 @@
     `;
   }
 
+  function updateSignedPercent(node, value) {
+    if (!node) return;
+    node.textContent = formatPercent2(value);
+    node.classList.toggle("pos", Number.isFinite(value) && value > 0);
+    node.classList.toggle("neg", Number.isFinite(value) && value < 0);
+  }
+
+  function setEquityRangeButtons(page, activeRange, disabled) {
+    page.querySelectorAll("[data-equity-range]").forEach((button) => {
+      const active = button.dataset.equityRange === activeRange;
+      button.classList.toggle("pill--active", active);
+      button.setAttribute("aria-pressed", String(active));
+      button.disabled = disabled;
+    });
+  }
+
+  function renderEquityCurve(page) {
+    const state = equityCurveStates.get(page);
+    if (!state) return;
+    const chart = page.querySelector("[data-return-chart]");
+    const ready = state.history.length >= 2;
+    setEquityRangeButtons(page, state.range, !ready);
+
+    if (!state.historyLoaded) {
+      if (chart) chart.innerHTML = '<div class="data-loading-state">Loading verified return history…</div>';
+      return;
+    }
+    if (!ready) {
+      if (chart) chart.innerHTML = '<p class="muted">Return curve unavailable from backend.</p>';
+      return;
+    }
+
+    const selected = historyForRange(state.history, state.range);
+    renderCurve(
+      chart,
+      selected.map((point) => point.value),
+      `${state.name} · ${state.range} return curve`
+    );
+  }
+
+  function configureEquityCurve(page, item) {
+    const controls = page.querySelector("[data-equity-range-controls]");
+    if (!controls) return;
+    const previous = equityCurveStates.get(page);
+    equityCurveStates.set(page, {
+      name: item.name,
+      range: previous?.range || "1M",
+      history: Array.isArray(item.history) ? item.history : [],
+      historyLoaded: item.historyLoaded === true,
+    });
+
+    if (controls.dataset.rangeReady !== "true") {
+      controls.dataset.rangeReady = "true";
+      controls.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-equity-range]");
+        const state = equityCurveStates.get(page);
+        if (!button || button.disabled || !state) return;
+        state.range = button.dataset.equityRange;
+        renderEquityCurve(page);
+      });
+    }
+    renderEquityCurve(page);
+  }
+
   function updateUniverseKpis(page, rows, type) {
     const cards = page.querySelectorAll(".kpi-row .kpi-card");
     const validRows = rows.filter((item) => Number.isFinite(item.return1yValue));
@@ -680,12 +818,16 @@
 
   async function updateEquityPage(page, item) {
     const stats = page.querySelectorAll(".fd-stats.eq-mini > div");
-    updateText(stats[0]?.querySelector(".fd-stats__k"), item.latestDate);
+    const latestLabel = item.latestDate && item.latestDate !== "--" ? `Latest NAV · ${item.latestDate}` : "Latest NAV";
+    updateText(stats[0]?.querySelector(".fd-stats__k"), latestLabel);
     updateText(stats[0]?.querySelector(".fd-stats__v"), item.latestValue);
-    updateText(stats[1]?.querySelector(".fd-stats__v"), item.stdDev);
-    updateText(stats[2]?.querySelector(".fd-stats__v"), item.sharpe);
-    updateText(stats[3]?.querySelector(".fd-stats__v"), item.beta);
-    updateText(stats[4]?.querySelector(".fd-stats__v"), item.alpha);
+    updateSignedPercent(stats[1]?.querySelector(".fd-stats__v"), item.dailyReturn);
+    updateSignedPercent(stats[2]?.querySelector(".fd-stats__v"), item.oneMonthReturn);
+    updateSignedPercent(stats[3]?.querySelector(".fd-stats__v"), item.sixMonthReturn);
+    updateSignedPercent(stats[4]?.querySelector(".fd-stats__v"), item.ytdReturn);
+    configureEquityCurve(page, item);
+
+    if (item.historyLoaded !== true) return;
 
     const allocation = Array.from(page.querySelectorAll(".glass-panel")).find((panel) =>
       /Sector Allocation/.test(panel.textContent || "")
@@ -715,8 +857,6 @@
       allocationList.innerHTML = '<li class="data-unavailable">No positive sector allocation was disclosed.</li>';
     }
 
-    const curve = item.curve?.length ? item.curve : await loadCurve(item);
-    renderCurve(page.querySelector("[data-return-chart]"), curve, `${item.name} return curve`);
   }
 
   async function updateDebtPage(page, item) {

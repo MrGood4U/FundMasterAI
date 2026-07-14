@@ -244,6 +244,17 @@
   font-size: 12px;
 }
 
+.eq-range-controls .pill--active {
+  background: rgba(129, 236, 255, 0.16);
+  color: var(--accent-cyan);
+  box-shadow: inset 0 0 0 1px rgba(129, 236, 255, 0.42);
+}
+
+.eq-range-controls .pill:disabled {
+  cursor: wait;
+  opacity: 0.52;
+}
+
 @media (max-width: 980px) {
   .ranking-layout {
     grid-template-columns: 1fr;

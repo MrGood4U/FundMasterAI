@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="css/shell.css?v=20260713-2" />
     <link rel="stylesheet" href="css/dashboard-widgets.css" />
     <link rel="stylesheet" href="css/page-fund-deep-dive.css" />
-    <link rel="stylesheet" href="css/page-portfolio-family.css" />
+    <link rel="stylesheet" href="css/page-portfolio-family.css?v=20260714-1" />
   </head>
   <body>
     <div class="app">
@@ -123,7 +123,12 @@
           </div>
           <section class="glass-panel">
             <h3 class="section-head__title section-head__title--compact">Return Curve</h3>
-            <div class="pill-group" style="margin-bottom:12px"><button class="pill pill--ghost">1M</button><button class="pill pill--ghost">3M</button><button class="pill pill--ghost">YTD</button><button class="pill pill--ghost">MAX</button></div>
+            <div class="pill-group eq-range-controls" data-equity-range-controls role="group" aria-label="Return curve period" style="margin-bottom:12px">
+              <button type="button" class="pill pill--ghost pill--active" data-equity-range="1M" aria-pressed="true">1M</button>
+              <button type="button" class="pill pill--ghost" data-equity-range="3M" aria-pressed="false">3M</button>
+              <button type="button" class="pill pill--ghost" data-equity-range="YTD" aria-pressed="false">YTD</button>
+              <button type="button" class="pill pill--ghost" data-equity-range="MAX" aria-pressed="false">MAX</button>
+            </div>
             <div class="eq-chart return-chart" data-return-chart role="img" aria-label="Fund return curve"><div class="data-loading-state">Loading verified return history…</div></div>
             <div class="fd-stats eq-mini">
               <div><span class="fd-stats__k">Latest NAV</span><span class="fd-stats__v">—</span></div>
@@ -144,7 +149,7 @@
     <script src="scripts/config.js"></script>
     <script src="scripts/api.js"></script>
     <script src="scripts/search.js"></script>
-    <script src="scripts/fund-rankings.js?v=20260714-3"></script>
+    <script src="scripts/fund-rankings.js?v=20260714-4"></script>
     <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>
