@@ -200,6 +200,9 @@
     setStatus("[data-api-status='market']", "Connecting to market backend...");
     let quoteCount = 0;
     let quoteError = null;
+    const rankingRequest = api.global.getIndexRank()
+      .then((rows) => ({ rows, error: null }))
+      .catch((error) => ({ rows: [], error }));
 
     try {
       const tickers = ["^GSPC", "^IXIC", "^FTSE", "^N225"];
@@ -268,7 +271,9 @@
     const coverage = document.querySelector(".mh-sectors");
 
     try {
-      const rows = await api.global.getIndexRank();
+      const rankingResult = await rankingRequest;
+      if (rankingResult.error) throw rankingResult.error;
+      const rows = rankingResult.rows;
       const rankedIndices = Array.isArray(rows)
         ? rows.map(normalizeIndexQuote).filter((item) => item.ticker || item.name)
         : [];
