@@ -455,10 +455,6 @@ def page_equity():
               <h2 class="page-head__title">Equity Funds</h2>
               <p class="page-head__sub">Core vs satellite equity sleeves with AI rebalancing signals.</p>
             </div>
-            <div class="toolbar">
-              <button type="button" class="btn-outline">Export Report</button>
-              <button type="button" class="btn-outline">Rebalance</button>
-            </div>
           </header>
           <div class="kpi-row eq-kpis">
             <div class="kpi-card"><p class="kpi-card__label">Total Equity Value</p><p class="kpi-card__value">$1,420,582.40</p><p class="kpi-card__hint">+12.4% MTD</p></div>
@@ -646,10 +642,6 @@ def page_debt():
             <div>
               <h2 class="page-head__title">Debt Portfolio</h2>
               <p class="page-head__sub">Strategic yield optimization and risk exposure management.</p>
-            </div>
-            <div class="toolbar">
-              <button type="button" class="btn-outline">Export Report</button>
-              <button type="button" class="btn-outline">Rebalance Assets</button>
             </div>
           </header>
           <div class="kpi-row">
