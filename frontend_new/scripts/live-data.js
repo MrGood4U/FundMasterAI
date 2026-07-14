@@ -525,24 +525,39 @@
   function latestMacroRow(rows) {
     if (!Array.isArray(rows) || !rows.length) return null;
     return rows.slice().sort((a, b) => {
-      const ad = Date.parse(pick(a, ["date", "month", "月份", "统计时间"], ""));
-      const bd = Date.parse(pick(b, ["date", "month", "月份", "统计时间"], ""));
-      return (Number.isNaN(bd) ? 0 : bd) - (Number.isNaN(ad) ? 0 : ad);
+      const macroDateRank = (row) => {
+        const raw = text(pick(row, ["date", "month", "quarter", "月份", "季度", "统计时间"], ""), "");
+        const parsed = Date.parse(raw);
+        if (!Number.isNaN(parsed)) return parsed;
+        const parts = raw.match(/(\d{4})\D*(\d{1,2})?/);
+        if (!parts) return 0;
+        const year = Number(parts[1]);
+        const period = Number(parts[2] || 1);
+        return year * 100 + period;
+      };
+      return macroDateRank(b) - macroDateRank(a);
     })[0];
+  }
+
+  function macroActual(row, keys, suffix = "") {
+    const value = pick(row, keys, null);
+    if (value === null || value === undefined || value === "") return "--";
+    const rendered = text(value);
+    return suffix && !rendered.includes(suffix) ? `${rendered}${suffix}` : rendered;
   }
 
   function renderMacroCalendar(rows) {
     const header = document.querySelector(".cal-header__date");
     const list = document.querySelector(".cal-list");
     if (!list) return;
-    if (header) header.textContent = "Latest macro data";
-    const visible = rows.filter((item) => item && item.row).slice(0, 3);
+    if (header) header.textContent = "Latest released data";
+    const visible = rows.filter((item) => item && item.row).slice(0, 4);
     if (!visible.length) {
       list.innerHTML = '<li class="cal-row"><div class="cal-row__main"><div class="cal-row__info"><span class="cal-row__title">No macro data returned</span></div></div></li>';
       return;
     }
     list.innerHTML = visible.map((item, index) => {
-      const date = pick(item.row, ["date", "month", "月份", "统计时间"], "Latest");
+      const date = pick(item.row, ["date", "month", "quarter", "月份", "季度", "统计时间"], "Latest");
       return `<li class="cal-row ${index ? "cal-row--border" : ""}">
         <div class="cal-row__main">
           <time class="cal-time">${escapeHtml(text(date).slice(0, 10))}</time>
@@ -563,20 +578,28 @@
     const needsMacro = document.querySelector(".cal-list");
     if (!needsMacro) return;
 
-    const [cpiData, pmiData, oilData] = await Promise.allSettled([
-      api.macro.getData({ country: "usa", indicator: "core_cpi_monthly" }),
-      api.macro.getData({ country: "china", indicator: "pmi" }),
-      api.macro.getData({ country: "usa", indicator: "eia_crude_rate" }),
-    ]);
-
-    const cpi = cpiData.status === "fulfilled" ? latestMacroRow(cpiData.value) : null;
-    const pmi = pmiData.status === "fulfilled" ? latestMacroRow(pmiData.value) : null;
-    const oil = oilData.status === "fulfilled" ? latestMacroRow(oilData.value) : null;
-    renderMacroCalendar([
-      { title: "US Core CPI (MoM)", row: cpi, actual: pick(cpi, ["value", "core_cpi_monthly", "核心CPI月率", "actual"], "--"), importance: 3 },
-      { title: "China Manufacturing PMI", row: pmi, actual: pick(pmi, ["manufacturing_index", "制造业-指数", "value"], "--"), importance: 2 },
-      { title: "US EIA Crude Inventory", row: oil, actual: pick(oil, ["value", "eia_crude_rate", "库存", "actual"], "--"), importance: 2 },
-    ]);
+    const candidates = [
+      { indicator: "pmi", title: "China Manufacturing PMI", keys: ["manufacturing_index", "制造业-指数", "value"], suffix: "", importance: 3 },
+      { indicator: "cpi", title: "China CPI (YoY)", keys: ["national_yoy", "全国-同比增长", "value"], suffix: "%", importance: 3 },
+      { indicator: "ppi", title: "China PPI (YoY)", keys: ["ppi_yoy", "当月-同比增长", "value"], suffix: "%", importance: 2 },
+      { indicator: "money_supply", title: "China M2 (YoY)", keys: ["m2_yoy", "货币和准货币(M2)-同比增长", "value"], suffix: "%", importance: 2 },
+      { indicator: "lpr", title: "China 1Y LPR", keys: ["lpr_1y", "1年期", "value"], suffix: "%", importance: 2 },
+      { indicator: "gdp", title: "China GDP (YoY)", keys: ["gdp_yoy", "国内生产总值-同比增长", "value"], suffix: "%", importance: 3 },
+    ];
+    const results = await Promise.allSettled(
+      candidates.map((item) => api.macro.getData({ country: "china", indicator: item.indicator }))
+    );
+    const observations = candidates.map((item, index) => {
+      const result = results[index];
+      const row = result.status === "fulfilled" ? latestMacroRow(result.value) : null;
+      return {
+        title: item.title,
+        row,
+        actual: macroActual(row, item.keys, item.suffix),
+        importance: item.importance,
+      };
+    });
+    renderMacroCalendar(observations);
   }
 
   function renderFundHeader(record) {

@@ -315,11 +315,6 @@
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--accent-cyan);
-  text-decoration: none;
-}
-
-.cal-header__link:hover {
-  text-decoration: underline;
 }
 
 .cal-list {
