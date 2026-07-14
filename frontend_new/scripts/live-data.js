@@ -442,8 +442,8 @@
       if (list.length && api.ai?.summarizeNews) {
         try {
           analysis = await api.ai.summarizeNews({
-            items: orderedRows,
-            max_items: 10,
+            items: list,
+            max_items: list.length,
           });
         } catch (error) {
           console.warn("News AI summary unavailable:", error.message);

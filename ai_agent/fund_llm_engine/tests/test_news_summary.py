@@ -153,10 +153,11 @@ class RunNewsSummaryTest(unittest.TestCase):
 
         items = normalize_news_items(backend_style_rows())
         system_prompt, _ = _build_summary_prompts(items, classify_news_items(items), "300059")
-        self.assertIn("never convert Chinese units", system_prompt)
+        self.assertIn("Translate Chinese numeric units", system_prompt)
+        self.assertIn("do not leave Chinese unit", system_prompt)
 
-    def test_chinese_unit_conversion_triggers_retry(self):
-        class ConvertedThenPreservedClient:
+    def test_chinese_unit_in_english_summary_triggers_retry(self):
+        class PreservedThenConvertedClient:
             is_mock = False
 
             def __init__(self):
@@ -166,13 +167,13 @@ class RunNewsSummaryTest(unittest.TestCase):
                 self.calls.append(user_prompt)
                 if len(self.calls) == 1:
                     return (
-                        "The latest report showed an outflow of 412.75 billion yuan, while the "
+                        "The latest report showed an outflow of 412.75亿元, while the "
                         "remaining headlines were broadly neutral and offered limited direction. "
                         "Investors should treat the news flow as a secondary signal and continue "
                         "monitoring subsequent company disclosures and market activity."
                     )
                 return (
-                    "The latest report showed an outflow of 412.75亿元, while the remaining "
+                    "The latest report showed an outflow of 41.275 billion yuan, while the remaining "
                     "headlines were broadly neutral and offered limited direction. Investors "
                     "should treat the news flow as a secondary signal and continue monitoring "
                     "subsequent company disclosures and market activity."
@@ -181,14 +182,35 @@ class RunNewsSummaryTest(unittest.TestCase):
         rows = backend_style_rows() + [
             {"news_title": "主力资金净流出412.75亿元", "news_content": "市场资金流出。"}
         ]
-        client = ConvertedThenPreservedClient()
+        client = PreservedThenConvertedClient()
         result = run_news_summary(rows, client, symbol="300059")
 
         self.assertEqual(len(client.calls), 2)
         self.assertEqual(result["metadata"]["unit_retry"], "true")
         self.assertEqual(result["metadata"]["summary_source"], "llm")
-        self.assertIn("412.75亿元", result["summary"])
-        self.assertNotIn("billion", result["summary"])
+        self.assertIn("41.275 billion yuan", result["summary"])
+        self.assertNotIn("亿元", result["summary"])
+
+    def test_persistent_chinese_unit_is_normalized_after_retry(self):
+        class AlwaysPreservesUnitClient:
+            is_mock = False
+
+            def chat(self, system_prompt, user_prompt, **kwargs):
+                return (
+                    "The company reported net profit of 233.43亿元, setting a new record for the "
+                    "period while the broader batch of headlines remained mixed and investors "
+                    "continued monitoring subsequent company disclosures and market activity."
+                )
+
+        rows = backend_style_rows() + [
+            {"news_title": "净利润233.43亿元", "news_content": "公司发布中期业绩。"}
+        ]
+        result = run_news_summary(rows, AlwaysPreservesUnitClient(), symbol="600030")
+
+        self.assertEqual(result["metadata"]["unit_retry"], "true")
+        self.assertEqual(result["metadata"]["summary_source"], "llm")
+        self.assertIn("23.343 billion yuan", result["summary"])
+        self.assertNotIn("亿元", result["summary"])
 
     def test_chinese_answer_triggers_english_retry(self):
         class ChineseThenEnglishClient:

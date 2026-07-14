@@ -14,6 +14,7 @@ publish_time 等中英文字段都能识别），前端拿到新闻后原样转�
 from __future__ import annotations
 
 import re
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 
 from fund_llm import config
@@ -34,8 +35,9 @@ _CONTENT_KEYS = ("content", "summary", "news_content", "新闻内容", "内容",
 _TIME_KEYS = ("published_at", "publish_time", "announcement_date", "发布时间", "时间", "date")
 _SOURCE_KEYS = ("source", "文章来源", "来源")
 
-_CHINESE_NUMBER_UNIT_RE = re.compile(r"\d[\d,.]*\s*(?:万亿元|亿元|万|亿)")
-_TRANSLATED_SCALE_RE = re.compile(r"\b(?:million|billion|trillion)\b", re.IGNORECASE)
+_CHINESE_NUMBER_UNIT_RE = re.compile(
+    r"(?P<number>\d[\d,]*(?:\.\d+)?)\s*(?P<unit>万亿元|亿元|万元|亿|万)"
+)
 
 
 def _first_text(row: Dict[str, Any], keys) -> str:
@@ -152,18 +154,43 @@ def _build_deterministic_summary(
     return " ".join(parts)
 
 
-def _converts_chinese_number_units(items: List[Dict[str, str]], summary: str) -> bool:
-    """Reject model-side 万/亿 conversions, which are easy to mistranslate by 10x."""
-    source_text = " ".join(
-        part
-        for item in items
-        for part in (item.get("title", ""), item.get("content", ""))
-        if part
-    )
-    return bool(
-        _CHINESE_NUMBER_UNIT_RE.search(source_text)
-        and _TRANSLATED_SCALE_RE.search(summary or "")
-    )
+def _contains_chinese_number_units(summary: str) -> bool:
+    return bool(_CHINESE_NUMBER_UNIT_RE.search(summary or ""))
+
+
+def _format_decimal(value: Decimal, *, comma: bool = False) -> str:
+    rendered = format(value, "f")
+    if "." in rendered:
+        rendered = rendered.rstrip("0").rstrip(".")
+    if not rendered:
+        rendered = "0"
+    if comma and "." not in rendered:
+        return f"{int(rendered):,}"
+    return rendered
+
+
+def _translate_chinese_number_units(summary: str) -> str:
+    """Remove abrupt Chinese scale units from an otherwise English digest."""
+
+    def replace(match: re.Match) -> str:
+        try:
+            value = Decimal(match.group("number").replace(",", ""))
+        except InvalidOperation:
+            return match.group(0)
+
+        unit = match.group("unit")
+        if unit == "万亿元":
+            return f"{_format_decimal(value)} trillion yuan"
+        if unit == "亿元":
+            return f"{_format_decimal(value / Decimal('10'))} billion yuan"
+        if unit == "万元":
+            return f"{_format_decimal(value * Decimal('10000'), comma=True)} yuan"
+        if unit == "亿":
+            return f"{_format_decimal(value * Decimal('100'))} million"
+        return _format_decimal(value * Decimal("10000"), comma=True)
+
+    translated = _CHINESE_NUMBER_UNIT_RE.sub(replace, summary or "")
+    return re.sub(r"\s{2,}", " ", translated.replace("人民币", "RMB ")).strip()
 
 
 def _build_summary_prompts(
@@ -179,8 +206,9 @@ def _build_summary_prompts(
     system_prompt = (
         "You are a financial news summarizer. Write a concise digest of the provided news items only. "
         "Respond in English only, even though headlines may be Chinese. "
-        "Preserve every numeric value and its original unit exactly as written; never convert Chinese "
-        "units such as 万, 亿, 亿元, or 万亿元 into million, billion, or trillion. "
+        "Translate Chinese numeric units such as 万, 亿, 亿元, or 万亿元 into natural English "
+        "amounts such as thousand, million, billion, or trillion; do not leave Chinese unit "
+        "characters inside the English digest. "
         "Each item is pre-labeled with a deterministic sentiment tag; do not re-score them. "
         "Do not invent facts, price targets, or ticker symbols that are not in the items. "
         "Keep the summary under 120 words and end with a complete sentence."
@@ -261,30 +289,31 @@ def run_news_summary(
 
     if summary and not getattr(llm_client, "is_mock", False):
         language_retry = _summary_looks_incomplete(summary)
-        unit_retry = _converts_chinese_number_units(items, summary)
+        unit_retry = _contains_chinese_number_units(summary)
 
     if summary and (language_retry or unit_retry):
-        # 中文新闻摘要有两类高风险输出：模型改用中文，或把“亿元”等单位换算错。
-        # 统一做一次显式纠偏重试；仍不合格就回退到不改写数值的确定性摘要。
+        # Keep the digest English and avoid a Chinese unit appearing abruptly inside it.
         try:
             summary = llm_client.chat(
                 system_prompt,
                 user_prompt
                 + "\n\nIMPORTANT: Your answer MUST be written in English only. "
                 "Do not answer in Chinese; translate the key facts into English. "
-                "Keep numeric values and Chinese units exactly as provided. Never convert 万, 亿, "
-                "亿元, or 万亿元 into million, billion, or trillion.",
+                "Translate 万, 亿, 亿元, and 万亿元 into readable English-scale amounts. "
+                "Do not leave Chinese numeric-unit characters in the answer.",
                 max_tokens=700,
             )
         except Exception:
             summary = ""
-        if _summary_looks_incomplete(summary) or _converts_chinese_number_units(items, summary):
+        if _summary_looks_incomplete(summary):
             summary = ""
             summary_source = "deterministic_fallback"
 
     if not summary:
         summary = _build_deterministic_summary(items, sentiment, symbol)
         summary_source = "deterministic_fallback"
+
+    summary = _translate_chinese_number_units(summary)
 
     item_signals = sentiment.pop("item_signals")
     metadata = {
