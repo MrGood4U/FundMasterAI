@@ -54,6 +54,11 @@
   const postMarket = (path, body = {}) => request(config.marketBaseUrl, path, { method: "POST", body });
   const publicFund = {
     getOneRealTime: (body = {}) => postMarket("/api/market/fund_public/real_time_get_one", body),
+    getAllRealTime: (body = {}) => request(config.marketBaseUrl, "/api/market/fund_public/real_time_get_all", {
+      method: "POST",
+      body,
+      timeout: 180000,
+    }),
     getRank: (body = {}) => postMarket("/api/market/fund_public/rank", { order_by: "change_1y", ...body }),
     getHist: (body = {}) => postMarket("/api/market/fund_public/hist", body),
     getBasicInfo: (code) => postMarket("/api/market/fund_public/individual_basic_info", { code }),
