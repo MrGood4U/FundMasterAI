@@ -98,15 +98,10 @@ def topbar(placeholder: str, input_id: str = "q") -> str:
       </header>"""
 
 
-def doc_shell(title: str, extra_css: list[str], active_href: str, placeholder: str, body: str, fab: bool = True, input_id: str = "q", extra_scripts: list[str] | None = None) -> str:
+def doc_shell(title: str, extra_css: list[str], active_href: str, placeholder: str, body: str, input_id: str = "q", extra_scripts: list[str] | None = None) -> str:
     links = "\n    ".join(f'<link rel="stylesheet" href="{c}" />' for c in ["css/shell.css", *extra_css])
     scripts = "\n    ".join(f'<script src="{s}?v={ASSET_VERSION}"></script>' for s in (extra_scripts or []))
     script_block = f"\n    {scripts}" if scripts else ""
-    fab_html = (
-        '\n        <button type="button" class="fab" aria-label="快捷操作"><span class="fab__plus" aria-hidden="true">+</span></button>'
-        if fab
-        else ""
-    )
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
   <head>
@@ -124,7 +119,6 @@ def doc_shell(title: str, extra_css: list[str], active_href: str, placeholder: s
       <div class="main-shell">
 {topbar(placeholder, input_id)}
 {body}
-{fab_html}
       </div>
     </div>{script_block}
   </body>
@@ -438,7 +432,6 @@ def page_market_flow():
         "market-hub.html",
         "Search funds...",
         body,
-        fab=False,
         extra_scripts=["scripts/api.js", "scripts/dashboard-data.js"],
     )
     (ROOT / "market-flow.html").write_text(html, encoding="utf-8")
@@ -510,7 +503,6 @@ def page_equity():
         "portfolio-overview.html",
         "Search markets or funds...",
         body,
-        fab=False,
         input_id="eq-q",
         extra_scripts=["scripts/api.js", "scripts/dashboard-data.js"],
     )
@@ -568,7 +560,6 @@ def page_global():
         "global-investment.html",
         "Search markets or funds...",
         body,
-        fab=False,
         input_id="gi-q",
         extra_scripts=["scripts/api.js", "scripts/dashboard-data.js"],
     )
@@ -625,7 +616,6 @@ def page_portfolio():
         "portfolio-overview.html",
         "Search markets or funds...",
         body,
-        fab=True,
         input_id="po-q",
         extra_scripts=["scripts/api.js", "scripts/dashboard-data.js"],
     )
@@ -688,7 +678,6 @@ def page_debt():
         "portfolio-overview.html",
         "Search markets or funds...",
         body,
-        fab=False,
         input_id="de-q",
         extra_scripts=["scripts/api.js", "scripts/dashboard-data.js"],
     )
@@ -731,7 +720,6 @@ def page_settings():
         "settings.html",
         "Search funds...",
         body,
-        fab=False,
         input_id="st-q",
         extra_scripts=["scripts/api.js", "scripts/dashboard-data.js"],
     )
