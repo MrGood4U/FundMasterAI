@@ -69,6 +69,13 @@
     return `${sign}${n.toFixed(2)}%`;
   }
 
+  function formatMarketValue(value) {
+    if (value === null || value === undefined || value === "") return "--";
+    const n = Number(String(value ?? "").replace(/,/g, ""));
+    if (!Number.isFinite(n)) return "--";
+    return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+
   function setStatus(target, message, isError = false) {
     const node = typeof target === "string" ? document.querySelector(target) : target;
     if (!node) return;
@@ -76,22 +83,31 @@
     node.classList.toggle("api-status--error", isError);
   }
 
-  function renderMarketHeatmap(rows) {
+  function normalizeIndexQuote(item) {
+    return {
+      ticker: pick(item, ["ticker", "symbol", "stock_code", "代码"], ""),
+      name: pick(item, ["name", "short_name", "stock_name", "名称"], "Global Index"),
+      region: pick(item, ["region", "地区"], ""),
+      price: pick(item, ["price", "last_price", "latest_price", "最新价", "现价"], null),
+      change_pct: numberValue(pick(item, ["change_pct", "changePercent", "percent_change", "涨跌幅", "涨幅"], 0)),
+    };
+  }
+
+  function renderMarketPerformance(rows) {
     const heat = document.querySelector("[data-market-heat]");
     if (!heat || !rows.length) return;
 
     const topRows = rows
-      .filter((item) => pick(item, ["stock_code", "stock_name", "代码", "名称"]))
-      .slice(0, 12);
+      .map(normalizeIndexQuote)
+      .filter((item) => item.ticker || item.name)
+      .sort((a, b) => b.change_pct - a.change_pct)
+      .slice(0, 16);
 
     heat.innerHTML = topRows
       .map((item) => {
-        const code = pick(item, ["stock_code", "代码", "symbol"], "");
-        const name = pick(item, ["stock_name", "名称", "name"], "");
-        const change = pick(item, ["change_pct", "涨跌幅", "涨幅", "change"], 0);
-        const positive = numberValue(change) >= 0;
-        const price = pick(item, ["latest_price", "最新价", "现价", "price"], "");
-        return `<div class="mh-cell ${positive ? "pos" : "neg"}"><span>${escapeHtml(code)}</span><em>${formatPercent(change)}</em><small>${escapeHtml(name)} ${price ? "· " + escapeHtml(price) : ""}</small></div>`;
+        const positive = item.change_pct >= 0;
+        const details = [item.name, item.region].filter(Boolean).join(" · ");
+        return `<div class="mh-cell ${positive ? "pos" : "neg"}"><span>${escapeHtml(item.ticker)}</span><em>${formatPercent(item.change_pct)}</em><small>${escapeHtml(details)} · ${escapeHtml(formatMarketValue(item.price))}</small></div>`;
       })
       .join("");
   }
@@ -101,24 +117,24 @@
     if (!movers || !rows.length) return;
 
     const sorted = rows
-      .filter((item) => pick(item, ["stock_name", "stock_code", "名称", "代码"]) !== undefined)
-      .slice()
-      .sort((a, b) => numberValue(pick(b, ["change_pct", "涨跌幅"], 0)) - numberValue(pick(a, ["change_pct", "涨跌幅"], 0)));
+      .map(normalizeIndexQuote)
+      .filter((item) => item.ticker || item.name)
+      .sort((a, b) => b.change_pct - a.change_pct);
 
-    const gainers = sorted.slice(0, 5);
-    const decliners = sorted.slice(-5).reverse();
+    const gainers = sorted.filter((item) => item.change_pct > 0).slice(0, 5);
+    const decliners = sorted
+      .filter((item) => item.change_pct < 0)
+      .sort((a, b) => a.change_pct - b.change_pct)
+      .slice(0, 5);
 
-    function renderList(items, cls) {
-      return `<ul>${items
-        .map((item) => {
-          const name = pick(item, ["stock_name", "stock_code", "名称", "代码"], "Unknown");
-          const change = pick(item, ["change_pct", "涨跌幅"], 0);
-          return `<li class="${cls}">${escapeHtml(name)} ${formatPercent(change)}</li>`;
-        })
-        .join("")}</ul>`;
+    function renderList(title, items, cls, emptyMessage) {
+      const body = items.length
+        ? `<ul>${items.map((item) => `<li class="${cls}"><span>${escapeHtml(item.name)}</span><strong>${formatPercent(item.change_pct)}</strong></li>`).join("")}</ul>`
+        : `<p class="data-unavailable">${escapeHtml(emptyMessage)}</p>`;
+      return `<section class="mh-mover-group"><h4>${escapeHtml(title)}</h4>${body}</section>`;
     }
 
-    movers.innerHTML = `${renderList(gainers, "pos")}${renderList(decliners, "neg")}`;
+    movers.innerHTML = `${renderList("Top Gainers", gainers, "pos", "No advancing indices in the current universe.")}${renderList("Top Decliners", decliners, "neg", "No declining indices in the current universe.")}`;
   }
 
   async function loadMarketHub() {
@@ -126,6 +142,9 @@
     if (!root) return;
 
     setStatus("[data-api-status='market']", "Connecting to market backend...");
+    let quoteCount = 0;
+    let quoteError = null;
+
     try {
       const tickers = ["^GSPC", "^IXIC", "^FTSE", "^N225"];
       const rows = await api.global.getIndexQuotesFromList(tickers);
@@ -151,24 +170,8 @@
       const quotes = tickers
         .map((ticker, index) => batchByTicker.get(ticker) || detailByTicker.get(ticker) || batchQuotes[index] || null)
         .filter(Boolean);
-      if (!quotes.length) {
-        document.querySelectorAll(".mh-indices .mh-index").forEach((card) => {
-          const price = card.querySelector(".mh-index__v");
-          const percent = card.querySelector(".mh-index__p");
-          if (price) price.textContent = "--";
-          if (percent) percent.textContent = "--";
-        });
-        const heat = document.querySelector("[data-market-heat]");
-        const movers = document.querySelector("[data-market-movers]");
-        const coverage = document.querySelector(".mh-sectors");
-        const clock = document.querySelector(".mh-clock__time");
-        if (heat) heat.innerHTML = '<p class="muted">No global index data returned.</p>';
-        if (movers) movers.innerHTML = '<p class="muted">No mover data returned.</p>';
-        if (coverage) coverage.innerHTML = '<span>No verified index coverage returned</span>';
-        if (clock) clock.textContent = "Unavailable";
-        setStatus("[data-api-status='market']", "Global index APIs returned no data", true);
-        return;
-      }
+      if (!quotes.length) throw new Error("Major index API returned no data");
+      quoteCount = quotes.length;
       document.querySelectorAll(".mh-indices .mh-index").forEach((card, index) => {
         const quote = quotes[index];
         if (!quote) return;
@@ -186,28 +189,10 @@
           percent.classList.toggle("neg", numberValue(change) < 0);
         }
       });
-      renderMarketHeatmap(quotes.map((quote) => ({
-        stock_code: pick(quote, ["ticker"], ""),
-        stock_name: pick(quote, ["name", "region"], ""),
-        latest_price: pick(quote, ["price", "last_price"], ""),
-        change_pct: pick(quote, ["change_pct", "changePercent"], 0),
-      })));
-      renderMarketMovers(quotes.map((quote) => ({
-        stock_name: pick(quote, ["name", "ticker"], "Global Index"),
-        change_pct: pick(quote, ["change_pct", "changePercent"], 0),
-      })));
-      const legend = document.querySelector(".mh-legend__vol");
-      const coverage = document.querySelector(".mh-sectors");
       const clock = document.querySelector(".mh-clock__time");
-      if (legend) legend.textContent = `${quotes.length} live quotes`;
-      if (coverage) coverage.innerHTML = `<span>${quotes.length} verified indices</span><span>Not a stock-level heatmap</span>`;
       if (clock) clock.textContent = "Live";
-      setStatus(
-        "[data-api-status='market']",
-        `Global index API live · ${quotes.length} quotes`,
-        false
-      );
     } catch (error) {
+      quoteError = error;
       document.querySelectorAll(".mh-indices .mh-index").forEach((card) => {
         const price = card.querySelector(".mh-index__v");
         const percent = card.querySelector(".mh-index__p");
@@ -217,13 +202,47 @@
           percent.className = "mh-index__p muted";
         }
       });
+      const clock = document.querySelector(".mh-clock__time");
+      if (clock) clock.textContent = "Partial";
+    }
+
+    const heat = document.querySelector("[data-market-heat]");
+    const movers = document.querySelector("[data-market-movers]");
+    const legend = document.querySelector(".mh-legend__vol");
+    const coverage = document.querySelector(".mh-sectors");
+
+    try {
+      const rows = await api.global.getIndexRank();
+      const rankedIndices = Array.isArray(rows)
+        ? rows.map(normalizeIndexQuote).filter((item) => item.ticker || item.name)
+        : [];
+      if (!rankedIndices.length) throw new Error("Global index ranking returned no data");
+
+      renderMarketPerformance(rankedIndices);
+      renderMarketMovers(rankedIndices);
+      if (legend) legend.textContent = `${rankedIndices.length} live quotes`;
+      if (coverage) coverage.innerHTML = `<span>${rankedIndices.length} verified indices</span><span>Daily change ranking</span>`;
+      setStatus(
+        "[data-api-status='market']",
+        quoteCount
+          ? `${quoteCount} major index quotes · ${rankedIndices.length}-index ranking live`
+          : `${rankedIndices.length}-index ranking live · major quote cards unavailable`,
+        !quoteCount
+      );
+    } catch (error) {
       const heat = document.querySelector("[data-market-heat]");
       const movers = document.querySelector("[data-market-movers]");
-      const clock = document.querySelector(".mh-clock__time");
-      if (heat) heat.innerHTML = '<div class="data-loading-state">Global index data is unavailable.</div>';
-      if (movers) movers.innerHTML = '<div class="data-loading-state data-loading-state--compact">No verified index movers available.</div>';
-      if (clock) clock.textContent = "Unavailable";
-      setStatus("[data-api-status='market']", `Market backend unavailable: ${error.message}`, true);
+      if (heat) heat.innerHTML = '<div class="data-loading-state">Global index ranking is unavailable.</div>';
+      if (movers) movers.innerHTML = '<div class="data-loading-state data-loading-state--compact">No verified global index movers available.</div>';
+      if (legend) legend.textContent = "Ranking unavailable";
+      if (coverage) coverage.innerHTML = '<span>Major quote cards remain independent</span>';
+      setStatus(
+        "[data-api-status='market']",
+        quoteCount
+          ? `${quoteCount} major index quotes live · global ranking unavailable`
+          : `Market data unavailable: ${quoteError?.message || error.message}`,
+        true
+      );
     }
   }
 

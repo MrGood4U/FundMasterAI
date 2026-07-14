@@ -95,6 +95,7 @@
       getIndexQuotesFromList: (tickers) => request(config.marketBaseUrl, "/api/market/global/index/quotes", { method: "POST", body: { tickers }, timeout: 90000 }),
       getIndexInfo: (ticker) => request(config.marketBaseUrl, "/api/market/global/index/info", { method: "POST", body: { ticker }, timeout: 60000 }),
       getIndexHist: (ticker, options = {}) => request(config.marketBaseUrl, "/api/market/global/index/hist", { method: "POST", body: { ticker, ...options }, timeout: 90000 }),
+      getIndexRank: () => request(config.marketBaseUrl, "/api/market/global/index/rank", { method: "POST", body: {}, timeout: 90000 }),
       getIndexList: () => postMarket("/api/market/global/index/list", {}),
       getExchangeRate: (fromCurrency, toCurrency) => postMarket("/api/market/global/exchange_rate/rate", { from_currency: fromCurrency, to_currency: toCurrency }),
       getExchangeRateHistory: (fromCurrency, toCurrency, queryDate) => postMarket("/api/market/global/exchange_rate/history", { from_currency: fromCurrency, to_currency: toCurrency, query_date: queryDate }),
