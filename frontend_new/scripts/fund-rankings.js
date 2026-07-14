@@ -415,6 +415,11 @@
     return `¥${n.toLocaleString("zh-CN", { maximumFractionDigits: 2 })}`;
   }
 
+  function formatNav(value) {
+    const nav = optionalNumberValue(value);
+    return nav !== null && nav > 0 ? nav.toFixed(4) : "--";
+  }
+
   function histPoint(record) {
     const value = numberValue(pick(record, ["unit_net_value", "accumulated_net_value", "单位净值", "累计净值", "close", "净值"]));
     const date = parseDate(pick(record, ["date", "净值日期", "日期"], ""));
@@ -534,6 +539,7 @@
         weightedMaturity: String(pick(record, ["weightedMaturity", "duration", "久期"], "--")),
         risk: String(pick(record, ["risk", "rating", "评级"], "--")),
         aum: String(pick(record, ["aum", "规模"], "--")),
+        latestValue: String(pick(record, ["unit_net_value", "latestValue", "单位净值"], "--")),
         riskMix: [],
         stableYield: "--",
         highYield: "--",
@@ -657,8 +663,8 @@
   }
 
   function renderCard(root, item, type) {
-    const extraLabel = type === "debt" ? "Duration / Rating" : "Volatility";
-    const extraValue = type === "debt" ? `${item.duration} · ${item.rating}` : item.volatility;
+    const extraLabel = type === "debt" ? "Latest NAV" : "Volatility";
+    const extraValue = type === "debt" ? formatNav(item.latestValue) : item.volatility;
 
     root.innerHTML = `
       <div class="ranking-detail__head">
