@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="css/shell.css" />
     <link rel="stylesheet" href="css/dashboard-widgets.css" />
-    <link rel="stylesheet" href="css/page-settings.css?v=20260714-1" />
+    <link rel="stylesheet" href="css/page-settings.css" />
   </head>
   <body>
     <div class="app">
@@ -109,8 +109,8 @@
           </div>
           <section class="glass-panel">
             <h3 class="section-head__title section-head__title--compact">Security</h3>
-            <p class="muted">Two-factor authentication recommended for trading-enabled accounts. These demo controls are stored in this browser only.</p>
-            <div class="toolbar"><button type="button" class="btn-outline" data-2fa-action>Enable 2FA</button><button type="button" class="btn-outline st-api-action" data-rotate-api>Rotate API keys</button></div>
+            <p class="muted">Two-factor authentication recommended for trading-enabled accounts. This demo control is stored in this browser only.</p>
+            <div class="toolbar"><button type="button" class="btn-outline" data-2fa-action>Enable 2FA</button></div>
           </section>
         </main>
 
@@ -167,36 +167,6 @@
             }
           });
         }
-
-
-        const rotateKeyBtn = document.querySelector('[data-rotate-api]');
-        
-        if (rotateKeyBtn) {
-          rotateKeyBtn.addEventListener('click', () => {
-            if (rotateKeyBtn.disabled) return;
-
-            rotateKeyBtn.disabled = true;
-            rotateKeyBtn.classList.add('st-api-action--busy');
-            rotateKeyBtn.textContent = 'Rotating demo key…';
-
-            setTimeout(() => {
-              const newKey = 'fm_demo_' + Math.random().toString(36).substring(2, 15);
-              localStorage.setItem('fundmaster_api_key', newKey);
-              rotateKeyBtn.classList.remove('st-api-action--busy');
-              rotateKeyBtn.classList.add('st-api-action--complete');
-              rotateKeyBtn.textContent = 'Demo key rotated';
-              showToast('Demo API key rotated locally. No server credentials were changed.');
-
-              setTimeout(() => {
-                rotateKeyBtn.disabled = false;
-                rotateKeyBtn.classList.remove('st-api-action--complete');
-                rotateKeyBtn.textContent = 'Rotate API keys';
-              }, 1400);
-            }, 650);
-          });
-        }
-
-
         function showToast(message, type = 'success') {
           const toast = document.createElement('div');
           toast.style.cssText = `
