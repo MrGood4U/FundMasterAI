@@ -50,6 +50,12 @@
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
+  function booleanValue(value) {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value === 1;
+    return String(value || "").trim().toLowerCase() === "true";
+  }
+
   function formatPercent(value) {
     const n = numberValue(value);
     const sign = n > 0 ? "+" : "";
@@ -277,7 +283,7 @@
       <h4 class="news-card__headline">${escapeHtml(title)}</h4>
       <p class="news-card__body">${escapeHtml(body || title)}</p>
       <div class="news-card__footer">
-        <span class="sentiment-pill sentiment-pill--${sentimentClass}"><span class="sentiment-pill__dot"></span>${sentimentLabel}${signal.risk_event ? " · RISK EVENT" : ""}</span>
+        <span class="sentiment-pill sentiment-pill--${sentimentClass}"><span class="sentiment-pill__dot"></span>${sentimentLabel}${booleanValue(signal.risk_event) ? " · RISK EVENT" : ""}</span>
         ${related ? `<span class="news-card__related">Related: ${escapeHtml(related)}</span>` : ""}
       </div>
     </article>`;
@@ -303,7 +309,7 @@
     if (filter === "all") return true;
     const content = `${newsTitle(item)} ${newsBody(item)}`.toLowerCase();
     if (filter === "breaking") {
-      return Boolean(signal?.risk_event)
+      return booleanValue(signal?.risk_event)
         || /breaking|latest|alert|risk|regulat|policy|fed|cpi|突发|最新|风险|监管|政策|加息|降息/.test(content);
     }
     if (filter === "earnings") {
