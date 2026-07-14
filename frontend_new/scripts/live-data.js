@@ -4,7 +4,7 @@
   const api = window.FundMasterAPI;
   if (!api) return;
 
-  const DEFAULT_STOCK_SYMBOL = "300059";
+  const NEWS_SYMBOL_STORAGE_KEY = "fundmaster.news.symbol";
   const DEFAULT_FUND_CODE = "510300";
 
   function text(value, fallback = "--") {
@@ -207,7 +207,33 @@
     }
   }
 
-  function newsCard(item, index, signal = {}, relatedSymbols = []) {
+  function normalizeStockSymbol(value) {
+    const symbol = text(value, "").trim();
+    return /^\d{6}$/.test(symbol) ? symbol : "";
+  }
+
+  function savedNewsSymbol() {
+    const querySymbol = normalizeStockSymbol(new URLSearchParams(window.location.search).get("symbol"));
+    if (querySymbol) return querySymbol;
+    try {
+      return normalizeStockSymbol(window.localStorage.getItem(NEWS_SYMBOL_STORAGE_KEY));
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function saveNewsSymbol(symbol) {
+    try {
+      window.localStorage.setItem(NEWS_SYMBOL_STORAGE_KEY, symbol);
+    } catch (error) {
+      // URL state still keeps the selected symbol usable when storage is blocked.
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set("symbol", symbol);
+    window.history.replaceState({}, "", url);
+  }
+
+  function newsCard(item, index, signal = {}, relatedSymbol = "") {
     const title = pick(item, ["news_title", "新闻标题", "标题", "title"], "Untitled market update");
     const body = pick(item, ["news_content", "新闻内容", "内容", "摘要", "summary"], "");
     const source = pick(item, ["文章来源", "来源", "source"], "MARKET NEWS");
@@ -217,7 +243,7 @@
     const sentiment = text(signal.sentiment, "neutral").toLowerCase();
     const sentimentClass = sentiment === "positive" ? "bull" : sentiment === "negative" ? "bear" : "neutral";
     const sentimentLabel = sentiment === "positive" ? "BULLISH" : sentiment === "negative" ? "BEARISH" : "NEUTRAL";
-    const related = Array.isArray(relatedSymbols) && relatedSymbols.length ? relatedSymbols.join(", ") : DEFAULT_STOCK_SYMBOL;
+    const related = normalizeStockSymbol(relatedSymbol);
 
     return `<article class="news-card ${hot ? "news-card--flash" : ""}">
       <div class="news-card__meta">
@@ -265,7 +291,7 @@
     return true;
   }
 
-  function renderNewsList(feed, items, analysis, filter = "all") {
+  function renderNewsList(feed, items, analysis, relatedSymbol, filter = "all") {
     const signals = Array.isArray(analysis?.item_signals) ? analysis.item_signals : [];
     const signalByTitle = new Map(signals.map((item) => [text(item.title, ""), item]));
     const rows = items
@@ -282,12 +308,12 @@
     }
 
     feed.innerHTML = rows
-      .map((entry, visibleIndex) => newsCard(entry.item, visibleIndex, entry.signal, analysis?.related_symbols || []))
+      .map((entry, visibleIndex) => newsCard(entry.item, visibleIndex, entry.signal, relatedSymbol))
       .join("");
     return rows.length;
   }
 
-  function setupNewsFilters(feed, items, analysis) {
+  function setupNewsFilters(feed, items, analysis, relatedSymbol) {
     const buttons = Array.from(document.querySelectorAll("#news .pill-group .pill"));
     if (!buttons.length) return;
 
@@ -295,15 +321,13 @@
       const filter = text(button.dataset.newsFilter || button.textContent, "all").trim().toLowerCase();
       buttons.forEach((item) => item.classList.add("pill--ghost"));
       button.classList.remove("pill--ghost");
-      const count = renderNewsList(feed, items, analysis, filter);
+      const count = renderNewsList(feed, items, analysis, relatedSymbol, filter);
       setStatus("[data-api-status='news']", `Live terminal · ${count} ${filter} news · AI ${analysis ? "ready" : "unavailable"}`, !analysis);
     };
 
     buttons.forEach((button) => {
-      if (button.dataset.newsFilterReady === "true") return;
-      button.dataset.newsFilterReady = "true";
       button.dataset.newsFilter = text(button.dataset.newsFilter || button.textContent, "all").trim().toLowerCase();
-      button.addEventListener("click", () => applyFilter(button));
+      button.onclick = () => applyFilter(button);
     });
 
     const active = buttons.find((button) => !button.classList.contains("pill--ghost")) || buttons[0];
@@ -404,13 +428,22 @@
     }
   }
 
-  async function loadNewsFeed() {
+  async function loadNewsFeed(symbol) {
     const feed = document.querySelector("[data-news-feed]");
     if (!feed) return;
 
-    setStatus("[data-api-status='news']", "Connecting to news backend...");
+    const selectedSymbol = normalizeStockSymbol(symbol);
+    if (!selectedSymbol) {
+      feed.innerHTML = '<div class="data-loading-state">Enter a valid six-digit A-share code above.</div>';
+      renderSectorSentiment([]);
+      renderAiSummary([], null);
+      setStatus("[data-api-status='news']", "Choose an A-share code to load verified news.");
+      return;
+    }
+
+    setStatus("[data-api-status='news']", `Loading verified news for ${selectedSymbol}...`);
     try {
-      const rows = await api.news.getStockRecentNews({ symbol: DEFAULT_STOCK_SYMBOL });
+      const rows = await api.news.getStockRecentNews({ symbol: selectedSymbol });
       const orderedRows = Array.isArray(rows)
         ? rows.slice().sort((left, right) => newsTimestamp(right) - newsTimestamp(left))
         : [];
@@ -419,7 +452,7 @@
       if (list.length && api.ai?.summarizeNews) {
         try {
           analysis = await api.ai.summarizeNews({
-            symbol: DEFAULT_STOCK_SYMBOL,
+            symbol: selectedSymbol,
             items: orderedRows,
             max_items: 10,
           });
@@ -428,21 +461,48 @@
         }
       }
       if (list.length) {
-        renderNewsList(feed, list, analysis, "all");
-        setupNewsFilters(feed, list, analysis);
+        renderNewsList(feed, list, analysis, selectedSymbol, "all");
+        setupNewsFilters(feed, list, analysis, selectedSymbol);
         renderNewsSectorSentiment(list, analysis);
       } else {
         feed.innerHTML = '<p class="muted">No live news returned from backend.</p>';
         renderSectorSentiment([]);
       }
       renderAiSummary(list, analysis);
-      setStatus("[data-api-status='news']", `Live terminal · ${list.length} news · AI ${analysis ? "ready" : "unavailable"}`, !analysis);
+      setStatus("[data-api-status='news']", `${selectedSymbol} · ${list.length} recent news · AI ${analysis ? "ready" : "unavailable"}`, !analysis);
     } catch (error) {
       feed.innerHTML = '<p class="muted">News backend unavailable.</p>';
       renderSectorSentiment([]);
       renderAiSummary([], null);
-      setStatus("[data-api-status='news']", `News backend unavailable: ${error.message}`, true);
+      setStatus("[data-api-status='news']", `${selectedSymbol} news unavailable: ${error.message}`, true);
     }
+  }
+
+  function initNewsFeed() {
+    const form = document.querySelector("[data-news-symbol-form]");
+    const input = document.querySelector("[data-news-symbol-input]");
+    if (!form || !input) return;
+
+    const initialSymbol = savedNewsSymbol();
+    if (initialSymbol) {
+      input.value = initialSymbol;
+      loadNewsFeed(initialSymbol);
+    } else {
+      loadNewsFeed("");
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const symbol = normalizeStockSymbol(input.value);
+      if (!symbol) {
+        input.setAttribute("aria-invalid", "true");
+        setStatus("[data-api-status='news']", "Enter a valid six-digit A-share stock code.", true);
+        return;
+      }
+      input.removeAttribute("aria-invalid");
+      saveNewsSymbol(symbol);
+      loadNewsFeed(symbol);
+    });
   }
 
   function sentimentLabel(score) {
@@ -716,7 +776,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     loadMarketHub();
-    loadNewsFeed();
+    initNewsFeed();
     loadFundDetail();
     loadHomeSidebars();
   });

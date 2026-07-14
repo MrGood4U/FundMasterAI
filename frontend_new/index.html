@@ -116,7 +116,7 @@
             <div class="page-head__text">
               <h2 id="page-title" class="page-head__title">Market Intelligence</h2>
               <p class="page-head__sub">
-                Real-time terminal sentiment and high-impact macro events.
+                Recent A-share company news, AI digest and verified macro observations.
               </p>
             </div>
             <div class="live-badge" role="status">
@@ -141,8 +141,26 @@
                 </div>
               </div>
 
-              <p class="news-card__source" data-api-status="news" role="status">Connecting to verified news source…</p>
-              <div data-news-feed><div class="data-loading-state">Loading verified market news…</div></div>
+              <form class="news-symbol-form" data-news-symbol-form>
+                <label class="news-symbol-form__label" for="news-symbol">A-share code</label>
+                <input
+                  id="news-symbol"
+                  class="news-symbol-form__input"
+                  data-news-symbol-input
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  maxlength="6"
+                  pattern="[0-9]{6}"
+                  placeholder="e.g. 600519"
+                  aria-describedby="news-symbol-help"
+                />
+                <button class="news-symbol-form__button" type="submit">Load News</button>
+                <span id="news-symbol-help" class="news-symbol-form__help">The backend currently provides recent news by individual stock code.</span>
+              </form>
+
+              <p class="news-card__source" data-api-status="news" role="status">Choose an A-share code to load verified news.</p>
+              <div data-news-feed><div class="data-loading-state">Enter a six-digit A-share code above.</div></div>
             </section>
 
             <!-- 右栏：板块情绪、宏观日历、AI 摘要 -->
@@ -213,7 +231,7 @@
     </div>
     <script src="scripts/config.js"></script>
     <script src="scripts/api.js"></script>
-    <script src="scripts/live-data.js?v=20260714-2"></script>
+    <script src="scripts/live-data.js?v=20260714-3"></script>
     <script src="scripts/search.js"></script>
     <script src="scripts/pro-upgrade.js"></script>
   </body>
