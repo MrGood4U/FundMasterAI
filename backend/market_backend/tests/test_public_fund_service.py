@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from unittest.mock import MagicMock
 import pandas as pd
@@ -51,6 +53,22 @@ class TestGetAllRealTime:
         # tonghuashun always fetches "all" to keep the shared cache complete,
         # then filters by fund_type client-side.
         service.akapi.real_time.assert_called_once_with("all", "tonghuashun")
+
+    def test_returns_strict_json_safe_records(self, service):
+        df = pd.DataFrame([{
+            "fund_code": "510050",
+            "main_net_inflow_amount": float("nan"),
+            "turnover": float("inf"),
+            "change_pct": float("-inf"),
+        }])
+        service.akapi.real_time = MagicMock(return_value=df)
+
+        result = service.get_all_real_time("eastmoney", "ETF")
+
+        assert result[0]["main_net_inflow_amount"] is None
+        assert result[0]["turnover"] is None
+        assert result[0]["change_pct"] is None
+        json.dumps(result, allow_nan=False)
 
 
 class TestGetHist:

@@ -61,6 +61,13 @@ def _filter_by_fund_type(df: "pd.DataFrame", platform: str, symbol: str) -> "pd.
     return df[df["fund_type"] == fund_type]
 
 
+def _json_safe_records(df: "pd.DataFrame") -> list[dict]:
+    """Return records that strict browser JSON parsers can consume."""
+    clean = df.replace([float("inf"), float("-inf")], float("nan"))
+    clean = clean.astype(object).where(pd.notna(clean), None)
+    return clean.to_dict(orient="records")
+
+
 class PublicFundService:
     def __init__(self):
         self.cache = CacheDao.from_config()
@@ -98,7 +105,7 @@ class PublicFundService:
         # 3. filter by fund_type (tonghuashun only)
         df = _filter_by_fund_type(df, platform, symbol)
 
-        data = df.to_dict(orient="records")
+        data = _json_safe_records(df)
         if code:
             result = [
                 item for item in data
@@ -145,8 +152,7 @@ class PublicFundService:
         # filter by fund_type (tonghuashun only — no-op for eastmoney)
         df = _filter_by_fund_type(df, platform, symbol)
 
-        df = df.where(pd.notna(df), None)
-        return df.to_dict(orient="records")
+        return _json_safe_records(df)
 
     # -- history / kline (not cached — per-fund, cheap) --------------------
 
