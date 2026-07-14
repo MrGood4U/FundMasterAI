@@ -4,6 +4,7 @@
   const PAGE_SIZE = 5;
   const api = window.FundMasterAPI;
   const equityCurveStates = new WeakMap();
+  const debtCurveStates = new WeakMap();
 
   const DATA = {
     equity: [
@@ -527,7 +528,14 @@
         weightedMaturity: String(pick(record, ["weightedMaturity", "duration", "久期"], "--")),
         risk: String(pick(record, ["risk", "rating", "评级"], "--")),
         aum: String(pick(record, ["aum", "规模"], "--")),
+        latestDate: String(pick(record, ["date", "latestDate", "净值日期"], "--")),
         latestValue: String(pick(record, ["unit_net_value", "latestValue", "单位净值"], "--")),
+        dailyReturn: sourcePercentToRatio(pick(record, ["daily_growth_rate", "日增长率", "dailyReturn"], null)),
+        oneMonthReturn: sourcePercentToRatio(pick(record, ["change_1m", "近1月", "近一月", "oneMonthReturn"], null)),
+        sixMonthReturn: sourcePercentToRatio(pick(record, ["change_6m", "近6月", "近六月", "sixMonthReturn"], null)),
+        ytdReturn: sourcePercentToRatio(pick(record, ["change_ytd", "今年来", "近今年", "ytdReturn"], null)),
+        history: [],
+        historyLoaded: false,
         riskMix: [],
         focus: "Backend ranking data",
         signal: "No AI recommendation returned by the backend.",
@@ -580,21 +588,6 @@
     }
   }
 
-  async function loadCurve(item) {
-    if (!api?.market?.getFundHist || !item.code) return [];
-    try {
-      const rows = await api.market.getFundHist(item.code);
-      if (!Array.isArray(rows) || rows.length < 2) return [];
-      return rows
-        .map((record) => numberValue(pick(record, ["unit_net_value", "accumulated_net_value", "单位净值", "累计净值", "收盘", "close", "净值"])))
-        .filter((value) => Number.isFinite(value) && value > 0)
-        .slice(-32);
-    } catch (error) {
-      console.warn(`Return curve unavailable for ${item.code}:`, error.message);
-      return [];
-    }
-  }
-
   async function enrichSelectedItem(item, type) {
     const enriched = { ...item };
     const [histResult, basicResult] = await Promise.allSettled([
@@ -603,10 +596,8 @@
     ]);
     const histRows = histResult.status === "fulfilled" && Array.isArray(histResult.value) ? histResult.value : [];
     const metrics = calculateMetrics(histRows);
-    if (type === "equity") {
-      enriched.historyLoaded = true;
-      enriched.history = metrics?.history || normalizeHistoryPoints(histRows);
-    }
+    enriched.historyLoaded = true;
+    enriched.history = metrics?.history || normalizeHistoryPoints(histRows);
     if (metrics) {
       enriched.curve = metrics.curve;
       enriched.latestDate = metrics.latestDate;
@@ -614,6 +605,10 @@
       enriched.stdDev = formatPercent2(metrics.volatility);
       enriched.volatility = `${formatPercent2(metrics.volatility)} (${volatilityBand(metrics.volatility)})`;
       enriched.sharpe = Number.isFinite(metrics.sharpe) ? metrics.sharpe.toFixed(2) : "--";
+      enriched.dailyReturn = metrics.dailyReturn;
+      enriched.oneMonthReturn = metrics.oneMonthReturn;
+      enriched.sixMonthReturn = metrics.sixMonthReturn;
+      enriched.ytdReturn = metrics.ytdReturn;
       if (type === "equity" && (enriched.score === "--" || !enriched.score)) {
         const score = strategyScoreFromMetrics(metrics);
         enriched.score = Number.isFinite(score) ? `${score}/100` : "--";
@@ -622,10 +617,6 @@
       if (type === "equity") {
         enriched.annualizedYield = formatPercent2(metrics.annualized);
         enriched.mtd = `${formatPercent2(metrics.mtd)} MTD`;
-        enriched.dailyReturn = metrics.dailyReturn;
-        enriched.oneMonthReturn = metrics.oneMonthReturn;
-        enriched.sixMonthReturn = metrics.sixMonthReturn;
-        enriched.ytdReturn = metrics.ytdReturn;
         enriched.returnYtd = formatPercent2(metrics.ytdReturn);
       } else {
         enriched.averageYield = formatPercent2(metrics.annualized);
@@ -785,6 +776,64 @@
     renderEquityCurve(page);
   }
 
+  function setDebtRangeButtons(page, activeRange, disabled) {
+    page.querySelectorAll("[data-debt-range]").forEach((button) => {
+      const active = button.dataset.debtRange === activeRange;
+      button.classList.toggle("pill--active", active);
+      button.setAttribute("aria-pressed", String(active));
+      button.disabled = disabled;
+    });
+  }
+
+  function renderDebtCurve(page) {
+    const state = debtCurveStates.get(page);
+    if (!state) return;
+    const chart = page.querySelector("[data-return-chart]");
+    const ready = state.history.length >= 2;
+    setDebtRangeButtons(page, state.range, !ready);
+
+    if (!state.historyLoaded) {
+      if (chart) chart.innerHTML = '<div class="data-loading-state">Loading verified return history…</div>';
+      return;
+    }
+    if (!ready) {
+      if (chart) chart.innerHTML = '<p class="muted">Return curve unavailable from backend.</p>';
+      return;
+    }
+
+    const selected = historyForRange(state.history, state.range);
+    renderCurve(
+      chart,
+      selected.map((point) => point.value),
+      `${state.name} · ${state.range} return curve · Avg yield ${state.averageYield}`
+    );
+  }
+
+  function configureDebtCurve(page, item) {
+    const controls = page.querySelector("[data-debt-range-controls]");
+    if (!controls) return;
+    const previous = debtCurveStates.get(page);
+    debtCurveStates.set(page, {
+      name: item.name,
+      range: previous?.range || "1M",
+      history: Array.isArray(item.history) ? item.history : [],
+      historyLoaded: item.historyLoaded === true,
+      averageYield: item.averageYield,
+    });
+
+    if (controls.dataset.rangeReady !== "true") {
+      controls.dataset.rangeReady = "true";
+      controls.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-debt-range]");
+        const state = debtCurveStates.get(page);
+        if (!button || button.disabled || !state) return;
+        state.range = button.dataset.debtRange;
+        renderDebtCurve(page);
+      });
+    }
+    renderDebtCurve(page);
+  }
+
   function updateUniverseKpis(page, rows, type) {
     const cards = page.querySelectorAll(".kpi-row .kpi-card");
     const validRows = rows.filter((item) => Number.isFinite(item.return1yValue));
@@ -852,12 +901,15 @@
   }
 
   async function updateDebtPage(page, item) {
-    const comparison = Array.from(page.querySelectorAll(".glass-panel")).find((panel) =>
-      /Return Curve/.test(panel.textContent || "")
-    );
-    const chart = comparison?.querySelector(".debt-chart");
-    const curve = item.curve?.length ? item.curve : await loadCurve(item);
-    renderCurve(chart, curve, `${item.name} return curve · Avg yield ${item.averageYield}`);
+    const stats = page.querySelectorAll(".fd-stats.debt-mini > div");
+    const latestLabel = item.latestDate && item.latestDate !== "--" ? `Latest NAV · ${item.latestDate}` : "Latest NAV";
+    updateText(stats[0]?.querySelector(".fd-stats__k"), latestLabel);
+    updateText(stats[0]?.querySelector(".fd-stats__v"), formatNav(item.latestValue));
+    updateSignedPercent(stats[1]?.querySelector(".fd-stats__v"), item.dailyReturn);
+    updateSignedPercent(stats[2]?.querySelector(".fd-stats__v"), item.oneMonthReturn);
+    updateSignedPercent(stats[3]?.querySelector(".fd-stats__v"), item.sixMonthReturn);
+    updateSignedPercent(stats[4]?.querySelector(".fd-stats__v"), item.ytdReturn);
+    configureDebtCurve(page, item);
 
     const risk = Array.from(page.querySelectorAll(".glass-panel")).find((panel) =>
       /Risk Composition/.test(panel.textContent || "")

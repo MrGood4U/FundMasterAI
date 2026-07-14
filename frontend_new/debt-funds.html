@@ -122,7 +122,20 @@
             <section class="glass-panel">
               <h3 class="section-head__title section-head__title--compact">Return Curve</h3>
               <p class="muted sm">Historical net value / return trend</p>
+              <div class="pill-group debt-range-controls" data-debt-range-controls role="group" aria-label="Return curve period" style="margin-bottom:12px">
+                <button type="button" class="pill pill--ghost pill--active" data-debt-range="1M" aria-pressed="true">1M</button>
+                <button type="button" class="pill pill--ghost" data-debt-range="3M" aria-pressed="false">3M</button>
+                <button type="button" class="pill pill--ghost" data-debt-range="YTD" aria-pressed="false">YTD</button>
+                <button type="button" class="pill pill--ghost" data-debt-range="MAX" aria-pressed="false">MAX</button>
+              </div>
               <div class="debt-chart return-chart" data-return-chart role="img" aria-label="Fund return curve"><div class="data-loading-state">Loading verified return history…</div></div>
+              <div class="fd-stats debt-mini">
+                <div><span class="fd-stats__k">Latest NAV</span><span class="fd-stats__v">—</span></div>
+                <div><span class="fd-stats__k">Daily</span><span class="fd-stats__v">—</span></div>
+                <div><span class="fd-stats__k">1 Month</span><span class="fd-stats__v">—</span></div>
+                <div><span class="fd-stats__k">6 Months</span><span class="fd-stats__v">—</span></div>
+                <div><span class="fd-stats__k">Year to Date</span><span class="fd-stats__v">—</span></div>
+              </div>
             </section>
           </div>
         </main>

@@ -8,3 +8,7 @@
     linear-gradient(90deg, rgba(0, 229, 255, 0.06), transparent);
   border: 1px solid var(--border-subtle);
 }
+
+.debt-mini {
+  margin-top: 12px;
+}
