@@ -202,8 +202,6 @@
           ["BBB", "8%"],
           ["Cash", "2%"],
         ],
-        stableYield: "4.1%",
-        highYield: "2.0%",
         focus: "Diversified investment-grade bond exposure.",
         signal: "Stable carry; useful as defensive portfolio anchor.",
       },
@@ -226,8 +224,6 @@
           ["BBB / IG", "11%"],
           ["Cash", "4%"],
         ],
-        stableYield: "3.9%",
-        highYield: "1.8%",
         focus: "Treasuries, agencies, and high-grade corporate bonds.",
         signal: "Balanced duration exposure with moderate rate sensitivity.",
       },
@@ -248,8 +244,6 @@
           ["Agency", "14%"],
           ["Cash", "8%"],
         ],
-        stableYield: "3.6%",
-        highYield: "0.5%",
         focus: "Short-duration treasury allocation.",
         signal: "Lower volatility; suitable for cash management sleeve.",
       },
@@ -271,8 +265,6 @@
           ["CCC", "8%"],
           ["Cash", "14%"],
         ],
-        stableYield: "2.2%",
-        highYield: "6.4%",
         focus: "Selective high-yield credit and income enhancement.",
         signal: "Higher carry but more credit beta; keep risk budget capped.",
       },
@@ -294,8 +286,6 @@
           ["AA", "15%"],
           ["Cash", "10%"],
         ],
-        stableYield: "4.3%",
-        highYield: "2.8%",
         focus: "Longer-duration investment-grade corporate credit.",
         signal: "Attractive if rates stabilize; monitor duration risk.",
       },
@@ -317,8 +307,6 @@
           ["AAA", "16%"],
           ["Cash", "6%"],
         ],
-        stableYield: "3.2%",
-        highYield: "1.2%",
         focus: "Tax-aware municipal income with lower default risk.",
         signal: "Defensive income option for conservative allocation.",
       },
@@ -541,8 +529,6 @@
         aum: String(pick(record, ["aum", "规模"], "--")),
         latestValue: String(pick(record, ["unit_net_value", "latestValue", "单位净值"], "--")),
         riskMix: [],
-        stableYield: "--",
-        highYield: "--",
         focus: "Backend ranking data",
         signal: "No AI recommendation returned by the backend.",
         curve,
@@ -869,10 +855,6 @@
     const comparison = Array.from(page.querySelectorAll(".glass-panel")).find((panel) =>
       /Return Curve/.test(panel.textContent || "")
     );
-    const legend = comparison?.querySelector(".debt-legend");
-    if (legend) {
-      legend.innerHTML = `<span>Stable Income ${item.stableYield}</span><span>High-Yield ${item.highYield}</span>`;
-    }
     const chart = comparison?.querySelector(".debt-chart");
     const curve = item.curve?.length ? item.curve : await loadCurve(item);
     renderCurve(chart, curve, `${item.name} return curve · Avg yield ${item.averageYield}`);
@@ -923,8 +905,6 @@
       if (chart) chart.innerHTML = '<div class="data-unavailable">Verified return history is unavailable.</div>';
       const allocation = page?.querySelector(".fd-alloc");
       if (allocation) allocation.innerHTML = '<li class="data-unavailable">Verified allocation data is unavailable.</li>';
-      const legend = page?.querySelector(".debt-legend");
-      if (legend) legend.innerHTML = '<span>Verified fund history unavailable</span><span>—</span>';
       return;
     }
 
