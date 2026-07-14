@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -86,42 +86,48 @@
           <button type="button" class="avatar-btn" aria-label="用户资料"><img class="avatar-btn__img" src="assets/icons/header-avatar.png" width="32" height="32" alt="" /></button>
         </div>
       </header>
-        <main class="content">
+        <main class="content" data-market-flow-page>
           <header class="page-head">
             <div>
-              <h2 class="page-head__title">Equity Fund Momentum</h2>
-              <p class="page-head__sub">Verified public-fund breadth, daily momentum and largest moves.</p>
+              <h2 class="page-head__title">ETF Capital Flow</h2>
+              <p class="page-head__sub">Real-time capital movement across exchange-traded funds.</p>
             </div>
-            <div class="pill-group"><button type="button" class="pill pill--ghost">Daily</button><button type="button" class="pill pill--ghost">Intraday</button><button type="button" class="pill pill--ghost">Custom</button></div>
+            <div class="mf-head-actions">
+              <span class="chip chip--live">Latest ETF Snapshot</span>
+              <button type="button" class="btn-outline" data-market-flow-refresh>Refresh</button>
+            </div>
           </header>
+          <p class="api-status" data-market-flow-status role="status">Loading verified ETF capital-flow data…</p>
           <section class="glass-panel">
-            <div class="section-head"><h3 class="section-head__title">Equity Fund Momentum</h3><span class="muted">Latest backend observation</span></div>
+            <div class="section-head"><h3 class="section-head__title">Aggregate ETF Flow</h3><span class="muted">Latest verified snapshot</span></div>
             <div class="mf-kpis">
-              <div class="kpi-card"><p class="kpi-card__label">Advancing Funds</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
-              <div class="kpi-card"><p class="kpi-card__label">Declining Funds</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
-              <div class="kpi-card"><p class="kpi-card__label">Net Momentum</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
-              <div class="kpi-card"><p class="kpi-card__label">Average Daily Move</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
-              <div class="kpi-card"><p class="kpi-card__label">Large Movers</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
-              <div class="kpi-card"><p class="kpi-card__label">Tracked Funds</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified fund data…</p></div>
+              <div class="kpi-card" data-flow-card="main"><p class="kpi-card__label">Main Net Flow</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified ETF flow…</p></div>
+              <div class="kpi-card" data-flow-card="super"><p class="kpi-card__label">Super-Large Flow</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified ETF flow…</p></div>
+              <div class="kpi-card" data-flow-card="large"><p class="kpi-card__label">Large-Order Flow</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified ETF flow…</p></div>
+              <div class="kpi-card" data-flow-card="turnover"><p class="kpi-card__label">Total Turnover</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified ETF flow…</p></div>
+              <div class="kpi-card" data-flow-card="inflow"><p class="kpi-card__label">Net Inflow ETFs</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified ETF flow…</p></div>
+              <div class="kpi-card" data-flow-card="tracked"><p class="kpi-card__label">Tracked ETFs</p><p class="kpi-card__value"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading</span></p><p class="kpi-card__hint">Loading verified ETF flow…</p></div>
             </div>
           </section>
           <div class="two-col">
             <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Active Fund Heatmap</h3>
-              <ul class="mf-heat"><li class="data-loading-state data-loading-state--compact">Loading verified equity fund moves…</li></ul>
-              <button type="button" class="btn-outline mf-btn">Refresh momentum</button>
+              <h3 class="section-head__title section-head__title--compact">Order-Size Flow Breakdown</h3>
+              <ul class="mf-heat" data-order-flow-breakdown><li class="data-loading-state data-loading-state--compact">Loading verified order-size flows…</li></ul>
             </section>
             <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Largest Daily Moves</h3>
-              <ul class="mf-list"><li class="data-loading-state data-loading-state--compact">Loading verified movers…</li></ul>
+              <h3 class="section-head__title section-head__title--compact">ETF Flow Leaders</h3>
+              <div class="mf-flow-leaders" data-flow-leaders>
+                <section data-flow-inflows><div class="data-loading-state data-loading-state--compact">Loading top inflows…</div></section>
+                <section data-flow-outflows><div class="data-loading-state data-loading-state--compact">Loading top outflows…</div></section>
+              </div>
             </section>
           </div>
           <section class="glass-panel">
-            <div class="section-head"><h3 class="section-head__title">Equity Fund Momentum Table</h3><span class="muted">Public-fund data proxy</span></div>
+            <div class="section-head"><h3 class="section-head__title">Largest ETF Capital Flows</h3><span class="muted">Sorted by absolute main net flow</span></div>
             <div class="data-table-wrap">
               <table class="data-table">
-                <thead><tr><th>Fund</th><th>Direction</th><th>NAV</th><th>Daily</th><th>1Y</th></tr></thead>
-                <tbody><tr><td colspan="5"><div class="data-loading-state data-loading-state--compact">Loading verified equity fund table…</div></td></tr></tbody>
+                <thead><tr><th>ETF</th><th>Main Net Flow</th><th>Main Flow Ratio</th><th>Turnover</th><th>Daily Change</th></tr></thead>
+                <tbody data-flow-table-body><tr><td colspan="5"><div class="data-loading-state data-loading-state--compact">Loading verified ETF capital flows…</div></td></tr></tbody>
               </table>
             </div>
           </section>
@@ -131,7 +137,7 @@
     </div>
     <script src="scripts/config.js"></script>
     <script src="scripts/api.js"></script>
-    <script src="scripts/dashboard-data.js?v=20260713-2"></script>
+    <script src="scripts/market-flow.js?v=20260714-4"></script>
     <script src="scripts/search.js"></script>
     <script src="scripts/pro-upgrade.js"></script>
   </body>

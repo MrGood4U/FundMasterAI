@@ -31,6 +31,14 @@
     };
   }
 
+  function extractRows(payload) {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.items)) return payload.items;
+    if (Array.isArray(payload?.records)) return payload.records;
+    return [];
+  }
+
   function readCache() {
     try {
       const raw = window.sessionStorage.getItem(CACHE_KEY);
@@ -78,11 +86,11 @@
     return `${numeric > 0 ? "+" : ""}${numeric.toFixed(2)}%`;
   }
 
-  function formatMoney(value) {
+  function formatMoney(value, showSign = true) {
     const numeric = numberValue(value);
     if (numeric === null) return "—";
     const absolute = Math.abs(numeric);
-    const sign = numeric > 0 ? "+" : numeric < 0 ? "−" : "";
+    const sign = showSign ? (numeric > 0 ? "+" : numeric < 0 ? "−" : "") : "";
     let scaled = absolute;
     let suffix = "";
     if (absolute >= 1e9) {
@@ -137,7 +145,7 @@
     setCard("main", formatMoney(mainFlow), "ETF universe", flowClass(mainFlow));
     setCard("super", formatMoney(superLargeFlow), "Super-large orders", flowClass(superLargeFlow));
     setCard("large", formatMoney(largeFlow), "Large orders", flowClass(largeFlow));
-    setCard("turnover", formatMoney(turnover), "Reported turnover");
+    setCard("turnover", formatMoney(turnover, false), "Reported turnover");
     setCard("inflow", formatCount(inflowCount), `${(inflowCount / items.length * 100).toFixed(1)}% of tracked ETFs`);
     setCard("tracked", formatCount(items.length), "Live ETF rows");
   }
@@ -160,8 +168,9 @@
       const value = document.createElement("strong");
       const track = document.createElement("div");
       const fill = document.createElement("div");
-      label.textContent = row.label;
-      value.textContent = formatMoney(row.value);
+      const direction = row.value > 0 ? "Inflow" : row.value < 0 ? "Outflow" : "Flat";
+      label.textContent = `${row.label} ${direction}`;
+      value.textContent = formatMoney(Math.abs(row.value), false);
       value.className = flowClass(row.value);
       track.className = "bar-track";
       fill.className = `bar-fill ${flowClass(row.value)}`.trim();
@@ -219,7 +228,7 @@
         `${item.name} · ${item.code}`,
         formatMoney(item.mainFlow),
         formatPercent(item.mainFlowRatio),
-        formatMoney(item.turnover),
+        formatMoney(item.turnover, false),
         formatPercent(item.changePct),
       ];
       values.forEach((value, index) => {
@@ -281,11 +290,12 @@
     if (!cachedItems.length) setStatus("Loading verified ETF capital-flow data…");
 
     try {
-      const rows = await api.publicFund.getAllRealTime({ platform: "eastmoney", symbol: "ETF" });
-      const items = Array.isArray(rows)
-        ? rows.map(normalizeEtf).filter((item) => item.code && item.mainFlow !== null)
-        : [];
-      if (!items.length) throw new Error("ETF real-time feed returned no capital-flow rows");
+      const response = await api.publicFund.getAllRealTime({ platform: "eastmoney", symbol: "ETF" });
+      const rows = extractRows(response);
+      const items = rows.map(normalizeEtf).filter((item) => item.code && item.mainFlow !== null);
+      if (!items.length) {
+        throw new Error(`ETF real-time feed returned no capital-flow rows (${rows.length} raw rows received)`);
+      }
       render(items, manual ? "Manually refreshed" : "Live ETF flow");
       writeCache(items);
     } catch (error) {
