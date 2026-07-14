@@ -16,6 +16,9 @@
   const NEWS_CACHE_VERSION = 1;
   const NEWS_CACHE_TTL_MS = 5 * 60 * 1000;
   const NEWS_BASKET_KEY = NEWS_LEADER_BASKET.map((leader) => `${leader.symbol}:${leader.sector}`).join("|");
+  const MACRO_CACHE_KEY = "fundmaster:macro-releases:v1";
+  const MACRO_CACHE_VERSION = 1;
+  const MACRO_CACHE_TTL_MS = 60 * 60 * 1000;
   const DEFAULT_FUND_CODE = "510300";
 
   function text(value, fallback = "--") {
@@ -546,6 +549,43 @@
     return suffix && !rendered.includes(suffix) ? `${rendered}${suffix}` : rendered;
   }
 
+  function readMacroCache() {
+    try {
+      const raw = window.sessionStorage.getItem(MACRO_CACHE_KEY);
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      if (
+        cached?.version !== MACRO_CACHE_VERSION
+        || !Array.isArray(cached?.observations)
+        || !cached.observations.some((item) => item && item.row)
+        || !Number.isFinite(Number(cached?.updatedAt))
+      ) {
+        return null;
+      }
+      return cached;
+    } catch (error) {
+      console.warn("Macro cache is unavailable:", error.message);
+      return null;
+    }
+  }
+
+  function writeMacroCache(observations) {
+    try {
+      window.sessionStorage.setItem(MACRO_CACHE_KEY, JSON.stringify({
+        version: MACRO_CACHE_VERSION,
+        observations,
+        updatedAt: Date.now(),
+      }));
+    } catch (error) {
+      console.warn("Macro cache could not be updated:", error.message);
+    }
+  }
+
+  function macroCacheIsFresh(cached) {
+    const age = Date.now() - Number(cached?.updatedAt);
+    return Number.isFinite(age) && age >= 0 && age < MACRO_CACHE_TTL_MS;
+  }
+
   function renderMacroCalendar(rows) {
     const header = document.querySelector(".cal-header__date");
     const list = document.querySelector(".cal-list");
@@ -581,6 +621,12 @@
     const needsMacro = document.querySelector(".cal-list");
     if (!needsMacro) return;
 
+    const cached = readMacroCache();
+    if (cached) {
+      renderMacroCalendar(cached.observations);
+      if (macroCacheIsFresh(cached)) return;
+    }
+
     const candidates = [
       { indicator: "pmi", title: "Manufacturing PMI", publisher: "NBS", keys: ["manufacturing_index", "制造业-指数", "value"], suffix: "", importance: 3 },
       { indicator: "cpi", title: "CPI (YoY)", publisher: "NBS", keys: ["national_yoy", "全国-同比增长", "value"], suffix: "%", importance: 3 },
@@ -603,7 +649,12 @@
         importance: item.importance,
       };
     });
-    renderMacroCalendar(observations);
+    if (observations.some((item) => item.row)) {
+      renderMacroCalendar(observations);
+      writeMacroCache(observations);
+    } else if (!cached) {
+      renderMacroCalendar([]);
+    }
   }
 
   function renderFundHeader(record) {
