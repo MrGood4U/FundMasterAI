@@ -19,6 +19,9 @@
   const MACRO_CACHE_KEY = "fundmaster:macro-releases:v1";
   const MACRO_CACHE_VERSION = 1;
   const MACRO_CACHE_TTL_MS = 60 * 60 * 1000;
+  const MARKET_HUB_CACHE_KEY = "fundmaster:market-hub:v1";
+  const MARKET_HUB_CACHE_VERSION = 1;
+  const MARKET_HUB_CACHE_TTL_MS = 5 * 60 * 1000;
   const DEFAULT_FUND_CODE = "510300";
 
   function text(value, fallback = "--") {
@@ -88,9 +91,129 @@
       ticker: pick(item, ["ticker", "symbol", "stock_code", "代码"], ""),
       name: pick(item, ["name", "short_name", "stock_name", "名称"], "Global Index"),
       region: pick(item, ["region", "地区"], ""),
-      price: pick(item, ["price", "last_price", "latest_price", "最新价", "现价"], null),
+      price: pick(item, ["price", "last_price", "latest_price", "regularMarketPrice", "最新价", "现价"], null),
       change_pct: numberValue(pick(item, ["change_pct", "changePercent", "percent_change", "涨跌幅", "涨幅"], 0)),
     };
+  }
+
+  function marketHubCacheSource(source) {
+    if (
+      !Array.isArray(source?.items)
+      || !source.items.length
+      || !Number.isFinite(Number(source?.updatedAt))
+    ) {
+      return null;
+    }
+    return {
+      items: source.items,
+      updatedAt: Number(source.updatedAt),
+    };
+  }
+
+  function readMarketHubCache() {
+    try {
+      const raw = window.sessionStorage.getItem(MARKET_HUB_CACHE_KEY);
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      if (cached?.version !== MARKET_HUB_CACHE_VERSION) return null;
+
+      const major = marketHubCacheSource(cached.major);
+      const ranking = marketHubCacheSource(cached.ranking);
+      if (!major && !ranking) return null;
+      return {
+        version: MARKET_HUB_CACHE_VERSION,
+        major,
+        ranking,
+      };
+    } catch (error) {
+      console.warn("Market Hub cache is unavailable:", error.message);
+      return null;
+    }
+  }
+
+  function writeMarketHubCache(patch) {
+    try {
+      const current = readMarketHubCache() || { version: MARKET_HUB_CACHE_VERSION };
+      window.sessionStorage.setItem(MARKET_HUB_CACHE_KEY, JSON.stringify({
+        ...current,
+        ...patch,
+        version: MARKET_HUB_CACHE_VERSION,
+      }));
+    } catch (error) {
+      console.warn("Market Hub cache could not be updated:", error.message);
+    }
+  }
+
+  function marketHubCacheSourceIsFresh(source) {
+    const age = Date.now() - Number(source?.updatedAt);
+    return Number.isFinite(age) && age >= 0 && age < MARKET_HUB_CACHE_TTL_MS;
+  }
+
+  function renderMajorIndexCards(quotes, sourceLabel) {
+    document.querySelectorAll(".mh-indices .mh-index").forEach((card, index) => {
+      const quote = quotes[index];
+      if (!quote) return;
+      const normalized = normalizeIndexQuote(quote);
+      const title = card.querySelector("h4");
+      const price = card.querySelector(".mh-index__v");
+      const percent = card.querySelector(".mh-index__p");
+      if (title) title.textContent = normalized.name;
+      if (price) price.textContent = formatMarketValue(normalized.price);
+      if (percent) {
+        percent.textContent = formatPercent(normalized.change_pct);
+        percent.classList.remove("muted");
+        percent.classList.toggle("pos", normalized.change_pct >= 0);
+        percent.classList.toggle("neg", normalized.change_pct < 0);
+      }
+    });
+    const clock = document.querySelector(".mh-clock__time");
+    if (clock) clock.textContent = sourceLabel;
+  }
+
+  function renderMarketRanking(rows, sourceLabel) {
+    const rankedIndices = rows
+      .map(normalizeIndexQuote)
+      .filter((item) => item.ticker || item.name);
+    if (!rankedIndices.length) return [];
+
+    renderMarketPerformance(rankedIndices);
+    renderMarketMovers(rankedIndices);
+    renderMarketBreadth(rankedIndices);
+    const legend = document.querySelector(".mh-legend__vol");
+    const coverage = document.querySelector(".mh-sectors");
+    if (legend) legend.textContent = `${rankedIndices.length} ${sourceLabel.toLowerCase()} quotes`;
+    if (coverage) coverage.innerHTML = `<span>${rankedIndices.length} verified indices</span><span>Daily change ranking</span>`;
+    return rankedIndices;
+  }
+
+  async function fetchMajorIndexQuotes() {
+    const tickers = ["^GSPC", "^IXIC", "^FTSE", "^N225"];
+    const rows = await api.global.getIndexQuotesFromList(tickers);
+    const batchQuotes = Array.isArray(rows) ? rows : [];
+    const batchByTicker = new Map(
+      batchQuotes
+        .map((item) => [String(pick(item, ["ticker", "symbol"], "")).toUpperCase(), item])
+        .filter(([ticker]) => ticker)
+    );
+
+    // The batch endpoint normally contains every requested quote. Only call
+    // the slower detail endpoint for genuinely missing tickers instead of
+    // blocking the whole page on four redundant upstream requests.
+    const missingTickers = tickers.filter((ticker) => !batchByTicker.has(ticker));
+    const detailResults = await Promise.allSettled(
+      missingTickers.map((ticker) => api.global.getIndexInfo(ticker))
+    );
+    const detailByTicker = new Map();
+    missingTickers.forEach((ticker, index) => {
+      const result = detailResults[index];
+      if (result?.status === "fulfilled" && result.value) detailByTicker.set(ticker, result.value);
+    });
+    const quotes = tickers
+      .map((ticker, index) => batchByTicker.get(ticker) || detailByTicker.get(ticker) || batchQuotes[index] || null)
+      .filter(Boolean)
+      .map(normalizeIndexQuote);
+    if (!quotes.length) throw new Error("Major index API returned no data");
+    return quotes;
   }
 
   function renderMarketPerformance(rows) {
@@ -197,116 +320,122 @@
     const root = document.querySelector(".content--market-hub");
     if (!root) return;
 
-    setStatus("[data-api-status='market']", "Connecting to market backend...");
-    let quoteCount = 0;
-    let quoteError = null;
-    const rankingRequest = api.global.getIndexRank()
-      .then((rows) => ({ rows, error: null }))
-      .catch((error) => ({ rows: [], error }));
+    const cached = readMarketHubCache();
+    const cachedMajor = cached?.major?.items || [];
+    const cachedRanking = cached?.ranking?.items || [];
+    const majorIsFresh = marketHubCacheSourceIsFresh(cached?.major);
+    const rankingIsFresh = marketHubCacheSourceIsFresh(cached?.ranking);
+    let quoteCount = cachedMajor.length;
+    let rankingCount = cachedRanking.length;
 
-    try {
-      const tickers = ["^GSPC", "^IXIC", "^FTSE", "^N225"];
-      const rows = await api.global.getIndexQuotesFromList(tickers);
-      const batchQuotes = Array.isArray(rows) ? rows : [];
-      const batchByTicker = new Map(
-        batchQuotes
-          .map((item) => [String(pick(item, ["ticker", "symbol"], "")).toUpperCase(), item])
-          .filter(([ticker]) => ticker)
-      );
+    if (cachedMajor.length) renderMajorIndexCards(cachedMajor, "Cached");
+    if (cachedRanking.length) renderMarketRanking(cachedRanking, "Cached");
 
-      // The batch endpoint normally contains every requested quote. Only call
-      // the slower detail endpoint for genuinely missing tickers instead of
-      // blocking the whole page on four redundant upstream requests.
-      const missingTickers = tickers.filter((ticker) => !batchByTicker.has(ticker));
-      const detailResults = await Promise.allSettled(
-        missingTickers.map((ticker) => api.global.getIndexInfo(ticker))
-      );
-      const detailByTicker = new Map();
-      missingTickers.forEach((ticker, index) => {
-        const result = detailResults[index];
-        if (result?.status === "fulfilled" && result.value) detailByTicker.set(ticker, result.value);
-      });
-      const quotes = tickers
-        .map((ticker, index) => batchByTicker.get(ticker) || detailByTicker.get(ticker) || batchQuotes[index] || null)
-        .filter(Boolean);
-      if (!quotes.length) throw new Error("Major index API returned no data");
-      quoteCount = quotes.length;
-      document.querySelectorAll(".mh-indices .mh-index").forEach((card, index) => {
-        const quote = quotes[index];
-        if (!quote) return;
-        const change = pick(quote, ["change_pct", "changePercent", "percent_change"], 0);
-        const value = numberValue(pick(quote, ["price", "last_price", "regularMarketPrice"], 0));
-        const title = card.querySelector("h4");
-        const price = card.querySelector(".mh-index__v");
-        const percent = card.querySelector(".mh-index__p");
-        if (title) title.textContent = pick(quote, ["name", "short_name", "ticker"], "Global Index");
-        if (price) price.textContent = value ? value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "--";
-        if (percent) {
-          percent.textContent = formatPercent(change);
-          percent.classList.remove("muted");
-          percent.classList.toggle("pos", numberValue(change) >= 0);
-          percent.classList.toggle("neg", numberValue(change) < 0);
-        }
-      });
-      const clock = document.querySelector(".mh-clock__time");
-      if (clock) clock.textContent = "Live";
-    } catch (error) {
-      quoteError = error;
-      document.querySelectorAll(".mh-indices .mh-index").forEach((card) => {
-        const price = card.querySelector(".mh-index__v");
-        const percent = card.querySelector(".mh-index__p");
-        if (price) price.textContent = "--";
-        if (percent) {
-          percent.textContent = "Unavailable";
-          percent.className = "mh-index__p muted";
-        }
-      });
-      const clock = document.querySelector(".mh-clock__time");
-      if (clock) clock.textContent = "Partial";
-    }
-
-    const heat = document.querySelector("[data-market-heat]");
-    const movers = document.querySelector("[data-market-movers]");
-    const legend = document.querySelector(".mh-legend__vol");
-    const coverage = document.querySelector(".mh-sectors");
-
-    try {
-      const rankingResult = await rankingRequest;
-      if (rankingResult.error) throw rankingResult.error;
-      const rows = rankingResult.rows;
-      const rankedIndices = Array.isArray(rows)
-        ? rows.map(normalizeIndexQuote).filter((item) => item.ticker || item.name)
-        : [];
-      if (!rankedIndices.length) throw new Error("Global index ranking returned no data");
-
-      renderMarketPerformance(rankedIndices);
-      renderMarketMovers(rankedIndices);
-      renderMarketBreadth(rankedIndices);
-      if (legend) legend.textContent = `${rankedIndices.length} live quotes`;
-      if (coverage) coverage.innerHTML = `<span>${rankedIndices.length} verified indices</span><span>Daily change ranking</span>`;
+    if (majorIsFresh && rankingIsFresh) {
       setStatus(
         "[data-api-status='market']",
-        quoteCount
-          ? `${quoteCount} major index quotes · ${rankedIndices.length}-index ranking live`
-          : `${rankedIndices.length}-index ranking live · major quote cards unavailable`,
-        !quoteCount
+        `Cached · ${quoteCount} major index quotes · ${rankingCount}-index ranking`
       );
-    } catch (error) {
-      renderMarketBreadth([]);
-      const heat = document.querySelector("[data-market-heat]");
-      const movers = document.querySelector("[data-market-movers]");
-      if (heat) heat.innerHTML = '<div class="data-loading-state">Global index ranking is unavailable.</div>';
-      if (movers) movers.innerHTML = '<div class="data-loading-state data-loading-state--compact">No verified global index movers available.</div>';
-      if (legend) legend.textContent = "Ranking unavailable";
-      if (coverage) coverage.innerHTML = '<span>Major quote cards remain independent</span>';
-      setStatus(
-        "[data-api-status='market']",
-        quoteCount
-          ? `${quoteCount} major index quotes live · global ranking unavailable`
-          : `Market data unavailable: ${quoteError?.message || error.message}`,
-        true
-      );
+      return;
     }
+
+    setStatus(
+      "[data-api-status='market']",
+      cachedMajor.length || cachedRanking.length
+        ? "Cached market data · refreshing in background..."
+        : "Connecting to market backend..."
+    );
+
+    // Start stale or missing sources together. Each source has its own cache
+    // timestamp, so a healthy feed never waits for or invalidates the other.
+    const majorRequest = majorIsFresh
+      ? Promise.resolve({ rows: cachedMajor, error: null, fromCache: true })
+      : fetchMajorIndexQuotes()
+        .then((rows) => ({ rows, error: null, fromCache: false }))
+        .catch((error) => ({ rows: [], error, fromCache: false }));
+    const rankingRequest = rankingIsFresh
+      ? Promise.resolve({ rows: cachedRanking, error: null, fromCache: true })
+      : api.global.getIndexRank()
+        .then((rows) => ({ rows, error: null, fromCache: false }))
+        .catch((error) => ({ rows: [], error, fromCache: false }));
+    let majorError = null;
+    let rankingError = null;
+    const applyMajorResult = majorRequest.then((majorResult) => {
+      majorError = majorResult.error;
+      if (!majorError) {
+        const quotes = Array.isArray(majorResult.rows)
+          ? majorResult.rows.map(normalizeIndexQuote).filter((item) => item.ticker || item.name)
+          : [];
+        if (quotes.length) {
+          quoteCount = quotes.length;
+          renderMajorIndexCards(quotes, majorResult.fromCache ? "Cached" : "Live");
+          if (!majorResult.fromCache) {
+            writeMarketHubCache({ major: { items: quotes, updatedAt: Date.now() } });
+          }
+        } else {
+          majorError = new Error("Major index API returned no data");
+        }
+      }
+      if (majorError && !cachedMajor.length) {
+        quoteCount = 0;
+        document.querySelectorAll(".mh-indices .mh-index").forEach((card) => {
+          const price = card.querySelector(".mh-index__v");
+          const percent = card.querySelector(".mh-index__p");
+          if (price) price.textContent = "--";
+          if (percent) {
+            percent.textContent = "Unavailable";
+            percent.className = "mh-index__p muted";
+          }
+        });
+        const clock = document.querySelector(".mh-clock__time");
+        if (clock) clock.textContent = "Partial";
+      }
+    });
+
+    const applyRankingResult = rankingRequest.then((rankingResult) => {
+      rankingError = rankingResult.error;
+      if (!rankingError) {
+        const rankedIndices = Array.isArray(rankingResult.rows)
+          ? renderMarketRanking(rankingResult.rows, rankingResult.fromCache ? "Cached" : "Live")
+          : [];
+        if (rankedIndices.length) {
+          rankingCount = rankedIndices.length;
+          if (!rankingResult.fromCache) {
+            writeMarketHubCache({ ranking: { items: rankedIndices, updatedAt: Date.now() } });
+          }
+        } else {
+          rankingError = new Error("Global index ranking returned no data");
+        }
+      }
+      if (rankingError && !cachedRanking.length) {
+        rankingCount = 0;
+        renderMarketBreadth([]);
+        const heat = document.querySelector("[data-market-heat]");
+        const movers = document.querySelector("[data-market-movers]");
+        const legend = document.querySelector(".mh-legend__vol");
+        const coverage = document.querySelector(".mh-sectors");
+        if (heat) heat.innerHTML = '<div class="data-loading-state">Global index ranking is unavailable.</div>';
+        if (movers) movers.innerHTML = '<div class="data-loading-state data-loading-state--compact">No verified global index movers available.</div>';
+        if (legend) legend.textContent = "Ranking unavailable";
+        if (coverage) coverage.innerHTML = '<span>Major quote cards remain independent</span>';
+      }
+    });
+
+    // Rendering and cache writes happen in each task as soon as that source
+    // resolves; this final wait is only for the combined status message.
+    await Promise.all([applyMajorResult, applyRankingResult]);
+
+    const usedFallback = (majorError && cachedMajor.length) || (rankingError && cachedRanking.length);
+    const hasBothSources = quoteCount && rankingCount;
+    const combinedSourceLabel = usedFallback || majorIsFresh || rankingIsFresh ? "available" : "live";
+    const statusMessage = hasBothSources
+      ? `${usedFallback ? "Cached fallback · " : ""}${quoteCount} major index quotes · ${rankingCount}-index ranking ${combinedSourceLabel}`
+      : quoteCount
+        ? `${quoteCount} major index quotes available · global ranking unavailable`
+        : rankingCount
+          ? `${rankingCount}-index ranking available · major quote cards unavailable`
+          : `Market data unavailable: ${majorError?.message || rankingError?.message || "unknown error"}`;
+    setStatus("[data-api-status='market']", statusMessage, Boolean(majorError || rankingError));
   }
 
   function newsSymbols(item) {
