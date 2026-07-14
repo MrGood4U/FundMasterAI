@@ -192,7 +192,7 @@
         duration: "6.1 yrs",
         rating: "AAA / AA",
         totalValue: "$5,200,000",
-        averageYield: "4.12%",
+        annualizedReturn: "4.12%",
         weightedMaturity: "6.1 yrs",
         risk: "AA",
         aum: "$5.20B",
@@ -214,7 +214,7 @@
         duration: "5.8 yrs",
         rating: "AA",
         totalValue: "$3,740,000",
-        averageYield: "3.95%",
+        annualizedReturn: "3.95%",
         weightedMaturity: "5.8 yrs",
         risk: "AA-",
         aum: "$3.74B",
@@ -236,7 +236,7 @@
         duration: "1.9 yrs",
         rating: "AAA",
         totalValue: "$2,420,000",
-        averageYield: "3.62%",
+        annualizedReturn: "3.62%",
         weightedMaturity: "1.9 yrs",
         risk: "AAA",
         aum: "$2.42B",
@@ -256,7 +256,7 @@
         duration: "3.7 yrs",
         rating: "BB",
         totalValue: "$1,180,000",
-        averageYield: "6.45%",
+        annualizedReturn: "6.45%",
         weightedMaturity: "3.7 yrs",
         risk: "BB",
         aum: "$1.18B",
@@ -277,7 +277,7 @@
         duration: "7.8 yrs",
         rating: "A",
         totalValue: "$2,060,000",
-        averageYield: "4.38%",
+        annualizedReturn: "4.38%",
         weightedMaturity: "7.8 yrs",
         risk: "A",
         aum: "$2.06B",
@@ -298,7 +298,7 @@
         duration: "4.9 yrs",
         rating: "AA",
         totalValue: "$1,540,000",
-        averageYield: "3.28%",
+        annualizedReturn: "3.28%",
         weightedMaturity: "4.9 yrs",
         risk: "AA",
         aum: "$1.54B",
@@ -524,7 +524,7 @@
         duration: String(pick(record, ["duration", "久期"], "--")),
         rating: String(pick(record, ["rating", "评级"], "--")),
         totalValue: String(pick(record, ["totalValue", "规模", "aum"], "--")),
-        averageYield: return1y,
+        annualizedReturn: return1y,
         weightedMaturity: String(pick(record, ["weightedMaturity", "duration", "久期"], "--")),
         risk: String(pick(record, ["risk", "rating", "评级"], "--")),
         aum: String(pick(record, ["aum", "规模"], "--")),
@@ -619,7 +619,7 @@
         enriched.mtd = `${formatPercent2(metrics.mtd)} MTD`;
         enriched.returnYtd = formatPercent2(metrics.ytdReturn);
       } else {
-        enriched.averageYield = formatPercent2(metrics.annualized);
+        enriched.annualizedReturn = formatPercent2(metrics.annualized);
       }
     }
     if (type === "equity" && (enriched.score === "--" || !enriched.score)) {
@@ -805,7 +805,7 @@
     renderCurve(
       chart,
       selected.map((point) => point.value),
-      `${state.name} · ${state.range} return curve · Avg yield ${state.averageYield}`
+      `${state.name} · ${state.range} return curve · Annualized return ${state.annualizedReturn}`
     );
   }
 
@@ -818,7 +818,7 @@
       range: previous?.range || "1M",
       history: Array.isArray(item.history) ? item.history : [],
       historyLoaded: item.historyLoaded === true,
-      averageYield: item.averageYield,
+      annualizedReturn: item.annualizedReturn,
     });
 
     if (controls.dataset.rangeReady !== "true") {
