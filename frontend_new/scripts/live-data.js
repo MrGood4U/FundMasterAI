@@ -137,6 +137,62 @@
     movers.innerHTML = `${renderList("Top Gainers", gainers, "pos", "No advancing indices in the current universe.")}${renderList("Top Decliners", decliners, "neg", "No declining indices in the current universe.")}`;
   }
 
+  function renderMarketBreadth(rows) {
+    const panel = document.querySelector("[data-market-breadth]");
+    if (!panel) return;
+
+    const indices = rows
+      .map(normalizeIndexQuote)
+      .filter((item) => item.ticker || item.name);
+    const coverage = panel.querySelector("[data-breadth-coverage]");
+    const ratio = panel.querySelector("[data-breadth-ratio]");
+    const up = panel.querySelector("[data-breadth-up]");
+    const flat = panel.querySelector("[data-breadth-flat]");
+    const down = panel.querySelector("[data-breadth-down]");
+    const stats = panel.querySelector("[data-breadth-stats]");
+    const upBar = panel.querySelector("[data-breadth-up-bar]");
+    const flatBar = panel.querySelector("[data-breadth-flat-bar]");
+    const downBar = panel.querySelector("[data-breadth-down-bar]");
+
+    if (!indices.length) {
+      if (coverage) coverage.textContent = "Ranking unavailable";
+      if (ratio) ratio.textContent = "--";
+      if (up) up.textContent = "--";
+      if (flat) flat.textContent = "--";
+      if (down) down.textContent = "--";
+      if (stats) stats.textContent = "No verified index breadth is available.";
+      [upBar, flatBar, downBar].forEach((bar) => {
+        if (bar) bar.style.width = "0%";
+      });
+      return;
+    }
+
+    const changes = indices.map((item) => item.change_pct);
+    const advancing = changes.filter((change) => change > 0).length;
+    const declining = changes.filter((change) => change < 0).length;
+    const unchanged = indices.length - advancing - declining;
+    const average = changes.reduce((sum, change) => sum + change, 0) / changes.length;
+    const ordered = changes.slice().sort((a, b) => a - b);
+    const middle = Math.floor(ordered.length / 2);
+    const median = ordered.length % 2
+      ? ordered[middle]
+      : (ordered[middle - 1] + ordered[middle]) / 2;
+
+    if (coverage) coverage.textContent = `${indices.length}-index universe`;
+    if (ratio) ratio.textContent = `${advancing}/${indices.length}`;
+    if (up) up.textContent = String(advancing);
+    if (flat) flat.textContent = String(unchanged);
+    if (down) down.textContent = String(declining);
+    if (stats) stats.textContent = `Median ${formatPercent(median)} · Average ${formatPercent(average)}`;
+    if (upBar) upBar.style.width = `${advancing / indices.length * 100}%`;
+    if (flatBar) flatBar.style.width = `${unchanged / indices.length * 100}%`;
+    if (downBar) downBar.style.width = `${declining / indices.length * 100}%`;
+    panel.setAttribute(
+      "aria-label",
+      `Global market breadth: ${advancing} advancing, ${unchanged} unchanged, ${declining} declining indices.`
+    );
+  }
+
   async function loadMarketHub() {
     const root = document.querySelector(".content--market-hub");
     if (!root) return;
@@ -220,6 +276,7 @@
 
       renderMarketPerformance(rankedIndices);
       renderMarketMovers(rankedIndices);
+      renderMarketBreadth(rankedIndices);
       if (legend) legend.textContent = `${rankedIndices.length} live quotes`;
       if (coverage) coverage.innerHTML = `<span>${rankedIndices.length} verified indices</span><span>Daily change ranking</span>`;
       setStatus(
@@ -230,6 +287,7 @@
         !quoteCount
       );
     } catch (error) {
+      renderMarketBreadth([]);
       const heat = document.querySelector("[data-market-heat]");
       const movers = document.querySelector("[data-market-movers]");
       if (heat) heat.innerHTML = '<div class="data-loading-state">Global index ranking is unavailable.</div>';
