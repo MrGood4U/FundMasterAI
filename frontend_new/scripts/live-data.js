@@ -582,12 +582,12 @@
     if (!needsMacro) return;
 
     const candidates = [
-      { indicator: "pmi", title: "China Manufacturing PMI", publisher: "NBS China", keys: ["manufacturing_index", "制造业-指数", "value"], suffix: "", importance: 3 },
-      { indicator: "cpi", title: "China CPI (YoY)", publisher: "NBS China", keys: ["national_yoy", "全国-同比增长", "value"], suffix: "%", importance: 3 },
-      { indicator: "ppi", title: "China PPI (YoY)", publisher: "NBS China", keys: ["ppi_yoy", "当月同比增长", "当月-同比增长", "value"], suffix: "%", importance: 2 },
-      { indicator: "money_supply", title: "China M2 (YoY)", publisher: "PBOC", keys: ["m2_yoy", "货币和准货币(M2)-同比增长", "value"], suffix: "%", importance: 2 },
-      { indicator: "lpr", title: "China 1Y LPR", publisher: "PBOC", keys: ["lpr_1y", "1年期", "value"], suffix: "%", importance: 2 },
-      { indicator: "gdp", title: "China GDP (YoY)", publisher: "NBS China", keys: ["gdp_yoy", "国内生产总值-同比增长", "value"], suffix: "%", importance: 3 },
+      { indicator: "pmi", title: "Manufacturing PMI", publisher: "NBS", keys: ["manufacturing_index", "制造业-指数", "value"], suffix: "", importance: 3 },
+      { indicator: "cpi", title: "CPI (YoY)", publisher: "NBS", keys: ["national_yoy", "全国-同比增长", "value"], suffix: "%", importance: 3 },
+      { indicator: "ppi", title: "PPI (YoY)", publisher: "NBS", keys: ["ppi_yoy", "当月同比增长", "当月-同比增长", "value"], suffix: "%", importance: 2 },
+      { indicator: "money_supply", title: "M2 (YoY)", publisher: "PBOC", keys: ["m2_yoy", "货币和准货币(M2)-同比增长", "value"], suffix: "%", importance: 2 },
+      { indicator: "lpr", title: "1Y LPR", publisher: "PBOC", keys: ["lpr_1y", "1年期", "value"], suffix: "%", importance: 2 },
+      { indicator: "gdp", title: "GDP (YoY)", publisher: "NBS", keys: ["gdp_yoy", "国内生产总值-同比增长", "value"], suffix: "%", importance: 3 },
     ];
     const results = await Promise.allSettled(
       candidates.map((item) => api.macro.getData({ country: "china", indicator: item.indicator }))
