@@ -100,6 +100,23 @@ def _score_contribution_phrase(score: float) -> str:
     return "pulls the rating down"
 
 
+def _build_locked_specialist_ranking(successful_outputs: list[AgentOutput]) -> str:
+    """Return the score-derived ranking that the narrative must not reinterpret."""
+
+    scored_outputs = [output for output in successful_outputs if output.score is not None]
+    if not scored_outputs:
+        return "No specialist ranking is available because no valid specialist score was published."
+
+    strongest = max(scored_outputs, key=lambda output: output.score or 0.0)
+    weakest = min(scored_outputs, key=lambda output: output.score or 0.0)
+    return (
+        f"Strongest = {strongest.agent_name} ({_agent_display_name(strongest.agent_name)}), "
+        f"{strongest.score:.1f}/100; "
+        f"Weakest = {weakest.agent_name} ({_agent_display_name(weakest.agent_name)}), "
+        f"{weakest.score:.1f}/100."
+    )
+
+
 def _build_score_explanation(
     overall_rating: str,
     overall_score: float,
@@ -480,6 +497,7 @@ class ChiefAgent:
             [chief_actions] + [output.recommendations for output in actionable_outputs],
             limit=5,
         )
+        locked_specialist_ranking = _build_locked_specialist_ranking(successful_outputs)
 
         system_prompt = (
             "You are the chief fund advisor. Summarize the multi-agent findings into one final investment view. "
@@ -489,7 +507,12 @@ class ChiefAgent:
             "Do not use outside knowledge about the fund, manager, holdings, sectors, or market narrative. "
             "If a field or agent is missing/skipped, state that it is unavailable instead of inferring it. "
             "Do not describe zero missing fields as a limitation. "
-            "Explain the main reason for the rating by naming the strongest and weakest specialist signals. "
+            "Treat the LOCKED SPECIALIST RANKING in the user prompt as authoritative. Explicitly state both the "
+            "strongest and weakest signal once, using those exact Agent names and scores; do not select alternatives. "
+            "Keep evidence ownership exact: a metric, limitation, or missing field from one bracketed Agent report "
+            "must not be attributed to another Agent. "
+            "Preserve the denominator and deterministic assessment stated by each Agent. When SectorAgent reports "
+            "both total-fund-NAV and disclosed-sector-mix views, keep those scopes explicit and separate. "
             "Keep the final summary under 160 words and end with a complete sentence."
         )
         joined_reports = "\n\n".join(
@@ -512,6 +535,9 @@ class ChiefAgent:
             f"Data quality flags: {features.data_quality_flags}\n"
             f"Data coverage: {features.data_coverage}\n"
             f"Missing fields: {features.missing_fields}\n"
+            f"LOCKED SPECIALIST RANKING: {locked_specialist_ranking}\n"
+            "LOCKED EVIDENCE OWNERSHIP: facts inside each [AgentName] report belong only to that Agent; "
+            "do not reassign them to another specialist.\n"
             f"Key thesis candidates: {key_thesis}\n"
             f"Risk candidates: {main_risks}\n"
             f"Action plan candidates: {action_plan}\n\n"

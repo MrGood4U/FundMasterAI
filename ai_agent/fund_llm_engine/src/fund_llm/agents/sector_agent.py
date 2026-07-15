@@ -70,6 +70,13 @@ class SectorAgent(BaseAgent):
         top_sector_name, top_sector_weight = ranked_sectors[0] if ranked_sectors else ("unknown", 0.0)
         second_sector_name, second_sector_weight = ranked_sectors[1] if len(ranked_sectors) > 1 else ("", 0.0)
         top_two_weight = top_sector_weight + second_sector_weight
+        disclosed_sector_weight = sum(weight for _, weight in ranked_sectors)
+        top_sector_share_of_disclosed = (
+            top_sector_weight / disclosed_sector_weight if disclosed_sector_weight else 0.0
+        )
+        top_two_share_of_disclosed = (
+            top_two_weight / disclosed_sector_weight if disclosed_sector_weight else 0.0
+        )
 
         news_topic_hits = []
         for item in features.news_items:
@@ -99,11 +106,29 @@ class SectorAgent(BaseAgent):
 
         score = clamp(raw_score)
         stance = score_to_stance(score)
+        fund_level_concentrated = top_sector_weight > 0.40 or top_two_weight > 0.60
+        fund_level_assessment = (
+            "concentrated under the deterministic total-fund-NAV thresholds"
+            if fund_level_concentrated
+            else "not concentrated under the deterministic total-fund-NAV thresholds"
+        )
+        disclosed_mix_concentrated = (
+            top_sector_share_of_disclosed > 0.50 or top_two_share_of_disclosed > 0.80
+        )
+        disclosed_mix_assessment = (
+            "concentrated within the disclosed sector exposure"
+            if disclosed_mix_concentrated
+            else "reasonably diversified within the disclosed sector exposure"
+        )
 
         top_sectors_text = ", ".join(f"{name}:{weight:.1%}" for name, weight in ranked_sectors[:3]) or "N/A"
         system_prompt = (
             "You are a sector allocation analyst. Explain whether the fund's industry positioning looks diversified "
             "or concentrated, and what that means for sector-style exposure. Use only the provided sector data. "
+            "All supplied sector weights use total fund NAV as their denominator. Keep that denominator when judging "
+            "fund-level concentration, and follow the locked deterministic assessment supplied below. If you discuss "
+            "the composition within disclosed sector exposure, use only the locked disclosed-mix ratios, label that "
+            "denominator explicitly, and keep it separate from the total-fund-NAV conclusion. "
             "Do not infer sectors or holdings from the fund name, manager, or outside knowledge."
         )
         user_prompt = (
@@ -114,6 +139,14 @@ class SectorAgent(BaseAgent):
             f"Sector count: {sector_count}\n"
             f"Top sector weight: {top_sector_weight:.4f}\n"
             f"Top two sector weight: {top_two_weight:.4f}\n"
+            "LOCKED SECTOR WEIGHT DENOMINATOR: total fund NAV.\n"
+            f"LOCKED FUND-LEVEL CONCENTRATION ASSESSMENT: {fund_level_assessment}.\n"
+            f"LOCKED DISCLOSED SECTOR EXPOSURE TOTAL: {disclosed_sector_weight:.4f} of total fund NAV.\n"
+            "LOCKED TOP SECTOR SHARE OF DISCLOSED SECTOR EXPOSURE: "
+            f"{top_sector_share_of_disclosed:.4f}.\n"
+            "LOCKED TOP TWO SHARE OF DISCLOSED SECTOR EXPOSURE: "
+            f"{top_two_share_of_disclosed:.4f}.\n"
+            f"LOCKED DISCLOSED-MIX ASSESSMENT: {disclosed_mix_assessment}.\n"
             f"Fund tags: {features.fund_tags}\n"
             f"News topics touching top sectors: {news_topic_hits}\n"
             f"Client risk profile: {client_risk_profile}\n"
@@ -124,7 +157,9 @@ class SectorAgent(BaseAgent):
         fallback_narrative = (
             f"Deterministic sector analysis scored {score:.1f}/100 with a {stance} stance. "
             f"The largest disclosed sector is {top_sector_name} at {top_sector_weight:.2%}, "
-            f"across {sector_count} sector bucket(s). The optional LLM explanation was unavailable; "
+            f"across {sector_count} sector bucket(s). Using total fund NAV as the denominator, the "
+            f"fund-level sector exposure is {fund_level_assessment}; the sector mix is {disclosed_mix_assessment}. "
+            "The optional LLM explanation was unavailable; "
             "the score and structured evidence remain valid."
         )
         narrative, narrative_metadata = self.explain_or_fallback(
@@ -139,6 +174,10 @@ class SectorAgent(BaseAgent):
             if second_sector_name:
                 key_points.append(f"Top two sectors together account for {top_two_weight:.2%}.")
             key_points.append(f"Sector breadth covers {sector_count} disclosed sector bucket(s).")
+            key_points.append(
+                f"Top sector represents {top_sector_share_of_disclosed:.2%} of disclosed sector exposure, "
+                f"whose total weight is {disclosed_sector_weight:.2%} of NAV."
+            )
             if news_topic_hits:
                 key_points.append(f"Recent news flow overlaps with {', '.join(news_topic_hits)} sector themes.")
         else:
@@ -159,7 +198,13 @@ class SectorAgent(BaseAgent):
         if not has_industry_exposure:
             recommendations = ["Add a fuller industry breakdown before making sector-level conclusions."]
         elif not risks:
-            recommendations = ["Sector positioning looks reasonably balanced for diversified allocation."]
+            if disclosed_mix_concentrated:
+                recommendations = [
+                    "Fund-level sector weights stay below concentration thresholds, while the disclosed "
+                    "sector mix is concentrated; keep these two scopes separate."
+                ]
+            else:
+                recommendations = ["Sector positioning looks reasonably balanced for diversified allocation."]
         elif top_sector_weight > 0.40:
             recommendations = ["Watch whether the largest sector bet still matches your market view before sizing up."]
 

@@ -381,6 +381,31 @@ class AgentsTest(unittest.TestCase):
         self.assertTrue(any("Sector breadth covers" in item for item in result.key_points))
         self.assertGreaterEqual(result.confidence, 0.7)
 
+    def test_sector_agent_locks_total_nav_denominator_and_assessment_for_llm(self):
+        payload = build_sample_input()
+        payload.fund_info.code = "000171"
+        payload.fund_info.name = "易方达裕丰回报债券A"
+        payload.fund_info.category = "债券型-普通债券"
+        payload.industry_exposure = {"制造业": 0.1441, "信息技术服务": 0.0304, "金融业": 0.0004}
+        payload.asset_allocation = {"股票": 0.1795, "债券": 0.927, "现金": 0.0023, "其他": 0.009}
+        llm = RecordingLLMClient("sector narrative")
+
+        result = SectorAgent(llm).analyze(FeatureBuilder().build(payload))
+
+        self.assertIn("total fund NAV as their denominator", llm.system_prompt)
+        self.assertIn("keep it separate from the total-fund-NAV conclusion", llm.system_prompt)
+        self.assertIn("LOCKED SECTOR WEIGHT DENOMINATOR: total fund NAV", llm.user_prompt)
+        self.assertIn(
+            "LOCKED FUND-LEVEL CONCENTRATION ASSESSMENT: not concentrated",
+            llm.user_prompt,
+        )
+        self.assertIn("LOCKED DISCLOSED SECTOR EXPOSURE TOTAL: 0.1749", llm.user_prompt)
+        self.assertIn("LOCKED TOP SECTOR SHARE OF DISCLOSED SECTOR EXPOSURE: 0.8239", llm.user_prompt)
+        self.assertIn("LOCKED DISCLOSED-MIX ASSESSMENT: concentrated", llm.user_prompt)
+        self.assertIn("Fund-level sector weights stay below concentration thresholds", result.recommendations[0])
+        self.assertIn("keep these two scopes separate", result.recommendations[0])
+        self.assertTrue(any("82.39% of disclosed sector exposure" in item for item in result.key_points))
+
     def test_sector_agent_gracefully_degrades_without_industry_breakdown(self):
         payload = build_sample_input()
         payload.industry_exposure = {}
@@ -819,6 +844,33 @@ class ChiefAgentTest(unittest.TestCase):
         self.assertTrue(result.key_thesis)
         self.assertTrue(result.main_risks)
         self.assertTrue(result.action_plan)
+
+    def test_chief_locks_score_ranking_and_agent_evidence_ownership_for_llm(self):
+        features = build_rich_features()
+        llm = RecordingLLMClient("chief summary")
+        chief = ChiefAgent(llm)
+        agent_outputs = [
+            self._successful_output("PerformanceAgent", 100.0),
+            self._successful_output("ExposureAgent", 63.5),
+            self._successful_output("RiskAgent", 72.5),
+            self._successful_output("SentimentAgent", 62.0),
+            self._successful_output("SectorAgent", 68.1),
+            self._successful_output("MarketAgent", 87.7),
+            self._not_applicable_output("BondExposureAgent"),
+        ]
+
+        chief.aggregate(features, agent_outputs)
+
+        self.assertIn("Treat the LOCKED SPECIALIST RANKING", llm.system_prompt)
+        self.assertIn("Explicitly state both the strongest and weakest signal once", llm.system_prompt)
+        self.assertIn("must not be attributed to another Agent", llm.system_prompt)
+        self.assertIn("keep those scopes explicit and separate", llm.system_prompt)
+        self.assertIn(
+            "LOCKED SPECIALIST RANKING: Strongest = PerformanceAgent (Performance), 100.0/100; "
+            "Weakest = SentimentAgent (News signal), 62.0/100.",
+            llm.user_prompt,
+        )
+        self.assertIn("LOCKED EVIDENCE OWNERSHIP", llm.user_prompt)
 
     def test_chief_agent_enriches_output_with_contextual_metadata(self):
         features = build_rich_features()
