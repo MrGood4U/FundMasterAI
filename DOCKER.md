@@ -7,9 +7,10 @@
 - `news`：新闻后端；
 - `portfolio`：投资组合后端；
 - `agent`：AI Agent；
-- `mysql`：Portfolio 所需数据库。
+- `mysql`：Portfolio 所需数据库；
+- `redis`：Market 指数排名等可恢复缓存。
 
-Redis 是 Market 的可选缓存，不影响完整功能启动，因此默认不包含。默认只把前端端口暴露给宿主机，其他服务都留在 Compose 内部网络。
+默认只把前端端口暴露给宿主机，其他服务都留在 Compose 内部网络。
 
 ## 1. 启动
 
@@ -102,6 +103,16 @@ cp .env.docker.example .env
 cp ai_agent/fund_llm_engine/.env.example ai_agent/fund_llm_engine/.env
 ```
 
+如果 Market Hub 需要通过 OpenBB/FMP 获取全球指数，请把密钥只写入根目录中由 Git
+忽略的 `.env`：
+
+```text
+FMP_API_KEY=你的密钥
+```
+
+Market 容器会在每次创建或重建时从该环境变量读取密钥；密钥不会复制进镜像，也不应
+写入 `docker/market-config.container`、`compose.yaml` 或任何提交到 Git 的文件。
+
 MySQL 用户、密码和数据库只会在数据卷首次初始化时创建。如果 `mysql_data`
 已经存在，之后再改 `FM_MYSQL_*` 不会自动迁移旧账号。此时应手工修改 MySQL
 账号，或者在确认不需要现有演示数据后执行 `docker compose down -v`，再按新配置
@@ -146,6 +157,7 @@ docker compose up -d --build --wait
 | Portfolio | 5002 | 不暴露 |
 | Agent | 5003 | 不暴露 |
 | MySQL | 3306 | 不暴露 |
+| Redis | 6379 | 不暴露 |
 
 AI Insights 主链路通过同源路径访问 `/api/market/*`、`/api/news/*`、
 `/api/portfolio/*` 和 `/api/ai/*`，因此不需要改现有 AI Insights 页面代码。
