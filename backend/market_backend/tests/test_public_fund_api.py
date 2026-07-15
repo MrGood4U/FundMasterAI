@@ -1,7 +1,12 @@
+import json
+
 import pandas as pd
 from unittest.mock import MagicMock, patch
 
-from apis.akshare_public_fund_api import AksharePublicFund
+from apis.akshare_public_fund_api import (
+    AksharePublicFund,
+    _fund_portfolio_hold_em,
+)
 
 
 class TestGetFundIndividualBasicInfo:
@@ -167,9 +172,43 @@ class TestGetFundPortfolioIndustryAllocationEm:
 
 
 class TestGetFundPortfolioHoldStock:
+    def test_sends_required_referer_and_short_timeout(self):
+        html = """
+        <div>
+          <h4 class="t"><label><a>华夏成长混合</a>&nbsp;&nbsp;2026年1季度股票投资明细</label></h4>
+          <table>
+            <thead><tr>
+              <th>序号</th><th>股票代码</th><th>股票名称</th><th>占净值 比例</th>
+              <th>持股数（万股）</th><th>持仓市值（万元）</th><th>相关资讯</th>
+            </tr></thead>
+            <tbody><tr>
+              <td>1</td><td>600519</td><td>贵州茅台</td><td>5.00%</td>
+              <td>10.0</td><td>15000.0</td><td>-</td>
+            </tr></tbody>
+          </table>
+        </div>
+        """
+        response = MagicMock()
+        response.text = f"var apidata={json.dumps({'content': html}, ensure_ascii=False)};"
+
+        with patch(
+            "apis.akshare_public_fund_api.requests.get",
+            return_value=response,
+        ) as mock_get:
+            result = _fund_portfolio_hold_em("000001", "2026")
+
+        response.raise_for_status.assert_called_once_with()
+        _, kwargs = mock_get.call_args
+        assert kwargs["headers"] == {
+            "Referer": "https://fundf10.eastmoney.com/ccmx_000001.html"
+        }
+        assert kwargs["timeout"] == 10
+        assert result.iloc[0]["股票代码"] == "600519"
+        assert result.iloc[0]["股票名称"] == "贵州茅台"
+
     def test_returns_mapped_dataframe(self, sample_portfolio_hold_stock_raw_df):
         api = AksharePublicFund()
-        with patch("apis.akshare_public_fund_api.ak.fund_portfolio_hold_em",
+        with patch("apis.akshare_public_fund_api._fund_portfolio_hold_em",
                    return_value=sample_portfolio_hold_stock_raw_df) as mock_ak:
             result = api.get_fund_portfolio_hold_stock("000001", "2025")
 
@@ -178,7 +217,7 @@ class TestGetFundPortfolioHoldStock:
 
     def test_filters_to_first_date_only(self, sample_portfolio_hold_stock_raw_df):
         api = AksharePublicFund()
-        with patch("apis.akshare_public_fund_api.ak.fund_portfolio_hold_em",
+        with patch("apis.akshare_public_fund_api._fund_portfolio_hold_em",
                    return_value=sample_portfolio_hold_stock_raw_df):
             result = api.get_fund_portfolio_hold_stock("000001", "2025")
 
@@ -186,7 +225,7 @@ class TestGetFundPortfolioHoldStock:
 
     def test_mapped_columns_present(self, sample_portfolio_hold_stock_raw_df):
         api = AksharePublicFund()
-        with patch("apis.akshare_public_fund_api.ak.fund_portfolio_hold_em",
+        with patch("apis.akshare_public_fund_api._fund_portfolio_hold_em",
                    return_value=sample_portfolio_hold_stock_raw_df):
             result = api.get_fund_portfolio_hold_stock("000001", "2025")
 
@@ -200,7 +239,7 @@ class TestGetFundPortfolioHoldStock:
 
     def test_original_chinese_columns_removed(self, sample_portfolio_hold_stock_raw_df):
         api = AksharePublicFund()
-        with patch("apis.akshare_public_fund_api.ak.fund_portfolio_hold_em",
+        with patch("apis.akshare_public_fund_api._fund_portfolio_hold_em",
                    return_value=sample_portfolio_hold_stock_raw_df):
             result = api.get_fund_portfolio_hold_stock("000001", "2025")
 
@@ -210,7 +249,7 @@ class TestGetFundPortfolioHoldStock:
 
     def test_returns_empty_list_when_empty_dataframe(self):
         api = AksharePublicFund()
-        with patch("apis.akshare_public_fund_api.ak.fund_portfolio_hold_em",
+        with patch("apis.akshare_public_fund_api._fund_portfolio_hold_em",
                    return_value=pd.DataFrame()):
             result = api.get_fund_portfolio_hold_stock("000001", "2025")
         assert result == []

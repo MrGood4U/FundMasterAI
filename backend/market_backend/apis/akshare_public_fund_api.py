@@ -1,9 +1,13 @@
 import logging
 from datetime import datetime, timedelta
+from io import StringIO
 
 import akshare as ak
 import pandas as pd
 import numpy as np
+import requests
+from akshare.utils import demjson
+from bs4 import BeautifulSoup
 from flask import current_app
 
 from apis.field_mapping import (
@@ -28,6 +32,102 @@ from apis.field_mapping import (
     FUND_PORTFOLIO_HOLD_STOCK_MAP,
     FUND_PORTFOLIO_HOLD_BOND_MAP,
 )
+
+
+_EASTMONEY_FUND_ARCHIVES_URL = (
+    "https://fundf10.eastmoney.com/FundArchivesDatas.aspx"
+)
+_EASTMONEY_FUND_PORTFOLIO_TIMEOUT_SECONDS = 10
+
+
+def _fund_portfolio_hold_em(symbol: str, date: str) -> pd.DataFrame:
+    """Fetch Eastmoney fund stock holdings with the required page referer.
+
+    AkShare 1.18.64 calls this endpoint without a Referer. Eastmoney now
+    answers those requests with a synthetic 404 page, while the same request
+    from its public fund page succeeds. Keep the workaround isolated here so
+    it can be removed when AkShare ships an upstream fix.
+    """
+    response = requests.get(
+        _EASTMONEY_FUND_ARCHIVES_URL,
+        params={
+            "type": "jjcc",
+            "code": symbol,
+            "topline": "10000",
+            "year": date,
+            "month": "",
+            "rt": "0.913877030254846",
+        },
+        headers={
+            "Referer": f"https://fundf10.eastmoney.com/ccmx_{symbol}.html",
+        },
+        timeout=_EASTMONEY_FUND_PORTFOLIO_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+
+    data_text = response.text.strip()
+    payload_start = data_text.find("{")
+    payload_end = data_text.rfind(";")
+    if payload_start < 0:
+        raise ValueError("Eastmoney fund holdings response has no data payload")
+    if payload_end <= payload_start:
+        payload_end = len(data_text)
+    data_json = demjson.decode(data_text[payload_start:payload_end])
+    content = data_json.get("content", "")
+
+    column_names = [
+        "序号",
+        "股票代码",
+        "股票名称",
+        "占净值比例",
+        "持股数",
+        "持仓市值",
+        "季度",
+    ]
+    if not content:
+        return pd.DataFrame(columns=column_names)
+
+    soup = BeautifulSoup(content, features="lxml")
+    quarter_labels = []
+    for heading in soup.find_all(name="h4", attrs={"class": "t"}):
+        heading_text = heading.get_text()
+        parts = heading_text.split("\xa0\xa0", 1)
+        quarter_labels.append(parts[1] if len(parts) == 2 else heading_text)
+
+    tables = pd.read_html(StringIO(content), converters={"股票代码": str})
+    frames = []
+    for index, temp_df in enumerate(tables):
+        if index >= len(quarter_labels):
+            break
+        if "相关资讯" in temp_df.columns:
+            del temp_df["相关资讯"]
+        temp_df.rename(
+            columns={
+                "占净值 比例": "占净值比例",
+                "持股数（万股）": "持股数",
+                "持股数 （万股）": "持股数",
+                "持仓市值（万元）": "持仓市值",
+                "持仓市值 （万元）": "持仓市值",
+                "持仓市值（万元人民币）": "持仓市值",
+                "持仓市值 （万元人民币）": "持仓市值",
+            },
+            inplace=True,
+        )
+        temp_df["占净值比例"] = (
+            temp_df["占净值比例"].str.split("%", expand=True).iloc[:, 0]
+        )
+        temp_df["季度"] = quarter_labels[index]
+        frames.append(temp_df[column_names])
+
+    if not frames:
+        return pd.DataFrame(columns=column_names)
+
+    result = pd.concat(frames, ignore_index=True)
+    result["占净值比例"] = pd.to_numeric(result["占净值比例"], errors="coerce")
+    result["持股数"] = pd.to_numeric(result["持股数"], errors="coerce")
+    result["持仓市值"] = pd.to_numeric(result["持仓市值"], errors="coerce")
+    result["序号"] = range(1, len(result) + 1)
+    return result[column_names]
 
 
 class AksharePublicFund:
@@ -163,7 +263,7 @@ class AksharePublicFund:
         return apply_mapping(df, FUND_NAME_EM_MAP)
 
     def get_fund_portfolio_holds(self, code: str, year: str):
-        df = ak.fund_portfolio_hold_em(symbol=code, date=year)
+        df = _fund_portfolio_hold_em(symbol=code, date=year)
         return apply_mapping(df, FUND_PORTFOLIO_HOLD_EM_MAP)
 
     def get_fund_individual_analysis(self, code: str):
@@ -274,7 +374,7 @@ class AksharePublicFund:
         return apply_mapping(df, FUND_PORTFOLIO_INDUSTRY_ALLOCATION_EM_MAP)
 
     def get_fund_portfolio_hold_stock(self, code: str, year: str):
-        df = ak.fund_portfolio_hold_em(symbol=code, date=year)
+        df = _fund_portfolio_hold_em(symbol=code, date=year)
         if df is None or df.empty:
             return []
         first_date = df.iloc[0]["季度"]
