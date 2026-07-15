@@ -1,20 +1,11 @@
 (function (window, document) {
   "use strict";
 
-  const FALLBACK_FUNDS = [
-    { code: "510300", name: "CSI 300 ETF", type: "ETF" },
-    { code: "159915", name: "ChiNext ETF", type: "ETF" },
-    { code: "512000", name: "Brokerage ETF", type: "ETF" },
-    { code: "512480", name: "Semiconductor ETF", type: "ETF" },
-    { code: "588000", name: "STAR 50 ETF", type: "ETF" },
-    { code: "THTE", name: "Tianyuan Huiteng Tech ETF", type: "Fund" },
-    { code: "GSI", name: "Global Semiconductor Index", type: "Index" },
-    { code: "CESF", name: "Clean Energy Strategic Fund", type: "Fund" },
-    { code: "MTGF.QX", name: "MasterTech Growth Fund", type: "Fund" },
-  ];
-
   const api = window.FundMasterAPI;
+  const FUND_DIRECTORY_CACHE_KEY = "fundmaster:fund-directory:v1";
+  const FUND_DIRECTORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
   let remoteFunds = null;
+  let remoteFundsPromise = null;
 
   function normalize(value) {
     return String(value || "").trim().toLowerCase();
@@ -33,25 +24,118 @@
     return {
       code: pick(record, ["基金代码", "fund_code", "code", "symbol"]),
       name: pick(record, ["基金简称", "基金名称", "name", "fund_name", "short_name"]),
-      type: pick(record, ["类型", "type"], "Fund"),
+      type: pick(record, ["类型", "fund_type", "type"], "Fund"),
+      pinyinAbbr: pick(record, ["拼音缩写", "pinyin_abbr"]),
+      pinyinFull: pick(record, ["拼音全称", "pinyin_full"]),
     };
   }
 
-  async function getFundUniverse() {
-    if (remoteFunds) return remoteFunds;
-    if (api && api.market && api.market.getFundNameList) {
+  function readFundDirectoryCache() {
+    try {
+      const raw = window.localStorage.getItem(FUND_DIRECTORY_CACHE_KEY);
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      if (!cached || !Array.isArray(cached.rows)) return null;
+      const funds = cached.rows
+        .map((row) => ({
+          code: String(row?.[0] || ""),
+          name: String(row?.[1] || ""),
+          type: String(row?.[2] || "Fund"),
+          pinyinAbbr: String(row?.[3] || ""),
+          pinyinFull: "",
+        }))
+        .filter((item) => item.code && item.name);
+      if (!funds.length) return null;
+      const savedAt = Number(cached.savedAt);
+      const age = Date.now() - savedAt;
+      return {
+        funds,
+        fresh: Number.isFinite(savedAt) && age >= 0 && age < FUND_DIRECTORY_CACHE_TTL_MS,
+      };
+    } catch (error) {
       try {
-        const rows = await api.market.getFundNameList();
-        if (Array.isArray(rows) && rows.length) {
-          remoteFunds = rows.map(normalizeFund).filter((item) => item.code || item.name);
-          return remoteFunds;
-        }
-      } catch (error) {
-        // Keep fallback functional
+        window.localStorage.removeItem(FUND_DIRECTORY_CACHE_KEY);
+      } catch (removeError) {
+        // Ignore unavailable browser storage and continue with the network.
       }
+      return null;
     }
-    remoteFunds = FALLBACK_FUNDS;
-    return remoteFunds;
+  }
+
+  function writeFundDirectoryCache(funds) {
+    try {
+      const rows = funds.map((item) => [
+        item.code,
+        item.name,
+        item.type,
+        item.pinyinAbbr,
+      ]);
+      window.localStorage.setItem(FUND_DIRECTORY_CACHE_KEY, JSON.stringify({
+        savedAt: Date.now(),
+        rows,
+      }));
+    } catch (error) {
+      // Private mode or a full quota should not make fund search unusable.
+    }
+  }
+
+  function refreshFundUniverse() {
+    if (remoteFundsPromise) return remoteFundsPromise;
+    if (!api?.market?.getFundNameList) {
+      return Promise.reject(new Error("Fund search API is unavailable"));
+    }
+    remoteFundsPromise = api.market.getFundNameList()
+      .then((rows) => {
+        if (!Array.isArray(rows) || !rows.length) {
+          throw new Error("Fund directory returned no records");
+        }
+        const funds = rows.map(normalizeFund).filter((item) => item.code && item.name);
+        if (!funds.length) {
+          throw new Error("Fund directory contained no usable records");
+        }
+        remoteFunds = funds;
+        writeFundDirectoryCache(funds);
+        return funds;
+      })
+      .finally(() => {
+        remoteFundsPromise = null;
+      });
+    return remoteFundsPromise;
+  }
+
+  async function getFundUniverse() {
+    if (Array.isArray(remoteFunds)) return remoteFunds;
+    const cached = readFundDirectoryCache();
+    if (cached) {
+      remoteFunds = cached.funds;
+      if (!cached.fresh) {
+        refreshFundUniverse().catch((error) => {
+          console.error("Fund directory background refresh failed; using cached data:", error);
+        });
+      }
+      return remoteFunds;
+    }
+    return refreshFundUniverse();
+  }
+
+  function fundSearchRank(item, query) {
+    const code = normalize(item.code);
+    const name = normalize(item.name);
+    const pinyinAbbr = normalize(item.pinyinAbbr);
+    const pinyinFull = normalize(item.pinyinFull);
+    if (code.startsWith(query)) return 0;
+    if (name.startsWith(query)) return 1;
+    if (pinyinAbbr.startsWith(query) || pinyinFull.startsWith(query)) return 2;
+    if ([code, name, pinyinAbbr, pinyinFull].some((value) => value.includes(query))) return 3;
+    return Number.POSITIVE_INFINITY;
+  }
+
+  function findFundMatches(universe, query) {
+    return universe
+      .map((item, index) => ({ item, index, rank: fundSearchRank(item, query) }))
+      .filter((entry) => Number.isFinite(entry.rank))
+      .sort((left, right) => left.rank - right.rank || left.index - right.index)
+      .map((entry) => entry.item);
   }
 
   function buildResultUrl(item) {
@@ -60,12 +144,6 @@
     if (item.name) params.set("name", item.name);
     if (item.type) params.set("type", item.type);
     return `fund-deep-dive.html?${params.toString()}`;
-  }
-
-  // 💡 新增：兜底的直接强行跳转函数
-  function forceRedirect(query) {
-    if (!query) return;
-    window.location.href = `fund-deep-dive.html?code=${encodeURIComponent(query)}&name=${encodeURIComponent(query)}`;
   }
 
   function renderResults(container, items, query) {
@@ -96,6 +174,11 @@
       .join("");
   }
 
+  function renderMessage(container, message) {
+    container.hidden = false;
+    container.innerHTML = `<div class="search-results__empty">${escapeHtml(message)}</div>`;
+  }
+
   function escapeHtml(value) {
     return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
@@ -113,31 +196,39 @@
     field.appendChild(results);
 
     let activeQuery = "";
+    let searchTimer = null;
 
-    input.addEventListener("input", async () => {
+    input.addEventListener("input", () => {
       const query = input.value.trim();
       activeQuery = query;
+      window.clearTimeout(searchTimer);
       if (!query) {
         renderResults(results, [], "");
         return;
       }
-
-      const universe = await getFundUniverse();
-      if (activeQuery !== query) return;
-
-      const q = normalize(query);
-      const matches = universe.filter((item) => {
-        return normalize(item.code).includes(q) || normalize(item.name).includes(q);
-      });
-      renderResults(results, matches, query);
+      if (!Array.isArray(remoteFunds)) {
+        renderMessage(results, "Loading fund directory…");
+      }
+      searchTimer = window.setTimeout(async () => {
+        try {
+          const universe = await getFundUniverse();
+          if (activeQuery !== query) return;
+          const matches = findFundMatches(universe, normalize(query));
+          renderResults(results, matches, query);
+        } catch (error) {
+          if (activeQuery !== query) return;
+          console.error("Fund search unavailable:", error);
+          renderMessage(results, "Fund search is temporarily unavailable. Please try again later.");
+        }
+      }, 250);
     });
 
     function openSearchResult() {
       const firstResult = results.querySelector(".search-result");
       if (firstResult && !results.hidden) {
         window.location.href = firstResult.getAttribute("href");
-      } else {
-        forceRedirect(input.value.trim());
+      } else if (input.value.trim()) {
+        renderMessage(results, "Select a real fund from the search results.");
       }
     }
 

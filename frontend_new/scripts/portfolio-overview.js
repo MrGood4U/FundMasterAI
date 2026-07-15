@@ -6,6 +6,8 @@
   // 冻结版约定：持仓只保存在浏览器 localStorage，不写 Portfolio 数据库；
   // AI 分析由用户点击 Analyze Portfolio 手动触发，避免每次增删都调用真实大模型。
   const STORAGE_KEY = "fundmaster:overview-holdings:v1";
+  const FUND_DIRECTORY_CACHE_KEY = "fundmaster:fund-directory:v1";
+  const FUND_DIRECTORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
   const state = {
     holdings: [],
@@ -146,35 +148,123 @@
     return "";
   }
 
-  async function getFundUniverse() {
-    if (Array.isArray(state.fundUniverse)) return state.fundUniverse;
+  function normalizeFund(record) {
+    return {
+      code: pick(record, ["基金代码", "fund_code", "code", "symbol"]),
+      name: pick(record, ["基金简称", "基金名称", "name", "fund_name", "short_name"]),
+      type: pick(record, ["类型", "fund_type", "type"]) || "Fund",
+      pinyinAbbr: pick(record, ["拼音缩写", "pinyin_abbr"]),
+      pinyinFull: pick(record, ["拼音全称", "pinyin_full"]),
+    };
+  }
+
+  function readFundDirectoryCache() {
+    try {
+      const raw = window.localStorage.getItem(FUND_DIRECTORY_CACHE_KEY);
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      if (!cached || !Array.isArray(cached.rows)) return null;
+      const funds = cached.rows
+        .map((row) => ({
+          code: String(row?.[0] || ""),
+          name: String(row?.[1] || ""),
+          type: String(row?.[2] || "Fund"),
+          pinyinAbbr: String(row?.[3] || ""),
+          pinyinFull: "",
+        }))
+        .filter((item) => item.code && item.name);
+      if (!funds.length) return null;
+      const savedAt = Number(cached.savedAt);
+      const age = Date.now() - savedAt;
+      return {
+        funds,
+        fresh: Number.isFinite(savedAt) && age >= 0 && age < FUND_DIRECTORY_CACHE_TTL_MS,
+      };
+    } catch (error) {
+      try {
+        window.localStorage.removeItem(FUND_DIRECTORY_CACHE_KEY);
+      } catch (removeError) {
+        // Ignore unavailable browser storage and continue with the network.
+      }
+      return null;
+    }
+  }
+
+  function writeFundDirectoryCache(funds) {
+    try {
+      const rows = funds.map((item) => [
+        item.code,
+        item.name,
+        item.type,
+        item.pinyinAbbr,
+      ]);
+      window.localStorage.setItem(FUND_DIRECTORY_CACHE_KEY, JSON.stringify({
+        savedAt: Date.now(),
+        rows,
+      }));
+    } catch (error) {
+      // Private mode or a full quota should not make fund search unusable.
+    }
+  }
+
+  function refreshFundUniverse() {
     if (state.fundUniversePromise) return state.fundUniversePromise;
     if (!api?.market?.getFundNameList) {
-      throw new Error("Fund search API is unavailable");
+      return Promise.reject(new Error("Fund search API is unavailable"));
     }
 
-    // The endpoint returns the full fund directory. Share the in-flight
-    // request so rapid typing cannot start one multi-megabyte download per key.
     state.fundUniversePromise = api.market.getFundNameList()
       .then((rows) => {
         if (!Array.isArray(rows) || !rows.length) {
           throw new Error("Fund directory returned no records");
         }
-        state.fundUniverse = rows
-          .map((record) => ({
-            code: pick(record, ["基金代码", "fund_code", "code", "symbol"]),
-            name: pick(record, ["基金简称", "基金名称", "name", "fund_name", "short_name"]),
-            type: pick(record, ["类型", "fund_type", "type"]) || "Fund",
-            pinyinAbbr: pick(record, ["拼音缩写", "pinyin_abbr"]),
-            pinyinFull: pick(record, ["拼音全称", "pinyin_full"]),
-          }))
-          .filter((item) => item.code && item.name);
-        return state.fundUniverse;
+        const funds = rows.map(normalizeFund).filter((item) => item.code && item.name);
+        if (!funds.length) {
+          throw new Error("Fund directory contained no usable records");
+        }
+        state.fundUniverse = funds;
+        writeFundDirectoryCache(funds);
+        return funds;
       })
       .finally(() => {
         state.fundUniversePromise = null;
       });
     return state.fundUniversePromise;
+  }
+
+  async function getFundUniverse() {
+    if (Array.isArray(state.fundUniverse)) return state.fundUniverse;
+    const cached = readFundDirectoryCache();
+    if (cached) {
+      state.fundUniverse = cached.funds;
+      if (!cached.fresh) {
+        refreshFundUniverse().catch((error) => {
+          console.error("Fund directory background refresh failed; using cached data:", error);
+        });
+      }
+      return state.fundUniverse;
+    }
+    return refreshFundUniverse();
+  }
+
+  function fundSearchRank(item, query) {
+    const code = String(item.code || "").toLowerCase();
+    const name = String(item.name || "").toLowerCase();
+    const pinyinAbbr = String(item.pinyinAbbr || "").toLowerCase();
+    const pinyinFull = String(item.pinyinFull || "").toLowerCase();
+    if (code.startsWith(query)) return 0;
+    if (name.startsWith(query)) return 1;
+    if (pinyinAbbr.startsWith(query) || pinyinFull.startsWith(query)) return 2;
+    if ([code, name, pinyinAbbr, pinyinFull].some((value) => value.includes(query))) return 3;
+    return Number.POSITIVE_INFINITY;
+  }
+
+  function findFundMatches(universe, query) {
+    return universe
+      .map((item, index) => ({ item, index, rank: fundSearchRank(item, query) }))
+      .filter((entry) => Number.isFinite(entry.rank))
+      .sort((left, right) => left.rank - right.rank || left.index - right.index)
+      .map((entry) => entry.item);
   }
 
   function renderFundMessage(message) {
@@ -240,16 +330,15 @@
         renderFundResults([], "");
         return;
       }
-      renderFundMessage("Loading fund directory…");
+      if (!Array.isArray(state.fundUniverse)) {
+        renderFundMessage("Loading fund directory…");
+      }
       searchTimer = window.setTimeout(async () => {
         try {
           const universe = await getFundUniverse();
           if (activeQuery !== query) return;
           const q = query.toLowerCase();
-          const matches = universe.filter((item) => (
-            [item.code, item.name, item.pinyinAbbr, item.pinyinFull]
-              .some((value) => String(value || "").toLowerCase().includes(q))
-          ));
+          const matches = findFundMatches(universe, q);
           renderFundResults(matches, query);
         } catch (error) {
           if (activeQuery !== query) return;

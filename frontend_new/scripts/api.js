@@ -121,7 +121,9 @@
   window.FundMasterAPI = {
     config,
     market: {
-      getFundNameList: () => request(config.marketBaseUrl, "/api/market/fund_public/fund_name_list"),
+      getFundNameList: () => request(config.marketBaseUrl, "/api/market/fund_public/fund_name_list", {
+        timeout: 120000,
+      }),
       getFundRank: (fundType = "all", orderBy = "change_1y") =>
         request(config.marketBaseUrl, "/api/market/fund_public/rank", {
           method: "POST",
