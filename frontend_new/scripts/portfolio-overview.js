@@ -258,12 +258,10 @@
 
   function clearAiOutput(message) {
     const analysis = byId("ai-analysis");
-    const rebalancing = byId("ai-rebalancing");
     if (analysis) {
       analysis.textContent = message;
       analysis.className = "muted";
     }
-    if (rebalancing) rebalancing.innerHTML = '<li class="muted">No suggestions yet.</li>';
   }
 
   function narrativeOnly(result) {
@@ -299,7 +297,7 @@
       clearAiOutput("Add a holding selected from the fund search before running the portfolio analysis.");
       setAiStatus("AI analysis needs holdings selected from the fund search (with a 6-digit fund code). Manually typed names cannot be analyzed.");
     } else {
-      clearAiOutput("Holdings changed. Run Analyze Portfolio again to refresh the analysis and suggestions.");
+      clearAiOutput("Holdings changed. Run Analyze Portfolio again to refresh the analysis.");
       setAiStatus("Holdings updated — click Analyze Portfolio to refresh the AI analysis.");
     }
   }
@@ -320,8 +318,7 @@
 
   async function runAiAnalysis() {
     const analysis = byId("ai-analysis");
-    const rebalancing = byId("ai-rebalancing");
-    if (!analysis || !rebalancing) return;
+    if (!analysis) return;
     if (state.aiRunning) return;
 
     const positions = aiPositions();
@@ -349,11 +346,6 @@
 
       analysis.textContent = narrativeOnly(result);
 
-      const plan = Array.isArray(result?.action_plan) ? result.action_plan : [];
-      rebalancing.innerHTML = plan.length
-        ? plan.map((item) => `<li>${escapeHtml(item)}</li>`).join("")
-        : '<li class="muted">No rebalancing action suggested.</li>';
-
       setAiStatus(
         skipped > 0
           ? `AI analysis covers ${positions.length} coded fund(s); ${skipped} holding(s) without a fund code were excluded.`
@@ -364,7 +356,6 @@
         console.error("AI portfolio analysis failed:", error);
         analysis.textContent = `AI analysis failed: ${error.message}. Make sure the AI Agent service is running, then click Analyze Portfolio to retry.`;
         analysis.className = "muted";
-        rebalancing.innerHTML = '<li class="muted">No suggestions available.</li>';
         setAiStatus("The AI service could not complete this analysis.");
       }
     } finally {
