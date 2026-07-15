@@ -126,6 +126,7 @@
         request(config.marketBaseUrl, "/api/market/fund_public/rank", {
           method: "POST",
           body: { fund_type: fundType, order_by: orderBy },
+          allowNonFiniteJsonNumbers: true,
         }),
       getFundHist: (code, options = {}) =>
         request(config.marketBaseUrl, "/api/market/fund_public/hist", {
