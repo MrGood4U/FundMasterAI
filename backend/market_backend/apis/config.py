@@ -1,5 +1,4 @@
 import os
-from typing import Dict, Any
 from configparser import ConfigParser
 
 # 获取当前 Python 脚本所在的绝对路径
@@ -37,4 +36,8 @@ def get_tickflow_api_key() -> str:
     return config_dict['tickflow']['api_key']
 
 def get_openbb_fmp_api_key() -> str:
-    return config_dict['openbb']['fmp_api_key']
+    return (
+        os.getenv("FMP_API_KEY", "").strip()
+        or os.getenv("OPENBB_FMP_API_KEY", "").strip()
+        or config_dict['openbb']['fmp_api_key'].strip()
+    )

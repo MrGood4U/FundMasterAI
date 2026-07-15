@@ -19,11 +19,11 @@ fund_rank_enabled = false
 fund_ths_spot_enabled = false
 fund_value_est_enabled = false
 fund_info_index_enabled = false
-global_index_rank_enabled = false
+global_index_rank_enabled = true
 compression = false
 
 [redis]
-redis_host = 127.0.0.1
+redis_host = redis
 redis_port = 6379
 redis_db = 0
 redis_password =

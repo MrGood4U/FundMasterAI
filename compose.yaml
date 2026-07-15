@@ -18,6 +18,17 @@ services:
       retries: 30
       start_period: 20s
 
+  redis:
+    image: redis:7.4-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
   market:
     build:
       context: .
@@ -26,6 +37,10 @@ services:
     environment:
       MARKET_HTTP_PORT: "5001"
       MARKET_TESTING: "1"
+      FMP_API_KEY: ${FMP_API_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
     expose:
       - "5001"
     healthcheck:
@@ -173,3 +188,4 @@ services:
 
 volumes:
   mysql_data:
+  redis_data:
