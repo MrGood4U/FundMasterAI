@@ -509,10 +509,6 @@ class ChiefAgent:
             "Do not describe zero missing fields as a limitation. "
             "Treat the LOCKED SPECIALIST RANKING in the user prompt as authoritative. Explicitly state both the "
             "strongest and weakest signal once, using those exact Agent names and scores; do not select alternatives. "
-            "Keep evidence ownership exact: a metric, limitation, or missing field from one bracketed Agent report "
-            "must not be attributed to another Agent. "
-            "Preserve the denominator and deterministic assessment stated by each Agent. When SectorAgent reports "
-            "both total-fund-NAV and disclosed-sector-mix views, keep those scopes explicit and separate. "
             "Keep the final summary under 160 words and end with a complete sentence."
         )
         joined_reports = "\n\n".join(
@@ -536,8 +532,6 @@ class ChiefAgent:
             f"Data coverage: {features.data_coverage}\n"
             f"Missing fields: {features.missing_fields}\n"
             f"LOCKED SPECIALIST RANKING: {locked_specialist_ranking}\n"
-            "LOCKED EVIDENCE OWNERSHIP: facts inside each [AgentName] report belong only to that Agent; "
-            "do not reassign them to another specialist.\n"
             f"Key thesis candidates: {key_thesis}\n"
             f"Risk candidates: {main_risks}\n"
             f"Action plan candidates: {action_plan}\n\n"
