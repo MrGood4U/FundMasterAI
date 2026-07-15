@@ -381,6 +381,14 @@ class AgentsTest(unittest.TestCase):
         self.assertTrue(any("Sector breadth covers" in item for item in result.key_points))
         self.assertGreaterEqual(result.confidence, 0.7)
 
+    def test_sector_agent_labels_total_nav_and_derived_subtotal_views(self):
+        llm = RecordingLLMClient("sector narrative")
+
+        SectorAgent(llm).analyze(build_rich_features())
+
+        self.assertIn("every supplied sector weight as a share of total fund NAV", llm.system_prompt)
+        self.assertIn("label it explicitly as a separate derived view", llm.system_prompt)
+
     def test_sector_agent_gracefully_degrades_without_industry_breakdown(self):
         payload = build_sample_input()
         payload.industry_exposure = {}

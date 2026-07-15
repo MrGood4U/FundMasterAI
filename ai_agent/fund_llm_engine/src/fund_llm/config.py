@@ -38,4 +38,4 @@ MIN_RATING_COVERAGE_RATIO = 0.60
 
 # Prompt 版本标记（Phase 2 evidence）：任何 agent prompt 措辞变更时同步递增，
 # 让 golden case 结果、真实模型样例和人工评估记录能对上是哪一版 prompt 产生的。
-PROMPT_VERSION = "2026-07-15.1"
+PROMPT_VERSION = "2026-07-15.2"
