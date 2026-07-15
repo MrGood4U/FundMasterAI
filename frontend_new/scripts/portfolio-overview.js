@@ -9,7 +9,7 @@
 
   const state = {
     holdings: [],
-    fundUniverse: null,
+    fundSearchCache: new Map(),
     selectedFund: null,
     aiRunToken: 0,
     aiRunning: false,
@@ -145,27 +145,45 @@
     return "";
   }
 
-  async function getFundUniverse() {
-    if (state.fundUniverse) return state.fundUniverse;
-    if (api?.market?.getFundNameList) {
-      try {
-        const rows = await api.market.getFundNameList();
-        if (Array.isArray(rows) && rows.length) {
-          state.fundUniverse = rows
-            .map((record) => ({
-              code: pick(record, ["基金代码", "fund_code", "code", "symbol"]),
-              name: pick(record, ["基金简称", "基金名称", "name", "fund_name", "short_name"]),
-              type: pick(record, ["类型", "type"]) || "Fund",
-            }))
-            .filter((item) => item.code && item.name);
-          return state.fundUniverse;
-        }
-      } catch (error) {
-        console.error("Fund name list unavailable for holding search:", error);
-      }
+  async function searchFunds(query) {
+    const cacheKey = query.trim().toLowerCase();
+    if (state.fundSearchCache.has(cacheKey)) {
+      return state.fundSearchCache.get(cacheKey);
     }
-    state.fundUniverse = [];
-    return state.fundUniverse;
+    if (!api?.market?.getFundNameList) {
+      throw new Error("Fund search API is not available");
+    }
+
+    const rows = await api.market.getFundNameList(query, 8);
+    if (!Array.isArray(rows)) {
+      throw new Error("Fund search returned an invalid response");
+    }
+
+    // Filtering again keeps the frontend compatible with an older backend
+    // that ignores q/limit and still returns the full fund universe.
+    const matches = rows
+      .map((record) => ({
+        code: pick(record, ["基金代码", "fund_code", "code", "symbol"]),
+        name: pick(record, ["基金简称", "基金名称", "name", "fund_name", "short_name"]),
+        type: pick(record, ["类型", "fund_type", "type"]) || "Fund",
+        pinyinAbbr: pick(record, ["拼音缩写", "pinyin_abbr"]),
+        pinyinFull: pick(record, ["拼音全称", "pinyin_full"]),
+      }))
+      .filter((item) => item.code && item.name)
+      .filter(
+        (item) => [item.code, item.name, item.pinyinAbbr, item.pinyinFull]
+          .some((value) => value.toLowerCase().includes(cacheKey)),
+      )
+      .slice(0, 8);
+    state.fundSearchCache.set(cacheKey, matches);
+    return matches;
+  }
+
+  function renderFundMessage(message) {
+    const container = byId("holding-fund-results");
+    if (!container) return;
+    container.hidden = false;
+    container.innerHTML = `<div class="po-fund-results__empty">${escapeHtml(message)}</div>`;
   }
 
   function renderFundResults(matches, query) {
@@ -211,9 +229,11 @@
     if (!input || !container) return;
 
     let activeQuery = "";
-    input.addEventListener("input", async () => {
+    let searchTimer = null;
+    input.addEventListener("input", () => {
       const query = input.value.trim();
       activeQuery = query;
+      window.clearTimeout(searchTimer);
       // 用户手动改动文本后，之前选中的基金不再可信
       if (state.selectedFund && query !== `${state.selectedFund.code} ${state.selectedFund.name}`) {
         setSelectedFund(null);
@@ -222,13 +242,18 @@
         renderFundResults([], "");
         return;
       }
-      const universe = await getFundUniverse();
-      if (activeQuery !== query) return;
-      const q = query.toLowerCase();
-      const matches = universe.filter(
-        (item) => item.code.toLowerCase().includes(q) || item.name.toLowerCase().includes(q),
-      );
-      renderFundResults(matches, query);
+      renderFundMessage("Searching funds…");
+      searchTimer = window.setTimeout(async () => {
+        try {
+          const matches = await searchFunds(query);
+          if (activeQuery !== query) return;
+          renderFundResults(matches, query);
+        } catch (error) {
+          if (activeQuery !== query) return;
+          console.error("Fund search unavailable:", error);
+          renderFundMessage("Fund search is temporarily unavailable. Edit the query to try again.");
+        }
+      }, 250);
     });
 
     container.addEventListener("click", (event) => {
@@ -418,10 +443,13 @@
       }
 
       const selected = state.selectedFund;
-      const codeMatch = typedName.match(/\b\d{6}\b/);
+      if (!selected) {
+        showStatus("Select a fund from the search results before confirming.", true);
+        return;
+      }
       state.holdings.push({
-        code: selected ? selected.code : codeMatch ? codeMatch[0] : "",
-        name: selected ? selected.name : typedName,
+        code: selected.code,
+        name: selected.name,
         amount,
         profit,
       });

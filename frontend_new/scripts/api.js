@@ -121,7 +121,17 @@
   window.FundMasterAPI = {
     config,
     market: {
-      getFundNameList: () => request(config.marketBaseUrl, "/api/market/fund_public/fund_name_list"),
+      getFundNameList: (query = "", limit = 8) => {
+        const normalizedQuery = String(query || "").trim();
+        if (!normalizedQuery) {
+          return request(config.marketBaseUrl, "/api/market/fund_public/fund_name_list");
+        }
+        const params = new URLSearchParams({
+          q: normalizedQuery,
+          limit: String(limit),
+        });
+        return request(config.marketBaseUrl, `/api/market/fund_public/fund_name_list?${params.toString()}`);
+      },
       getFundRank: (fundType = "all", orderBy = "change_1y") =>
         request(config.marketBaseUrl, "/api/market/fund_public/rank", {
           method: "POST",

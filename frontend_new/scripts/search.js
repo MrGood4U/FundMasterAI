@@ -14,7 +14,7 @@
   ];
 
   const api = window.FundMasterAPI;
-  let remoteFunds = null;
+  const remoteSearchCache = new Map();
 
   function normalize(value) {
     return String(value || "").trim().toLowerCase();
@@ -33,25 +33,35 @@
     return {
       code: pick(record, ["基金代码", "fund_code", "code", "symbol"]),
       name: pick(record, ["基金简称", "基金名称", "name", "fund_name", "short_name"]),
-      type: pick(record, ["类型", "type"], "Fund"),
+      type: pick(record, ["类型", "fund_type", "type"], "Fund"),
+      pinyinAbbr: pick(record, ["拼音缩写", "pinyin_abbr"]),
+      pinyinFull: pick(record, ["拼音全称", "pinyin_full"]),
     };
   }
 
-  async function getFundUniverse() {
-    if (remoteFunds) return remoteFunds;
+  async function searchFunds(query) {
+    const cacheKey = normalize(query);
+    if (remoteSearchCache.has(cacheKey)) return remoteSearchCache.get(cacheKey);
     if (api && api.market && api.market.getFundNameList) {
       try {
-        const rows = await api.market.getFundNameList();
-        if (Array.isArray(rows) && rows.length) {
-          remoteFunds = rows.map(normalizeFund).filter((item) => item.code || item.name);
-          return remoteFunds;
+        const rows = await api.market.getFundNameList(query, 8);
+        if (Array.isArray(rows)) {
+          const matches = rows
+            .map(normalizeFund)
+            .filter((item) => item.code || item.name)
+            .filter((item) => [item.code, item.name, item.pinyinAbbr, item.pinyinFull]
+              .some((value) => normalize(value).includes(cacheKey)))
+            .slice(0, 8);
+          remoteSearchCache.set(cacheKey, matches);
+          return matches;
         }
       } catch (error) {
         // Keep fallback functional
       }
     }
-    remoteFunds = FALLBACK_FUNDS;
-    return remoteFunds;
+    return FALLBACK_FUNDS.filter(
+      (item) => normalize(item.code).includes(cacheKey) || normalize(item.name).includes(cacheKey),
+    ).slice(0, 8);
   }
 
   function buildResultUrl(item) {
@@ -113,23 +123,23 @@
     field.appendChild(results);
 
     let activeQuery = "";
+    let searchTimer = null;
 
-    input.addEventListener("input", async () => {
+    input.addEventListener("input", () => {
       const query = input.value.trim();
       activeQuery = query;
+      window.clearTimeout(searchTimer);
       if (!query) {
         renderResults(results, [], "");
         return;
       }
-
-      const universe = await getFundUniverse();
-      if (activeQuery !== query) return;
-
-      const q = normalize(query);
-      const matches = universe.filter((item) => {
-        return normalize(item.code).includes(q) || normalize(item.name).includes(q);
-      });
-      renderResults(results, matches, query);
+      results.hidden = false;
+      results.innerHTML = '<div class="search-results__empty">Searching funds…</div>';
+      searchTimer = window.setTimeout(async () => {
+        const matches = await searchFunds(query);
+        if (activeQuery !== query) return;
+        renderResults(results, matches, query);
+      }, 250);
     });
 
     function openSearchResult() {

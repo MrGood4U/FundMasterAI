@@ -72,8 +72,16 @@ def get_public_fund_hist_min():
 
 @public_fund_bp.get("/fund_name_list")
 def get_public_fund_name_list():
+    query = request.args.get("q", "").strip()
+    limit = None
+    if query:
+        try:
+            limit = max(1, min(int(request.args.get("limit", 8)), 20))
+        except (TypeError, ValueError):
+            return jsonify({"code": 400, "data": [], "message": "limit must be an integer"}), 400
+
     service = PublicFundService()
-    result = service.get_fund_name_list()
+    result = service.get_fund_name_list(query=query, limit=limit)
     return jsonify({"code": 200, "data": result, "message": "success"}), 200
 
 

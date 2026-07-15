@@ -201,7 +201,7 @@ class PublicFundService:
 
     # -- fund-name list (cached — rarely changes) ---------------------------
 
-    def get_fund_name_list(self):
+    def get_fund_name_list(self, query: str = "", limit: int = None):
         cache_key = "fund:name:list"
         df = self.cache.get_df(cache_key)
         if df is None or df.empty:
@@ -211,6 +211,41 @@ class PublicFundService:
                 self.cache.set_df(cache_key, df)
         if df is None or df.empty:
             return []
+
+        query = str(query or "").strip().casefold()
+        if query:
+            searchable_columns = [
+                column
+                for column in ("fund_code", "fund_name", "pinyin_abbr", "pinyin_full")
+                if column in df.columns
+            ]
+            if not searchable_columns:
+                return []
+
+            normalized = {
+                column: df[column].fillna("").astype(str).str.casefold()
+                for column in searchable_columns
+            }
+            exact_mask = pd.Series(False, index=df.index)
+            prefix_mask = pd.Series(False, index=df.index)
+            contains_mask = pd.Series(False, index=df.index)
+            for values in normalized.values():
+                exact_mask |= values.eq(query)
+                prefix_mask |= values.str.startswith(query)
+                contains_mask |= values.str.contains(query, regex=False)
+
+            # Exact matches first, then prefix matches, then other contains
+            # matches. Keep the original data-source order within each group.
+            df = pd.concat(
+                [
+                    df[exact_mask],
+                    df[prefix_mask & ~exact_mask],
+                    df[contains_mask & ~prefix_mask],
+                ]
+            )
+
+        if limit is not None:
+            df = df.head(max(0, int(limit)))
         return df.to_dict(orient="records")
 
     # -- portfolio / analysis (per-fund, NOT cached) -----------------------

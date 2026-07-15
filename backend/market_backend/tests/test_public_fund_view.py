@@ -97,6 +97,21 @@ class TestGetFundNameList:
         data = json.loads(resp.data)
         assert data["code"] == 200
         assert len(data["data"]) == 1
+        mock_service.get_fund_name_list.assert_called_once_with(query="", limit=None)
+
+    def test_passes_search_query_and_limit(self, client):
+        mock_service = MagicMock()
+        mock_service.get_fund_name_list.return_value = [
+            {"fund_code": "000171", "fund_name": "易方达裕丰回报债券A"}
+        ]
+        with patch("views.public_fund_view.PublicFundService", return_value=mock_service):
+            resp = client.get("/api/market/fund_public/fund_name_list?q=000171&limit=5")
+        assert resp.status_code == 200
+        mock_service.get_fund_name_list.assert_called_once_with(query="000171", limit=5)
+
+    def test_rejects_invalid_search_limit(self, client):
+        resp = client.get("/api/market/fund_public/fund_name_list?q=000171&limit=bad")
+        assert resp.status_code == 400
 
     def test_no_params_needed(self, client):
         mock_service = MagicMock()

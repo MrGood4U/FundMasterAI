@@ -76,6 +76,23 @@ class TestGetFundNameList:
         assert len(result) == 2
         assert result[0]["fund_code"] == "510050"
 
+    def test_filters_and_limits_search_results(self, service, sample_fund_name_list_df):
+        service.akapi.get_fund_name_list = MagicMock(return_value=sample_fund_name_list_df)
+        result = service.get_fund_name_list(query="510300", limit=8)
+        assert result == [{
+            "fund_code": "510300",
+            "pinyin_abbr": "HS300ETF",
+            "fund_name": "沪深300ETF",
+            "fund_type": "ETF",
+            "pinyin_full": "hushen300ETF",
+        }]
+
+    def test_searches_pinyin_case_insensitively(self, service, sample_fund_name_list_df):
+        service.akapi.get_fund_name_list = MagicMock(return_value=sample_fund_name_list_df)
+        result = service.get_fund_name_list(query="hxsb", limit=1)
+        assert len(result) == 1
+        assert result[0]["fund_code"] == "510050"
+
 
 class TestGetFundIndividualBasicInfo:
     def test_returns_list_of_dicts(self, service, sample_fund_individual_basic_info_mapped_df):
