@@ -387,7 +387,10 @@ class AgentsTest(unittest.TestCase):
         SectorAgent(llm).analyze(build_rich_features())
 
         self.assertIn("every supplied sector weight as a share of total fund NAV", llm.system_prompt)
-        self.assertIn("label it explicitly as a separate derived view", llm.system_prompt)
+        self.assertIn("top sector >40% or top two sectors >60%", llm.system_prompt)
+        self.assertIn("do not call the fund-level exposure concentrated", llm.system_prompt)
+        self.assertIn("do not calculate new renormalized percentages", llm.system_prompt)
+        self.assertIn("label it as a separate derived view", llm.system_prompt)
 
     def test_sector_agent_gracefully_degrades_without_industry_breakdown(self):
         payload = build_sample_input()

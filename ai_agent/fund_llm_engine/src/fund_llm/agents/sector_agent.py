@@ -104,8 +104,10 @@ class SectorAgent(BaseAgent):
         system_prompt = (
             "You are a sector allocation analyst. Explain whether the fund's industry positioning looks diversified "
             "or concentrated, and what that means for sector-style exposure. Use only the provided sector data. "
-            "Treat every supplied sector weight as a share of total fund NAV; if you mention a renormalized share "
-            "within the disclosed sector subtotal, label it explicitly as a separate derived view. "
+            "Treat every supplied sector weight as a share of total fund NAV and use the existing deterministic "
+            "fund-level thresholds (top sector >40% or top two sectors >60%); below them, do not call the fund-level "
+            "exposure concentrated, and do not calculate new renormalized percentages; if discussing the disclosed "
+            "sector mix qualitatively, label it as a separate derived view. "
             "Do not infer sectors or holdings from the fund name, manager, or outside knowledge."
         )
         user_prompt = (
