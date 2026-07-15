@@ -17,13 +17,13 @@ TIMEOUT = int(os.getenv("SMOKE_TIMEOUT_SECONDS", "300"))
 FRONTEND_PAGES = (
     ("/portfolio-overview.html", b"Portfolio Overview"),
     ("/equity-funds.html", b"Equity Funds"),
-    ("/debt-funds.html", b"Debt Portfolio"),
-    ("/global-investment.html", b"Global Strategic Matrix"),
+    ("/debt-funds.html", b"Debt Funds"),
+    ("/global-investment.html", b"Global Investment"),
     ("/fund-deep-dive.html", b"Fund Deep Dive"),
     ("/market-hub.html", b"Market Hub"),
-    ("/market-flow.html", b"Market Liquidity"),
+    ("/market-flow.html", b"Market Flow"),
     ("/index.html", b"Market Intelligence"),
-    ("/ai-insights.html", b"AI Fund Analysis"),
+    ("/ai-insights.html", b"AI Insights"),
     ("/settings.html", b"Settings"),
 )
 
