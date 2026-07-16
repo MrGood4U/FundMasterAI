@@ -20,7 +20,7 @@ class TestGetAllASpot:
     def test_returns_none_for_unsupported_platform(self, service):
         service.akapi.a_spot_all = MagicMock(return_value=None)
         result = service.get_all_a_spot("unknown")
-        assert result is None
+        assert result == []
 
     def test_returns_empty_list_for_empty_dataframe(self, service):
         import pandas as pd
@@ -40,7 +40,7 @@ class TestGetASpot:
     def test_returns_none_for_unsupported_platform(self, service):
         service.akapi.a_spot_one = MagicMock(return_value=None)
         result = service.get_a_spot("unknown", "000001", None)
-        assert result is None
+        assert result == []
 
     def test_passes_name_to_api(self, service, sample_stock_spot_df):
         single = sample_stock_spot_df.iloc[[0]]
@@ -68,7 +68,7 @@ class TestGetAHist:
         service.akapi.a_hist = MagicMock(return_value=None)
         result = service.get_a_hist("unknown", "000001", "daily",
                                      "2026-05-20", "2026-05-21", "qfq")
-        assert result is None
+        assert result == []
 
 
 class TestGetABidAsk:
@@ -81,4 +81,4 @@ class TestGetABidAsk:
     def test_returns_none_for_unsupported_platform(self, service):
         service.akapi.a_bid_ask = MagicMock(return_value=None)
         result = service.get_a_bid_ask("unknown", "000001")
-        assert result is None
+        assert result == []

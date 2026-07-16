@@ -23,7 +23,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "asset_code": {
                     "type": "string",
@@ -86,7 +86,7 @@ FUNCTIONS = [
         },
         "returns": {
             "id": "交易记录ID",
-            "asset_type": "资产类型（stock/fund/crypto）",
+            "asset_type": "资产类型（stock/fund/bond/crypto）",
             "asset_code": "资产代码",
             "asset_name": "资产名称",
             "trans_type": "交易方向（buy/sell）",
@@ -177,7 +177,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型筛选",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "asset_code": {
                     "type": "string",
@@ -229,7 +229,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型筛选",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "page": {
                     "type": "integer",
@@ -275,7 +275,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "asset_code": {
                     "type": "string",
@@ -287,6 +287,91 @@ FUNCTIONS = [
         "returns": {
             "_extends": "包含 get_holdings 返回的所有汇总字段",
             "transactions": "该资产的全部交易记录数组，每笔买入含 batch_pnl（批次盈亏金额）和 batch_pnl_pct（批次盈亏百分比）",
+        },
+    },
+    {
+        "name": "create_holding",
+        "description": "创建一条持仓交易记录（买入或卖出），会自动影响对应资产的持仓数量和成本。创建后可通过 get_holdings 查看更新后的持仓汇总。",
+        "path": "/api/portfolio/holding/create",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "asset_type": {
+                    "type": "string",
+                    "description": "资产类型",
+                    "enum": ["stock", "fund", "bond", "crypto"],
+                },
+                "asset_code": {
+                    "type": "string",
+                    "description": "资产代码，如 600519（股票）、000001（基金）、BTCUSDT（加密货币）",
+                },
+                "asset_name": {
+                    "type": "string",
+                    "description": "资产名称（冗余字段，便于展示），如 贵州茅台",
+                },
+                "trans_type": {
+                    "type": "string",
+                    "description": "交易方向",
+                    "enum": ["buy", "sell"],
+                },
+                "price": {
+                    "type": "number",
+                    "description": "成交单价",
+                },
+                "quantity": {
+                    "type": "number",
+                    "description": "成交数量（股/份/币）",
+                },
+                "fee": {
+                    "type": "number",
+                    "description": "手续费，默认为 0",
+                },
+                "trans_date": {
+                    "type": "string",
+                    "description": "交易日期，格式 YYYY-MM-DD",
+                },
+                "portfolio_tag": {
+                    "type": "string",
+                    "description": "投资组合标签，如 long-term / short-term / grid / DCA",
+                },
+                "notes": {
+                    "type": "string",
+                    "description": "备注信息",
+                },
+            },
+            "required": ["asset_type", "asset_code", "asset_name", "trans_type", "price", "quantity", "fee", "trans_date"],
+        },
+        "returns": {
+            "id": "交易记录ID",
+        },
+    },
+    {
+        "name": "delete_holding",
+        "description": "删除持仓记录。支持两种方式：按交易ID删除单条记录（传 id），或按资产类型+代码清空该资产的全部交易记录（传 asset_type + asset_code）。操作不可撤销。",
+        "path": "/api/portfolio/holding/delete",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "description": "交易记录ID，删除单条交易记录",
+                },
+                "asset_type": {
+                    "type": "string",
+                    "description": "资产类型（与 asset_code 配合使用，清空该资产的全部交易记录）",
+                    "enum": ["stock", "fund", "bond", "crypto"],
+                },
+                "asset_code": {
+                    "type": "string",
+                    "description": "资产代码（与 asset_type 配合使用，清空该资产的全部交易记录）",
+                },
+            },
+            "required": [],
+        },
+        "returns": {
+            "deleted": "实际删除的记录条数",
         },
     },
 
@@ -304,7 +389,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "asset_code": {
                     "type": "string",
@@ -475,7 +560,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型筛选",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "page": {
                     "type": "integer",
@@ -510,7 +595,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "asset_code": {
                     "type": "string",
@@ -569,7 +654,7 @@ FUNCTIONS = [
                 "asset_type": {
                     "type": "string",
                     "description": "资产类型筛选",
-                    "enum": ["stock", "fund", "crypto"],
+                    "enum": ["stock", "fund", "bond", "crypto"],
                 },
                 "page": {
                     "type": "integer",
@@ -589,6 +674,421 @@ FUNCTIONS = [
             "page_size": "每页条数",
         },
     },
+
+    # =====================================================================
+    # Allocation 资产配置
+    # =====================================================================
+    {
+        "name": "get_current_allocation",
+        "description": "获取当前各类资产（stock/fund/bond/crypto）的持仓市值与占比。基于实时行情计算市值，用于了解当前实际配置状态。",
+        "path": "/api/portfolio/allocation/current",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "items": "各类资产配置数组",
+            "total_market_value": "总市值",
+            "total_cost": "总成本",
+            "_item_fields": {
+                "asset_type": "资产大类（stock/fund/bond/crypto）",
+                "market_value": "该类别持仓总市值",
+                "pct": "该类别占总市值的百分比",
+                "total_cost": "该类别持仓总成本",
+            },
+        },
+    },
+    {
+        "name": "set_target_allocation",
+        "description": "设定目标资产配置比例。传入各资产类别的目标百分比（总和必须为100）。通常由Agent根据用户风险偏好推荐后调用。例如 risk-averse: {stock:30, fund:30, bond:35, crypto:5}；aggressive: {stock:50, fund:20, bond:10, crypto:20}。",
+        "path": "/api/portfolio/allocation/target",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "stock": {
+                    "type": "number",
+                    "description": "股票目标占比(%)",
+                },
+                "fund": {
+                    "type": "number",
+                    "description": "基金目标占比(%)",
+                },
+                "bond": {
+                    "type": "number",
+                    "description": "债券目标占比(%)",
+                },
+                "crypto": {
+                    "type": "number",
+                    "description": "加密货币目标占比(%)",
+                },
+            },
+            "required": [],
+        },
+        "returns": {
+            "targets": "已保存的目标配置对象",
+            "message": "ok",
+        },
+    },
+    {
+        "name": "get_target_allocation",
+        "description": "读取已保存的目标资产配置比例。Agent 可用于确认用户当前策略后再做出推荐。",
+        "path": "/api/portfolio/allocation/target",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "_note": "返回如 {\"stock\": 40, \"fund\": 30, \"bond\": 20, \"crypto\": 10}，仅包含已设定的资产类别的字段",
+        },
+    },
+    {
+        "name": "get_allocation_drift",
+        "description": "计算当前配置与目标配置的偏离度。返回每类资产的当前占比、目标占比、差值及状态（超配/低配/正常）。偏离超过5%标记为超配或低配，是触发再平衡的信号。",
+        "path": "/api/portfolio/allocation/drift",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "items": "偏离度数组",
+            "total_market_value": "总市值",
+            "_item_fields": {
+                "asset_type": "资产大类",
+                "current_pct": "当前实际占比(%)",
+                "target_pct": "目标占比(%)",
+                "diff_pct": "差值(当前-目标)，正=超配，负=低配",
+                "status": "状态：超配/低配/正常",
+            },
+        },
+    },
+
+    # =====================================================================
+    # Sector 行业暴露
+    # =====================================================================
+    {
+        "name": "get_sector_exposure",
+        "description": "穿透持仓汇总各行业的市值分布。直接持有的个股按名称关键词归入行业；持有的基金通过调market_backend获取基金持仓明细后再按行业归类。债券和加密货币分别归入'债券'和'加密货币'。",
+        "path": "/api/portfolio/sector/exposure",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "items": "行业分布数组（按市值降序）",
+            "total_market_value": "总市值",
+            "_item_fields": {
+                "sector": "行业名称（制造业/金融业/信息传输软件和信息技术服务业/采矿业/房地产业等）",
+                "market_value": "该行业持仓市值",
+                "pct": "该行业占总市值的百分比",
+            },
+        },
+    },
+    {
+        "name": "get_sector_concentration",
+        "description": "行业与个股集中度分析。返回前3大行业占比、前5大个股占比及风险标记。若单行业占比>70%、单一个股占比>20%或前5个股合计>50%，会给出警告。",
+        "path": "/api/portfolio/sector/concentration",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "top3_sectors": "前3大行业列表（含sector/market_value/pct）",
+            "top3_sectors_pct": "前3大行业合计占比(%)",
+            "top5_stocks": "前5大个股列表（含code/name/market_value/pct）",
+            "top5_stocks_pct": "前5大个股合计占比(%)",
+            "warnings": "风险警告字符串数组，如 ['前3大行业占比 85%，集中度过高']",
+        },
+    },
+
+    # =====================================================================
+    # Fund Detail 基金明细
+    # =====================================================================
+    {
+        "name": "get_fund_detail_hold",
+        "description": "(本接口为前端准备, agent请使用market_backend提供的接口)查询某只基金在指定时点的资产配置明细（股票/债券/现金等各类资产占净值比例）。",
+        "path": "/api/portfolio/fund/detail_hold",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码，如 000001",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "查询日期，格式 YYYYMMDD, 如 20241231。不传则默认今天",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "asset_type": "资产类型（股票/债券/现金/基金/权证等）",
+            "pct": "占净值比例(%)",
+        },
+    },
+    {
+        "name": "get_fund_industry_allocation",
+        "description": "(本接口为前端准备, agent请使用market_backend提供的接口)查询某只基金在指定年份的行业配置分布（各行业的持仓占比）。",
+        "path": "/api/portfolio/fund/industry_allocation",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码，如 000001",
+                },
+                "year": {
+                    "type": "string",
+                    "description": "查询年份，如 2025。不传则默认当前年份",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "sequence": "序号",
+            "industry_category": "行业类别",
+            "pct": "占净值比例(%)",
+            "market_value": "市值",
+            "as_of_date": "截止时间",
+        },
+    },
+    {
+        "name": "get_fund_stock_holds",
+        "description": "(本接口为前端准备, agent请使用market_backend提供的接口)查询某只基金在指定年份的全部股票持仓明细（包含每只股票的持仓数量、市值、占净值比例等）。",
+        "path": "/api/portfolio/fund/stock_holds",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码，如 000001",
+                },
+                "year": {
+                    "type": "string",
+                    "description": "查询年份，如 2025。不传则默认当前年份",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "sequence": "序号",
+            "stock_code": "股票代码",
+            "stock_name": "股票名称",
+            "pct": "占净值比例(%)",
+            "hold_shares": "持股数",
+            "hold_market_value": "持仓市值",
+            "quarter": "季度",
+        },
+    },
+    {
+        "name": "get_fund_bond_holds",
+        "description": "(本接口为前端准备, agent请使用market_backend提供的接口)查询某只基金在指定年份的全部债券持仓明细（包含每只债券的持仓数量、市值、占净值比例等）。",
+        "path": "/api/portfolio/fund/bond_holds",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "基金代码，如 000001",
+                },
+                "year": {
+                    "type": "string",
+                    "description": "查询年份，如 2025。不传则默认当前年份",
+                },
+            },
+            "required": ["code"],
+        },
+        "returns": {
+            "sequence": "序号",
+            "bond_code": "债券代码",
+            "bond_name": "债券名称",
+            "pct": "占净值比例(%)",
+            "hold_market_value": "持仓市值",
+            "quarter": "季度",
+        },
+    },
+
+    # =====================================================================
+    # SMTP Config 邮件服务配置
+    # =====================================================================
+    {
+        "name": "get_smtp_config",
+        "description": "获取 SMTP 邮件配置（单用户系统，始终返回 id=1 的记录，密码已脱敏）。",
+        "path": "/api/portfolio/smtp_config/get_config",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "id": "配置ID（始终为 0）",
+            "email": "发件人邮箱",
+            "sender_name": "发件人名称",
+            "smtp_host": "SMTP 服务器域名",
+            "smtp_port": "SMTP 端口",
+            "encryption": "加密方式（tls/ssl/none）",
+            "created_at": "创建时间",
+            "updated_at": "更新时间",
+        },
+    },
+    {
+        "name": "update_smtp_config",
+        "description": "更新 SMTP 邮件配置（单用户系统，始终更新 id=1 的记录），只传需要修改的字段即可。",
+        "path": "/api/portfolio/smtp_config/update_config",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "description": "发件人邮箱地址，如 user@gmail.com",
+                },
+                "sender_name": {
+                    "type": "string",
+                    "description": "发件人显示名称，如 FundMasterAI 预警",
+                },
+                "smtp_host": {
+                    "type": "string",
+                    "description": "SMTP 服务器域名，如 smtp.gmail.com（Gmail）、smtp.qq.com（QQ邮箱）、smtp.163.com（163邮箱）",
+                },
+                "smtp_port": {
+                    "type": "integer",
+                    "description": "SMTP 服务器端口。TLS 通常用 587，SSL 通常用 465",
+                },
+                "password": {
+                    "type": "string",
+                    "description": "邮箱密钥/应用专用密码。Gmail 需使用应用专用密码（App Password），QQ邮箱/163邮箱使用授权码",
+                },
+                "encryption": {
+                    "type": "string",
+                    "description": "加密方式，默认 tls",
+                    "enum": ["tls", "ssl", "none"],
+                },
+            },
+            "required": [],
+        },
+        "returns": {
+            "_note": "更新成功返回空对象 {}，失败返回错误信息",
+        },
+    },
+    {
+        "name": "test_smtp_email",
+        "description": "使用当前 SMTP 配置发送一封测试邮件到指定邮箱，用于验证配置是否正确。",
+        "path": "/api/portfolio/smtp_config/test_email",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "to_email": {
+                    "type": "string",
+                    "description": "接收测试邮件的邮箱地址",
+                },
+            },
+            "required": ["to_email"],
+        },
+        "returns": {
+            "message": "test email sent successfully 或错误信息",
+        },
+    },
+
+    # =====================================================================
+    # User Profile 用户个人信息
+    # =====================================================================
+    {
+        "name": "get_user_profile",
+        "description": "获取用户个人信息（单用户系统，始终返回 id=1 的记录）。",
+        "path": "/api/portfolio/user_profile/get_profile",
+        "method": "GET",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "returns": {
+            "id": "用户记录ID",
+            "phone": "手机号",
+            "email": "邮箱",
+            "created_at": "创建时间",
+            "updated_at": "更新时间",
+        },
+    },
+    {
+        "name": "update_phone",
+        "description": "更新用户手机号（始终更新 id=1）。",
+        "path": "/api/portfolio/user_profile/update_phone",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "phone": {
+                    "type": "string",
+                    "description": "手机号码",
+                },
+            },
+            "required": ["phone"],
+        },
+        "returns": {
+            "_note": "更新成功返回空对象 {}，失败返回错误信息",
+        },
+    },
+    {
+        "name": "update_email",
+        "description": "更新用户邮箱（始终更新 id=1）。",
+        "path": "/api/portfolio/user_profile/update_email",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "description": "邮箱地址",
+                },
+            },
+            "required": ["email"],
+        },
+        "returns": {
+            "_note": "更新成功返回空对象 {}，失败返回错误信息",
+        },
+    },
+    {
+        "name": "update_user_profile",
+        "description": "更新用户个人信息（始终更新 id=1）。可同时更新手机号和邮箱，至少传一个。",
+        "path": "/api/portfolio/user_profile/update",
+        "method": "POST",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "phone": {
+                    "type": "string",
+                    "description": "手机号码（可选）",
+                },
+                "email": {
+                    "type": "string",
+                    "description": "邮箱地址（可选）",
+                },
+            },
+            "required": [],
+        },
+        "returns": {
+            "_note": "更新成功返回空对象 {}，失败返回错误信息（如手机号或邮箱格式无效）",
+        },
+    },
 ]
 
 
@@ -598,20 +1098,22 @@ def get_all_functions():
 
 
 def get_functions_by_tag(tag: str):
-    """按标签筛选函数。tag 为 transaction / holding / alert / watchlist。"""
-    prefix_map = {
-        "transaction": "create_transaction",
-        "holding": "get_holdings",
-        "alert": "create_alert",
-        "watchlist": "add_to_watchlist",
-    }
+    """按标签筛选函数。tag 为 transaction / holding / alert / watchlist / allocation / sector / fund / smtp / user_profile。"""
     tag_names = {
         "transaction": ["create_transaction", "get_transaction", "update_transaction",
                         "delete_transaction", "list_transactions"],
-        "holding": ["get_holdings", "get_holding_detail"],
+        "holding": ["get_holdings", "get_holding_detail",
+                   "create_holding", "delete_holding"],
         "alert": ["create_alert", "get_alert", "update_alert",
                   "delete_alert", "list_alerts"],
         "watchlist": ["add_to_watchlist", "remove_from_watchlist", "list_watchlist"],
+        "allocation": ["get_current_allocation", "set_target_allocation",
+                       "get_target_allocation", "get_allocation_drift"],
+        "sector": ["get_sector_exposure", "get_sector_concentration"],
+        "fund": ["get_fund_detail_hold", "get_fund_industry_allocation",
+                        "get_fund_stock_holds", "get_fund_bond_holds"],
+        "smtp": ["get_smtp_config", "update_smtp_config", "test_smtp_email"],
+        "user_profile": ["get_user_profile", "update_phone", "update_email", "update_user_profile"],
     }
     names = tag_names.get(tag)
     if names is None:

@@ -1,37 +1,39 @@
 # FundMasterAI Backend
 
-FundMasterAI 后端由三个独立的 Flask 微服务组成：Market Backend（行情）、News Backend（资讯）、Portfolio Backend（投资组合管理）。三个服务可独立启动，也可通过 `start_all.sh` 一键全部启动。
+FundMasterAI 后端由三个独立的 Flask 微服务组成：Market Backend（行情）、News
+Backend（资讯）、Portfolio Backend（投资组合管理）。完整演示优先按仓库根目录
+[`DOCKER.md`](../DOCKER.md) 启动；本文件用于不使用 Docker 的后端开发和调试。
 
 ## 环境要求
 
 - Python >= 3.11
 - pip >= 3.11
 - MySQL（仅 portfolio_backend 需要）
-- Redis（预留，当前不需要）
+- Redis（可选；market_backend 可用它持久化和复用已启用的数据缓存）
 
 ## 三个后端概览
 
-| 后端 | 端口 | 功能 | 需要 MySQL | Function Calling |
+| 后端 | 端口 | 功能 | 需要 MySQL | 需要 Redis | Function Calling |
 |---|---|---|---|---|
-| [market_backend](market_backend/) | **5001** | A 股 / 公募基金 / 加密货币 实时行情、历史数据、K 线、技术指标 | 否 | `GET /api/market/functions` |
-| [news_backend](news_backend/) | **5000** | A 股近期新闻、公募基金公告查询 | 否 | `GET /api/news/functions` |
-| [portfolio_backend](portfolio_backend/) | **5002** | 交易记录、持仓管理、价格告警、自选关注 | **是** | `GET /api/portfolio/functions` |
+| [market_backend](market_backend/) | **5001** | A 股 / 公募基金 / 加密货币 实时行情、历史数据、K 线、技术指标 | 否 | 可选 | `GET /api/market/functions` |
+| [news_backend](news_backend/) | **5000** | A 股近期新闻、公募基金公告查询 | 否 | 否 | `GET /api/news/functions` |
+| [portfolio_backend](portfolio_backend/) | **5002** | 交易记录、持仓管理、价格告警、自选关注 | **是** | 否 | `GET /api/portfolio/functions` |
 
 详细说明请参见各后端目录下的 `README.md`。
 
-## 安装依赖
+## 安装依赖（原生运行）
 
 ```bash
-# market_backend
-pip3.11 install flask flask-openapi3 akshare pandas numpy efinance okx
-pip3.11 install -U "flask-openapi3[swagger,redoc]"
-
-# news_backend
-pip3.11 install flask akshare pandas
-
-# portfolio_backend
-pip3.11 install flask pymysql requests
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r ../docker/requirements/market.txt
+python -m pip install -r ../docker/requirements/news.txt
+python -m pip install -r ../docker/requirements/portfolio.txt
+openbb-build
 ```
+
+上面的 requirements 与 Docker 镜像使用同一份版本清单，避免 README 中手写的包名
+再次落后于实际部署。Market 的 OpenBB 依赖安装后还需要运行一次 `openbb-build`。
 
 ## 配置文件
 
@@ -39,11 +41,15 @@ pip3.11 install flask pymysql requests
 
 | 后端 | 配置文件 | 说明 |
 |---|---|---|
-| market_backend | `apis/config.ini` | OKX API 密钥（使用加密货币接口时必须填写） |
+| market_backend | `apis/config.ini` | 原生运行的 API 密钥、缓存与 Redis 配置 |
 | news_backend | 无 | 仅通过环境变量配置（均有默认值） |
 | portfolio_backend | `config.ini` | MySQL 连接信息 + market_backend 地址（必须填写） |
 
-所有后端均支持通过同名环境变量覆盖配置文件中的值（环境变量优先级最高）。
+配置优先级并不完全相同：Portfolio 是环境变量 > `config.ini` > 默认值；News 只读
+环境变量；Market 的缓存/Redis 当前以 `apis/config.ini` 为主，HTTP 端口读环境变量，
+OpenBB/FMP 密钥则是环境变量优先。Docker 不会复制本机的 `apis/config.ini`，而是
+使用 `docker/market-config.container` 和根目录中由 Git 忽略的 `.env`。具体字段以
+各服务 README 和 `config.py` 为准。
 
 ## MySQL 数据库初始化
 
@@ -57,6 +63,13 @@ mysql -u root -p fundmaster_db < init.sql
 ```
 
 `init.sql` 会创建 `user_profile`、`transactions`、`price_alert`、`watchlist` 四张表。
+
+## Redis 数据库初始化
+
+**只有 market_backend 可选需要 Redis**，其他两个后端不需要。
+
+不需要建表或预写数据；原生运行时在 `market_backend/apis/config.ini` 中配置 Redis
+即可。Docker Compose 会自动启动 Redis，并把缓存保存在 `redis_data` 数据卷中。
 
 ## Function Calling 接口
 
@@ -91,6 +104,9 @@ cd portfolio_backend && bash stop.sh
 bash start_all.sh   # 按 market → news → portfolio 顺序启动
 bash stop_all.sh    # 按相同顺序停止
 ```
+
+`start_all.sh` 不负责启动 MySQL；原生启动 Portfolio 前，必须先完成上面的数据库
+初始化。只调试 Market/News 或基金分析取数时，可以只启动需要的服务。
 
 启动后各后端 PID 写入各自的 `app.pid` 文件，可通过 `cat market_backend/app.pid` 等方式查看。
 

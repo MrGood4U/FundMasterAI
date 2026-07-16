@@ -10,7 +10,8 @@
     <link rel="stylesheet" href="css/shell.css" />
     <link rel="stylesheet" href="css/dashboard-widgets.css" />
     <link rel="stylesheet" href="css/page-market-flow.css" />
-    <link rel="stylesheet" href="css/page-global-investment.css" />
+    <link rel="stylesheet" href="css/page-portfolio-family.css" />
+    <link rel="stylesheet" href="css/page-global-investment.css?v=20260713-2" />
   </head>
   <body>
     <div class="app">
@@ -23,22 +24,37 @@
           </div>
         </div>
         <nav class="sidebar__nav" aria-label="功能菜单">
-          <a class="nav-link nav-link--active" href="global-investment.html" aria-current="page">
+          <a class="nav-link" href="portfolio-overview.html">
             <img class="nav-link__icon" src="assets/icons/nav-overview.png" width="20" height="20" alt="" />
             Overview
           </a>
-          <a class="nav-link" href="portfolio-overview.html">
-            <img class="nav-link__icon" src="assets/icons/nav-portfolio.png" width="20" height="20" alt="" />
-            Portfolio
-          </a>
+          <details class="nav-group" open>
+            <summary class="nav-link nav-parent nav-link--active">
+              <img class="nav-link__icon" src="assets/icons/nav-portfolio.png" width="20" height="20" alt="" />
+              Portfolio
+              <span class="nav-caret" aria-hidden="true"></span>
+            </summary>
+            <div class="nav-submenu">
+              <a class="nav-sublink" href="equity-funds.html">Equity Funds</a>
+              <a class="nav-sublink" href="debt-funds.html">Debt Funds</a>
+              <a class="nav-sublink nav-sublink--active" href="global-investment.html" aria-current="page">Global Investment</a>
+            </div>
+          </details>
           <a class="nav-link" href="fund-deep-dive.html">
             <img class="nav-link__icon" src="assets/icons/nav-analytics.png" width="20" height="20" alt="" />
             Analytics
           </a>
-          <a class="nav-link" href="market-hub.html">
-            <img class="nav-link__icon" src="assets/icons/nav-markets.png" width="20" height="20" alt="" />
-            Markets
-          </a>
+          <details class="nav-group">
+            <summary class="nav-link nav-parent">
+              <img class="nav-link__icon" src="assets/icons/nav-markets.png" width="20" height="20" alt="" />
+              Markets
+              <span class="nav-caret" aria-hidden="true"></span>
+            </summary>
+            <div class="nav-submenu">
+              <a class="nav-sublink" href="market-hub.html">Market Hub</a>
+              <a class="nav-sublink" href="market-flow.html">Market Flow</a>
+            </div>
+          </details>
           <a class="nav-link" href="index.html">
             <img class="nav-link__icon" src="assets/icons/nav-news.png" width="20" height="20" alt="" />
             News
@@ -60,64 +76,86 @@
         </div>
       </aside>
       <div class="main-shell">
-      <header class="top-bar">
-        <div class="search-field" role="search">
-          <img class="search-field__icon-img" src="assets/icons/header-search.png" width="16" height="16" alt="" />
-          <label class="visually-hidden" for="gi-q">搜索</label>
-          <input id="gi-q" class="search-field__input" type="search" placeholder="Search markets or funds..." autocomplete="off" />
-        </div>
-        <div class="top-bar__actions">
-          <button type="button" class="icon-btn" aria-label="通知"><img class="icon-btn__img" src="assets/icons/header-bell.png" width="18" height="18" alt="" /></button>
-          <button type="button" class="icon-btn" aria-label="帮助"><img class="icon-btn__img" src="assets/icons/header-help.png" width="18" height="18" alt="" /></button>
-          <button type="button" class="avatar-btn" aria-label="用户资料"><img class="avatar-btn__img" src="assets/icons/header-avatar.png" width="32" height="32" alt="" /></button>
-        </div>
-      </header>
+        <header class="top-bar">
+          <div class="search-field" role="search">
+            <img class="search-field__icon-img" src="assets/icons/header-search.png" width="16" height="16" alt="" />
+            <label class="visually-hidden" for="gi-q">搜索</label>
+            <input id="gi-q" class="search-field__input" type="search" placeholder="Search markets or funds..." autocomplete="off" />
+          </div>
+          <div class="top-bar__actions">
+            <button type="button" class="icon-btn" aria-label="通知"><img class="icon-btn__img" src="assets/icons/header-bell.png" width="18" height="18" alt="" /></button>
+            <button type="button" class="icon-btn" aria-label="帮助"><img class="icon-btn__img" src="assets/icons/header-help.png" width="18" height="18" alt="" /></button>
+            <button type="button" class="avatar-btn" aria-label="用户资料"><img class="avatar-btn__img" src="assets/icons/header-avatar.png" width="32" height="32" alt="" /></button>
+          </div>
+        </header>
         <main class="content">
+          <p id="global-fx-source" class="gi-matrix-source gi-quote-source" data-state="loading" role="status">Loading verified CNY exchange rates…</p>
           <div class="mf-kpis gi-ticker">
-            <div class="kpi-card"><p class="kpi-card__label">NASDAQ Composite</p><p class="kpi-card__value">16,428.52</p><p class="kpi-card__hint">+1.24%</p></div>
-            <div class="kpi-card"><p class="kpi-card__label">DAX</p><p class="kpi-card__value">18,175.10</p><p class="kpi-card__hint kpi-card__hint--neg">-0.15%</p></div>
-            <div class="kpi-card"><p class="kpi-card__label">Hang Seng</p><p class="kpi-card__value">17,139.17</p><p class="kpi-card__hint">+0.88%</p></div>
-            <div class="kpi-card"><p class="kpi-card__label">USD/CNY</p><p class="kpi-card__value">7.2345</p><p class="kpi-card__hint">Steady</p></div>
+            <div class="kpi-card">
+              <p class="kpi-card__label">USD/CNY</p>
+              <p id="fx-usdcny-val" class="kpi-card__value">—</p>
+              <p id="fx-usdcny-hint" class="kpi-card__hint">Loading live rate…</p>
+            </div>
+            <div class="kpi-card">
+              <p class="kpi-card__label">EUR/CNY</p>
+              <p id="fx-eurcny-val" class="kpi-card__value">—</p>
+              <p id="fx-eurcny-hint" class="kpi-card__hint">Loading live rate…</p>
+            </div>
+            <div class="kpi-card">
+              <p class="kpi-card__label">HKD/CNY</p>
+              <p id="fx-hkdcny-val" class="kpi-card__value">—</p>
+              <p id="fx-hkdcny-hint" class="kpi-card__hint">Loading live rate…</p>
+            </div>
+            <div class="kpi-card">
+              <p class="kpi-card__label">JPY/CNY</p>
+              <p id="fx-jpycny-val" class="kpi-card__value">—</p>
+              <p id="fx-jpycny-hint" class="kpi-card__hint">Loading live rate…</p>
+            </div>
           </div>
           <header class="page-head">
             <div>
-              <h2 class="page-head__title">Global Strategic Matrix</h2>
-              <p class="page-head__sub">Cross-border dispersion and AI allocation engine — Figma 11:2106.</p>
+              <h2 class="page-head__title">QDII Fund Performance</h2>
+              <p class="page-head__sub">Public QDII fund returns across daily and monthly periods.</p>
             </div>
-            <div class="pill-group"><button class="pill pill--ghost">DAY</button><button class="pill pill--ghost">MONTH</button></div>
+            <div class="pill-group">
+              <button id="pill-matrix-day" class="pill pill--ghost pill--active">DAY</button>
+              <button id="pill-matrix-month" class="pill pill--ghost">MONTH</button>
+            </div>
           </header>
           <section class="glass-panel">
-            <div class="gi-months" aria-hidden="true">JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC</div>
-            <div class="gi-matrix" role="img" aria-label="热力矩阵占位"></div>
+            <div class="gi-matrix-head">
+              <p id="global-matrix-source" class="gi-matrix-source" data-state="loading" role="status">Loading public QDII fund returns…</p>
+              <div class="gi-matrix-legend" aria-label="Return heatmap legend">
+                <span class="gi-matrix-legend__negative">Negative</span>
+                <span class="gi-matrix-legend__neutral">Neutral</span>
+                <span class="gi-matrix-legend__positive">Positive</span>
+              </div>
+            </div>
+            <div id="matrix-container" class="gi-matrix" role="img" aria-label="QDII fund return heatmap"><div class="gi-data-state">Loading verified QDII return data…</div></div>
           </section>
-          <div class="two-col">
-            <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">AI Allocation Engine</h3>
-              <ul class="gi-ai">
-                <li><strong class="pos">BUY SIGNAL: EMERGING MARKETS</strong><p class="muted sm">Risk-on rotation confirmed by flow + carry.</p></li>
-                <li><strong class="neg">RISK ALERT: USD/CNY</strong><p class="muted sm">Hedge 10% CN exposure via liquid proxies.</p></li>
-              </ul>
-              <button type="button" class="btn-outline">Generate Custom Strategy</button>
-            </section>
-            <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Market Sentiment</h3>
-              <div class="mh-greed gi-sent"><span class="mh-greed__n">72</span><p class="muted">Fear ↔ Greed</p></div>
-            </section>
-          </div>
-          <section class="glass-panel">
-            <h3 class="section-head__title section-head__title--compact">Active Asset Allocation</h3>
-            <div class="data-table-wrap">
-              <table class="data-table">
-                <thead><tr><th>Asset</th><th>Region</th><th>Value</th><th>Perf</th><th>Strategy</th></tr></thead>
-                <tbody>
-                  <tr><td>Vanguard Total World</td><td>Global</td><td>$1,245,600</td><td class="pos">+5.2%</td><td>HODL</td></tr>
-                </tbody>
-              </table>
+          <section class="glass-panel ranking-panel global-ranking-panel" data-global-index-ranking>
+            <div class="section-head">
+              <div>
+                <h3 class="section-head__title section-head__title--compact">QDII Fund Ranking</h3>
+                <p class="muted sm">Public QDII funds ranked by one-year return. Missing source fields are shown as unavailable.</p>
+              </div>
+              <span class="chip chip--live">Global</span>
+            </div>
+            <div class="ranking-layout">
+              <!-- 🔍 3. 排行榜列表：原有组件绑定，稍后由 JS 动态清空并注入 API 接口数据 -->
+              <div class="ranking-list" id="global-ranking-list-container" data-global-ranking-list aria-label="QDII fund ranking"><div class="gi-data-state">Loading verified QDII ranking…</div></div>
+              <article class="ranking-detail" id="global-ranking-detail-container" data-global-ranking-detail aria-live="polite"><div class="gi-data-state">Loading verified fund profile…</div></article>
             </div>
           </section>
         </main>
-
       </div>
     </div>
+    
+    <!-- 基础及核心 API 配置链 -->
+    <script src="scripts/config.js"></script>
+    <script src="scripts/api.js?v=20260715-2"></script>
+    <script src="scripts/search.js?v=20260715-2"></script>
+    <script src="scripts/global-index-ranking.js?v=20260714-1"></script>
+    <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>

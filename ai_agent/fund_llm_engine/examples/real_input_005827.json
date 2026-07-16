@@ -1,0 +1,87 @@
+{
+  "request_id": "real-005827-20260415",
+  "fund_info": {
+    "code": "005827",
+    "name": "易方达蓝筹精选混合",
+    "asset_type": "fund_open",
+    "category": "mixed",
+    "manager": "张坤"
+  },
+  "nav_series": [
+    {
+      "date": "2026-03-31",
+      "nav": 1.7660
+    },
+    {
+      "date": "2026-04-01",
+      "nav": 1.7796
+    },
+    {
+      "date": "2026-04-02",
+      "nav": 1.7699
+    },
+    {
+      "date": "2026-04-03",
+      "nav": 1.7588
+    },
+    {
+      "date": "2026-04-07",
+      "nav": 1.7526
+    },
+    {
+      "date": "2026-04-08",
+      "nav": 1.7877
+    },
+    {
+      "date": "2026-04-09",
+      "nav": 1.7668
+    },
+    {
+      "date": "2026-04-10",
+      "nav": 1.7688
+    },
+    {
+      "date": "2026-04-13",
+      "nav": 1.7415
+    },
+    {
+      "date": "2026-04-14",
+      "nav": 1.7539
+    },
+    {
+      "date": "2026-04-15",
+      "nav": 1.7647
+    }
+  ],
+  "industry_exposure": {
+    "消费": 0.4767,
+    "互联网平台": 0.1958,
+    "能源": 0.0806,
+    "医药健康": 0.0511,
+    "传媒广告": 0.0468
+  },
+  "top_holdings_weight": 0.851,
+  "news_summary": [],
+  "analysis_window": {
+    "start_date": "2026-03-31",
+    "end_date": "2026-04-15",
+    "as_of_date": "2026-04-15"
+  },
+  "fund_tags": [
+    "blue_chip_focus",
+    "active_mixed",
+    "hong_kong_connect_exposure"
+  ],
+  "operational_metrics": {
+    "fund_size_billion": 310.21,
+    "inception_date": "2018-09-05",
+    "manager_tenure_years": 7.61
+  },
+  "extra_context": {
+    "client_risk_profile": "balanced",
+    "official_benchmark": "沪深300指数收益率×45%+中证港股通综合指数收益率×35%+中债总指数收益率×20%",
+    "industry_exposure_method": "Approximated from 2025-12-31 disclosed top-10 holdings, not full portfolio industry disclosure.",
+    "stock_position_ratio": "94.39%",
+    "data_snapshot_date": "2026-04-23"
+  }
+}

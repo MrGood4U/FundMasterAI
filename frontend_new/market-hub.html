@@ -7,9 +7,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="css/shell.css" />
-    <link rel="stylesheet" href="css/dashboard-widgets.css" />
-    <link rel="stylesheet" href="css/page-market-hub.css" />
+    <link rel="stylesheet" href="css/shell.css?v=20260713-2" />
+    <link rel="stylesheet" href="css/dashboard-widgets.css?v=20260713-2" />
+    <link rel="stylesheet" href="css/page-market-hub.css?v=20260714-2" />
   </head>
   <body>
     <div class="app">
@@ -22,22 +22,37 @@
           </div>
         </div>
         <nav class="sidebar__nav" aria-label="功能菜单">
-          <a class="nav-link" href="global-investment.html">
+          <a class="nav-link" href="portfolio-overview.html">
             <img class="nav-link__icon" src="assets/icons/nav-overview.png" width="20" height="20" alt="" />
             Overview
           </a>
-          <a class="nav-link" href="portfolio-overview.html">
-            <img class="nav-link__icon" src="assets/icons/nav-portfolio.png" width="20" height="20" alt="" />
-            Portfolio
-          </a>
+          <details class="nav-group">
+            <summary class="nav-link nav-parent">
+              <img class="nav-link__icon" src="assets/icons/nav-portfolio.png" width="20" height="20" alt="" />
+              Portfolio
+              <span class="nav-caret" aria-hidden="true"></span>
+            </summary>
+            <div class="nav-submenu">
+              <a class="nav-sublink" href="equity-funds.html">Equity Funds</a>
+              <a class="nav-sublink" href="debt-funds.html">Debt Funds</a>
+              <a class="nav-sublink" href="global-investment.html">Global Investment</a>
+            </div>
+          </details>
           <a class="nav-link" href="fund-deep-dive.html">
             <img class="nav-link__icon" src="assets/icons/nav-analytics.png" width="20" height="20" alt="" />
             Analytics
           </a>
-          <a class="nav-link nav-link--active" href="market-hub.html" aria-current="page">
-            <img class="nav-link__icon" src="assets/icons/nav-markets.png" width="20" height="20" alt="" />
-            Markets
-          </a>
+          <details class="nav-group" open>
+            <summary class="nav-link nav-parent nav-link--active">
+              <img class="nav-link__icon" src="assets/icons/nav-markets.png" width="20" height="20" alt="" />
+              Markets
+              <span class="nav-caret" aria-hidden="true"></span>
+            </summary>
+            <div class="nav-submenu">
+              <a class="nav-sublink nav-sublink--active" href="market-hub.html" aria-current="page">Market Hub</a>
+              <a class="nav-sublink" href="market-flow.html">Market Flow</a>
+            </div>
+          </details>
           <a class="nav-link" href="index.html">
             <img class="nav-link__icon" src="assets/icons/nav-news.png" width="20" height="20" alt="" />
             News
@@ -75,58 +90,64 @@
           <header class="page-head">
             <div>
               <h2 class="page-head__title">Market Hub</h2>
-              <p class="page-head__sub">Live indices, sentiment, heatmap and capital flow — Figma 11:626.</p>
-              <p class="muted sm" style="margin:8px 0 0"><a href="market-flow.html" style="color:var(--accent-cyan)">Market liquidity &amp; flow 视图（Figma 11:1391）→</a></p>
+              <p class="page-head__sub">Major global quotes, broad index performance and daily market leaders.</p>
             </div>
-            <div class="mh-clock"><span class="mh-clock__label">MARKET API</span><span class="mh-clock__time api-status" data-api-status="market">Static preview</span></div>
+            <div class="mh-clock"><span class="mh-clock__label">MARKET DATA</span><span class="mh-clock__time">Refreshing…</span></div>
           </header>
+          <p class="muted" data-api-status="market" role="status">Connecting to market backend…</p>
           <section class="mh-indices">
-            <article class="mh-index"><h4>S&amp;P 500</h4><p class="mh-index__v">5,147.22</p><p class="mh-index__p pos">+0.82%</p></article>
-            <article class="mh-index"><h4>NASDAQ 100</h4><p class="mh-index__v">18,103.44</p><p class="mh-index__p pos">+1.45%</p></article>
-            <article class="mh-index"><h4>FTSE 100</h4><p class="mh-index__v">7,820.30</p><p class="mh-index__p neg">-0.12%</p></article>
-            <article class="mh-index"><h4>NIKKEI 225</h4><p class="mh-index__v">38,707.95</p><p class="mh-index__p pos">+0.54%</p></article>
+            <article class="mh-index"><h4>S&amp;P 500</h4><p class="mh-index__v"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading quote</span></p><p class="mh-index__p muted">Loading…</p></article>
+            <article class="mh-index"><h4>NASDAQ Composite</h4><p class="mh-index__v"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading quote</span></p><p class="mh-index__p muted">Loading…</p></article>
+            <article class="mh-index"><h4>FTSE 100</h4><p class="mh-index__v"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading quote</span></p><p class="mh-index__p muted">Loading…</p></article>
+            <article class="mh-index"><h4>Nikkei 225</h4><p class="mh-index__v"><span class="data-skeleton data-skeleton--value" aria-hidden="true"></span><span class="visually-hidden">Loading quote</span></p><p class="mh-index__p muted">Loading…</p></article>
           </section>
-          <div class="two-col">
-            <section class="glass-panel">
-              <div class="section-head"><h3 class="section-head__title">Market Sentiment</h3><span class="muted">Greed Index Analysis</span></div>
-              <div class="mh-greed"><span class="mh-greed__n">74</span><div><p class="mh-greed__lbl">GREED</p><div class="bar-track"><div class="bar-fill" style="width:74%"></div></div><div class="mh-greed__ticks"><span>Extreme Fear</span><span>Neutral</span><span>Extreme Greed</span></div></div></div>
+          <div class="mh-market-grid">
+            <section class="glass-panel" data-market-breadth>
+              <div class="section-head"><h3 class="section-head__title">Global Market Breadth</h3><span class="muted" data-breadth-coverage>Waiting for ranking</span></div>
+              <div class="mh-breadth">
+                <div class="mh-breadth__lead">
+                  <strong data-breadth-ratio>--</strong>
+                  <span>Advancing indices</span>
+                </div>
+                <div class="mh-breadth__detail">
+                  <div class="mh-breadth__bar" aria-hidden="true">
+                    <span class="mh-breadth__bar-up" data-breadth-up-bar></span>
+                    <span class="mh-breadth__bar-flat" data-breadth-flat-bar></span>
+                    <span class="mh-breadth__bar-down" data-breadth-down-bar></span>
+                  </div>
+                  <div class="mh-breadth__counts">
+                    <span><strong class="pos" data-breadth-up>--</strong> Up</span>
+                    <span><strong data-breadth-flat>--</strong> Flat</span>
+                    <span><strong class="neg" data-breadth-down>--</strong> Down</span>
+                  </div>
+                  <p class="mh-breadth__stats muted" data-breadth-stats>Waiting for verified index moves…</p>
+                </div>
+              </div>
             </section>
             <section class="glass-panel">
-              <h3 class="section-head__title section-head__title--compact">Global Market Heatmap</h3>
-              <div class="mh-legend"><span>U.S. Tech</span><span>A-Shares</span><span>EU Broad</span><span class="mh-legend__vol">Volatility: Low</span></div>
+              <h3 class="section-head__title section-head__title--compact">Global Index Performance</h3>
+              <div class="mh-legend"><span>Daily index moves</span><span class="mh-legend__vol">Refreshing…</span></div>
               <div class="mh-heat" data-market-heat>
-                <div class="mh-cell pos"><span>AAPL</span><em>+2.84%</em><small>Apple Inc.</small></div>
-                <div class="mh-cell pos"><span>MSFT</span><em>+1.15%</em><small>MICROSOFT</small></div>
-                <div class="mh-cell pos"><span>GOOGL</span><em>+0.42%</em></div>
-                <div class="mh-cell neg"><span>AMZN</span><em>-0.88%</em></div>
-                <div class="mh-cell pos"><span>NVDA</span><em>+4.12%</em><small>NEW ATH</small></div>
-                <div class="mh-cell neg"><span>TSLA</span><em>-3.21%</em></div>
-                <div class="mh-cell pos"><span>META</span><em>+0.22%</em></div>
+                <div class="data-loading-state">Loading verified global index quotes…</div>
               </div>
-              <p class="mh-sectors-title">Sectors (avg)</p>
-              <div class="mh-sectors"><span>Health +0.14%</span><span>Energy -1.05%</span></div>
+              <p class="mh-sectors-title">Coverage</p>
+              <div class="mh-sectors"><span>Waiting for backend response</span></div>
             </section>
           </div>
           <section class="glass-panel">
-            <h3 class="section-head__title section-head__title--compact">Capital Flow Analysis</h3>
-            <div class="mh-flow">
-              <div><p class="muted">Northbound Inflow (CNY)</p><p class="mh-flow__big pos">+12.4B</p><div class="mh-dow">Mon Tue Wed Thu Fri Sat Sun</div></div>
-              <div><p class="muted">Institutional Liquidity</p><p class="mh-flow__big">Stable</p><div class="mh-split"><span>Retail 42%</span><span>Institutional 58%</span></div></div>
-            </div>
-          </section>
-          <section class="glass-panel">
-            <div class="section-head"><h3 class="section-head__title">Top Gaining / Declining</h3><button type="button" class="btn-outline">View all 18 sectors</button></div>
+            <div class="section-head"><h3 class="section-head__title">Top Gaining / Declining Indices</h3><span class="muted sm">Full global index universe</span></div>
             <div class="mh-movers" data-market-movers>
-              <ul><li class="pos">Semiconductors +5.82%</li><li class="pos">Cloud Computing +3.44%</li><li class="pos">Clean Energy +1.20%</li></ul>
-              <ul><li class="neg">Real Estate -2.15%</li><li class="neg">Consumer Staples -4.88%</li></ul>
+              <div class="data-loading-state data-loading-state--compact">Loading verified index movers…</div>
             </div>
           </section>
         </main>
 
-        <button type="button" class="fab" aria-label="快捷操作"><span class="fab__plus" aria-hidden="true">+</span></button>
       </div>
     </div>
-    <script src="scripts/api.js"></script>
-    <script src="scripts/live-data.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/api.js?v=20260715-2"></script>
+    <script src="scripts/live-data.js?v=20260714-16"></script>
+    <script src="scripts/search.js?v=20260715-2"></script>
+    <script src="scripts/pro-upgrade.js"></script>
   </body>
 </html>

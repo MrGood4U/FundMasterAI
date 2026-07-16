@@ -22,22 +22,37 @@
           </div>
         </div>
         <nav class="sidebar__nav" aria-label="功能菜单">
-          <a class="nav-link" href="global-investment.html">
+          <a class="nav-link" href="portfolio-overview.html">
             <img class="nav-link__icon" src="assets/icons/nav-overview.png" width="20" height="20" alt="" />
             Overview
           </a>
-          <a class="nav-link" href="portfolio-overview.html">
-            <img class="nav-link__icon" src="assets/icons/nav-portfolio.png" width="20" height="20" alt="" />
-            Portfolio
-          </a>
+          <details class="nav-group">
+            <summary class="nav-link nav-parent">
+              <img class="nav-link__icon" src="assets/icons/nav-portfolio.png" width="20" height="20" alt="" />
+              Portfolio
+              <span class="nav-caret" aria-hidden="true"></span>
+            </summary>
+            <div class="nav-submenu">
+              <a class="nav-sublink" href="equity-funds.html">Equity Funds</a>
+              <a class="nav-sublink" href="debt-funds.html">Debt Funds</a>
+              <a class="nav-sublink" href="global-investment.html">Global Investment</a>
+            </div>
+          </details>
           <a class="nav-link" href="fund-deep-dive.html">
             <img class="nav-link__icon" src="assets/icons/nav-analytics.png" width="20" height="20" alt="" />
             Analytics
           </a>
-          <a class="nav-link" href="market-hub.html">
-            <img class="nav-link__icon" src="assets/icons/nav-markets.png" width="20" height="20" alt="" />
-            Markets
-          </a>
+          <details class="nav-group">
+            <summary class="nav-link nav-parent">
+              <img class="nav-link__icon" src="assets/icons/nav-markets.png" width="20" height="20" alt="" />
+              Markets
+              <span class="nav-caret" aria-hidden="true"></span>
+            </summary>
+            <div class="nav-submenu">
+              <a class="nav-sublink" href="market-hub.html">Market Hub</a>
+              <a class="nav-sublink" href="market-flow.html">Market Flow</a>
+            </div>
+          </details>
           <a class="nav-link" href="index.html">
             <img class="nav-link__icon" src="assets/icons/nav-news.png" width="20" height="20" alt="" />
             News
@@ -75,7 +90,7 @@
           <header class="page-head">
             <div>
               <h2 class="page-head__title">Settings</h2>
-              <p class="page-head__sub">Account preferences and security — Figma 14:3184.</p>
+              <p class="page-head__sub">Account preferences and security.</p>
             </div>
           </header>
           <div class="two-col">
@@ -95,11 +110,89 @@
           <section class="glass-panel">
             <h3 class="section-head__title section-head__title--compact">Security</h3>
             <p class="muted">Two-factor authentication recommended for trading-enabled accounts.</p>
-            <div class="toolbar"><button type="button" class="btn-outline">Enable 2FA</button><button type="button" class="btn-outline">Rotate API keys</button></div>
+            <div class="toolbar"><button type="button" class="btn-outline" data-2fa-action>Enable 2FA</button></div>
           </section>
         </main>
 
       </div>
     </div>
+  <script src="scripts/config.js"></script>
+    <script src="scripts/api.js?v=20260715-2"></script>
+    <script src="scripts/search.js?v=20260715-2"></script>
+    <script src="scripts/pro-upgrade.js"></script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+
+        const displayNameInput = document.querySelector('input[type="text"].st-input');
+        
+        if (displayNameInput) {
+   
+          const savedName = localStorage.getItem('fundmaster_display_name');
+          if (savedName) {
+            displayNameInput.value = savedName;
+          }
+
+          displayNameInput.addEventListener('change', () => {
+            const newName = displayNameInput.value.trim();
+            if (newName) {
+              localStorage.setItem('fundmaster_display_name', newName);
+              showToast('Display name updated successfully!');
+            }
+          });
+        }
+
+   
+        const tfaBtn = document.querySelector('[data-2fa-action]');
+        
+        if (tfaBtn) {
+          let is2FAEnabled = localStorage.getItem('fundmaster_2fa') === 'true';
+          if (is2FAEnabled) {
+            tfaBtn.textContent = 'Disable 2FA';
+            tfaBtn.style.borderColor = '#ff4d4f';
+          }
+
+          tfaBtn.addEventListener('click', () => {
+            is2FAEnabled = !is2FAEnabled;
+            localStorage.setItem('fundmaster_2fa', is2FAEnabled);
+            
+            if (is2FAEnabled) {
+              tfaBtn.textContent = 'Disable 2FA';
+              tfaBtn.style.borderColor = '#ff4d4f';
+              showToast('🚀 Two-Factor Authentication (2FA) has been enabled.');
+            } else {
+              tfaBtn.textContent = 'Enable 2FA';
+              tfaBtn.style.borderColor = '';
+              showToast('⚠️ 2FA has been disabled. Your account security is reduced.', 'warning');
+            }
+          });
+        }
+        function showToast(message, type = 'success') {
+          const toast = document.createElement('div');
+          toast.style.cssText = `
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: ${type === 'warning' ? '#ff4d4f' : '#00fff2'};
+            color: #000;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10000;
+            font-size: 14px;
+            transition: all 0.3s ease;
+          `;
+          toast.innerText = message;
+          document.body.appendChild(toast);
+          setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+          }, 3000);
+        }
+      });
+    </script>
+  </body>
+</html>
   </body>
 </html>

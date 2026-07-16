@@ -9,10 +9,6 @@
   border: 1px solid var(--border-subtle);
 }
 
-.debt-legend {
-  display: flex;
-  justify-content: space-between;
+.debt-mini {
   margin-top: 12px;
-  font-size: 12px;
-  color: var(--text-muted);
 }

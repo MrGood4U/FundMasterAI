@@ -1,0 +1,191 @@
+name: fundmasterai
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${FM_MYSQL_DATABASE:-fundmaster_db}
+      MYSQL_USER: ${FM_MYSQL_USER:-fundmaster_user}
+      MYSQL_PASSWORD: ${FM_MYSQL_PASSWORD:-fundmaster_pass}
+      MYSQL_ROOT_PASSWORD: ${FM_MYSQL_ROOT_PASSWORD:-fundmaster_root}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/portfolio_backend/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  redis:
+    image: redis:7.4-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  market:
+    build:
+      context: .
+      dockerfile: docker/market.Dockerfile
+    image: fundmasterai/market:local
+    environment:
+      MARKET_HTTP_PORT: "5001"
+      MARKET_TESTING: "1"
+      FMP_API_KEY: ${FMP_API_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "5001"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:5001/api/market/functions?tag=fund', timeout=10).read()
+      interval: 10s
+      timeout: 15s
+      retries: 18
+      start_period: 30s
+
+  news:
+    build:
+      context: .
+      dockerfile: docker/news.Dockerfile
+    image: fundmasterai/news:local
+    expose:
+      - "5000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/news/functions?tag=fund', timeout=10).read()
+      interval: 10s
+      timeout: 15s
+      retries: 18
+      start_period: 20s
+
+  portfolio:
+    build:
+      context: .
+      dockerfile: docker/portfolio.Dockerfile
+    image: fundmasterai/portfolio:local
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${FM_MYSQL_DATABASE:-fundmaster_db}
+      MYSQL_DB: ${FM_MYSQL_DATABASE:-fundmaster_db}
+      MYSQL_USER: ${FM_MYSQL_USER:-fundmaster_user}
+      MYSQL_PASSWORD: ${FM_MYSQL_PASSWORD:-fundmaster_pass}
+      MARKET_BACKEND_URL: http://market:5001
+      PORTFOLIO_HTTP_PORT: "5002"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      market:
+        condition: service_healthy
+    expose:
+      - "5002"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:5002/api/portfolio/functions', timeout=10).read()
+      interval: 10s
+      timeout: 15s
+      retries: 18
+      start_period: 30s
+
+  agent:
+    build:
+      context: .
+      dockerfile: docker/agent.Dockerfile
+    image: fundmasterai/agent:local
+    env_file:
+      # Safe checked-in defaults keep a clean clone in mock mode.
+      - path: ./.env.docker.example
+        required: true
+      # Preserve the original root-.env Docker setup when present.
+      - path: ./.env
+        required: false
+      # Preferred Agent configuration; highest priority and Git-ignored.
+      - path: ./ai_agent/fund_llm_engine/.env
+        required: false
+    environment:
+      AGENT_HTTP_HOST: 0.0.0.0
+      AGENT_HTTP_PORT: "5003"
+      AGENT_DEBUG: "false"
+      AGENT_RELOAD: "false"
+      MARKET_BACKEND_URL: http://market:5001
+      NEWS_BACKEND_URL: http://news:5000
+      PORTFOLIO_BACKEND_URL: http://portfolio:5002
+    depends_on:
+      market:
+        condition: service_healthy
+      news:
+        condition: service_healthy
+      portfolio:
+        condition: service_healthy
+    expose:
+      - "5003"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:5003/health', timeout=10).read()
+      interval: 10s
+      timeout: 15s
+      retries: 18
+      start_period: 20s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    image: fundmasterai/frontend:local
+    depends_on:
+      market:
+        condition: service_healthy
+      news:
+        condition: service_healthy
+      portfolio:
+        condition: service_healthy
+      agent:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ai-insights.html"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 10s
+
+  smoke:
+    build:
+      context: .
+      dockerfile: docker/agent.Dockerfile
+    image: fundmasterai/agent:local
+    profiles:
+      - tools
+    environment:
+      SMOKE_BASE_URL: http://frontend
+      SMOKE_FUND_CODE: ${SMOKE_FUND_CODE:-000001}
+      SMOKE_TIMEOUT_SECONDS: ${SMOKE_TIMEOUT_SECONDS:-300}
+    depends_on:
+      frontend:
+        condition: service_healthy
+    command: ["python", "/opt/fundmaster/docker/smoke.py"]
+
+volumes:
+  mysql_data:
+  redis_data:

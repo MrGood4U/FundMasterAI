@@ -1,0 +1,308 @@
+{
+  "request_id": "golden-conflicting-signals-001",
+  "fund_info": {
+    "code": "SYN-CONFLICT-001",
+    "name": "合成科技成长压力测试基金",
+    "asset_type": "fund_open",
+    "category": "equity",
+    "manager": "Synthetic Manager"
+  },
+  "nav_series": [
+    {
+      "date": "2026-02-01",
+      "nav": 1.0
+    },
+    {
+      "date": "2026-02-02",
+      "nav": 1.04
+    },
+    {
+      "date": "2026-02-03",
+      "nav": 1.08
+    },
+    {
+      "date": "2026-02-04",
+      "nav": 1.06
+    },
+    {
+      "date": "2026-02-05",
+      "nav": 1.1
+    },
+    {
+      "date": "2026-02-06",
+      "nav": 1.095
+    },
+    {
+      "date": "2026-02-07",
+      "nav": 1.105
+    },
+    {
+      "date": "2026-02-08",
+      "nav": 1.112
+    },
+    {
+      "date": "2026-02-09",
+      "nav": 1.108
+    },
+    {
+      "date": "2026-02-10",
+      "nav": 1.118
+    },
+    {
+      "date": "2026-02-11",
+      "nav": 1.125
+    },
+    {
+      "date": "2026-02-12",
+      "nav": 1.121
+    },
+    {
+      "date": "2026-02-13",
+      "nav": 1.132
+    },
+    {
+      "date": "2026-02-14",
+      "nav": 1.138
+    },
+    {
+      "date": "2026-02-15",
+      "nav": 1.134
+    },
+    {
+      "date": "2026-02-16",
+      "nav": 1.145
+    },
+    {
+      "date": "2026-02-17",
+      "nav": 1.151
+    },
+    {
+      "date": "2026-02-18",
+      "nav": 1.147
+    },
+    {
+      "date": "2026-02-19",
+      "nav": 1.159
+    },
+    {
+      "date": "2026-02-20",
+      "nav": 1.166
+    },
+    {
+      "date": "2026-02-21",
+      "nav": 1.161
+    },
+    {
+      "date": "2026-02-22",
+      "nav": 1.174
+    },
+    {
+      "date": "2026-02-23",
+      "nav": 1.18
+    },
+    {
+      "date": "2026-02-24",
+      "nav": 1.176
+    },
+    {
+      "date": "2026-02-25",
+      "nav": 1.188
+    },
+    {
+      "date": "2026-02-26",
+      "nav": 1.195
+    },
+    {
+      "date": "2026-02-27",
+      "nav": 1.19
+    },
+    {
+      "date": "2026-02-28",
+      "nav": 1.203
+    },
+    {
+      "date": "2026-03-01",
+      "nav": 1.21
+    },
+    {
+      "date": "2026-03-02",
+      "nav": 1.205
+    }
+  ],
+  "industry_exposure": {
+    "半导体": 0.46,
+    "人工智能": 0.18,
+    "云计算": 0.12,
+    "现金": 0.04
+  },
+  "top_holdings_weight": 0.68,
+  "news_summary": [
+    "核心持仓遭遇监管问询，市场担忧估值承压",
+    "半导体设备订单预期下调，短期盈利能见度下降"
+  ],
+  "news_items": [
+    {
+      "title": "核心持仓遭遇监管问询，市场担忧估值承压",
+      "summary": "基金重仓的科技龙头近期出现监管问询，短期风险偏好受到压制。",
+      "published_at": "2026-02-04",
+      "source": "Synthetic Finance Wire",
+      "topic": "半导体",
+      "sentiment_label": "negative"
+    },
+    {
+      "title": "半导体设备订单预期下调",
+      "summary": "卖方研究下调部分设备链订单预期，提示盈利预测存在下修风险。",
+      "published_at": "2026-02-05",
+      "source": "Synthetic Sellside Research",
+      "topic": "半导体",
+      "sentiment_label": "negative"
+    }
+  ],
+  "analysis_window": {
+    "start_date": "2026-02-01",
+    "end_date": "2026-03-02",
+    "as_of_date": "2026-03-02"
+  },
+  "benchmark": {
+    "code": "000300",
+    "name": "沪深300",
+    "asset_type": "index"
+  },
+  "benchmark_nav_series": [
+    {
+      "date": "2026-02-01",
+      "nav": 1.0
+    },
+    {
+      "date": "2026-02-02",
+      "nav": 1.01
+    },
+    {
+      "date": "2026-02-03",
+      "nav": 1.02
+    },
+    {
+      "date": "2026-02-04",
+      "nav": 1.03
+    },
+    {
+      "date": "2026-02-05",
+      "nav": 1.04
+    },
+    {
+      "date": "2026-02-06",
+      "nav": 1.042
+    },
+    {
+      "date": "2026-02-07",
+      "nav": 1.045
+    },
+    {
+      "date": "2026-02-08",
+      "nav": 1.047
+    },
+    {
+      "date": "2026-02-09",
+      "nav": 1.046
+    },
+    {
+      "date": "2026-02-10",
+      "nav": 1.05
+    },
+    {
+      "date": "2026-02-11",
+      "nav": 1.052
+    },
+    {
+      "date": "2026-02-12",
+      "nav": 1.051
+    },
+    {
+      "date": "2026-02-13",
+      "nav": 1.055
+    },
+    {
+      "date": "2026-02-14",
+      "nav": 1.058
+    },
+    {
+      "date": "2026-02-15",
+      "nav": 1.057
+    },
+    {
+      "date": "2026-02-16",
+      "nav": 1.061
+    },
+    {
+      "date": "2026-02-17",
+      "nav": 1.064
+    },
+    {
+      "date": "2026-02-18",
+      "nav": 1.063
+    },
+    {
+      "date": "2026-02-19",
+      "nav": 1.067
+    },
+    {
+      "date": "2026-02-20",
+      "nav": 1.07
+    },
+    {
+      "date": "2026-02-21",
+      "nav": 1.069
+    },
+    {
+      "date": "2026-02-22",
+      "nav": 1.073
+    },
+    {
+      "date": "2026-02-23",
+      "nav": 1.076
+    },
+    {
+      "date": "2026-02-24",
+      "nav": 1.075
+    },
+    {
+      "date": "2026-02-25",
+      "nav": 1.079
+    },
+    {
+      "date": "2026-02-26",
+      "nav": 1.082
+    },
+    {
+      "date": "2026-02-27",
+      "nav": 1.081
+    },
+    {
+      "date": "2026-02-28",
+      "nav": 1.085
+    },
+    {
+      "date": "2026-03-01",
+      "nav": 1.088
+    },
+    {
+      "date": "2026-03-02",
+      "nav": 1.09
+    }
+  ],
+  "fund_tags": [
+    "growth_equity",
+    "technology_tilt",
+    "high_concentration"
+  ],
+  "operational_metrics": {
+    "fund_size_billion": 18.4,
+    "inception_date": "2021-06-18",
+    "manager_tenure_years": 3.1
+  },
+  "extra_context": {
+    "client_risk_profile": "conservative",
+    "case_design": "Synthetic regression case: positive recent return conflicts with adverse news and concentrated sector exposure.",
+    "distribution_channel": "advisor_console"
+  }
+}

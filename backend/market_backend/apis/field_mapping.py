@@ -67,6 +67,16 @@ STOCK_SPOT_EM_MAP = {
     "年初至今涨跌幅": "change_ytd",
 }
 
+# ak.stock_zh_a_spot()  -- 新浪 A 股实时行情
+STOCK_SPOT_SINA_MAP = {
+    **_CODE_NAME,
+    **_PRICE_FIELDS,
+    "买入": "bid_price",
+    "卖出": "ask_price",
+    "今开": "open",
+    "时间戳": "timestamp",
+}
+
 # ak.stock_zh_a_hist()  -- 东方财富 A 股历史行情
 STOCK_HIST_EM_MAP = {
     "日期": "date",
@@ -332,10 +342,89 @@ FUND_INDIVIDUAL_BASIC_INFO_MAP = {
     "投资目标": "investment_objective",
 }
 
+FUND_INDIVIDUAL_DETAIL_HOLD_MAP = {
+    "资产类型": "asset_type",
+    "仓位占比": "pct",
+}
+
+FUND_PORTFOLIO_INDUSTRY_ALLOCATION_EM_MAP = {
+    "序号": "sequence",
+    "行业类别": "industry_category",
+    "占净值比例": "pct",
+    "市值": "market_value",
+    "截止日期": "as_of_date",
+    "截止时间": "as_of_date",
+}
+
+FUND_PORTFOLIO_HOLD_STOCK_MAP = {
+    "序号": "sequence", 
+    "股票代码": "stock_code",
+    "股票名称": "stock_name",
+    "占净值比例": "pct",
+    "持股数": "hold_shares",
+    "持仓市值": "hold_market_value",
+    "季度": "quarter",
+}
+
+FUND_PORTFOLIO_HOLD_BOND_MAP = {
+    "序号": "sequence",
+    "债券代码": "bond_code",
+    "债券名称": "bond_name",
+    "占净值比例": "pct",
+    "持仓市值": "hold_market_value",
+    "季度": "quarter",
+}
+
 
 FUND_QUOTE_HISTORY_MAP = {
     "日期": "date",
     "单位净值": "unit_net_value",
     "累计净值": "accumulated_net_value",
     "涨跌幅": "change_pct",
+}
+
+_BOND_INFO = {
+    "债券简称": "bond_name",
+    "债券代码": "bond_code",
+}
+
+BOND_SPOT_QUOTE_MAP = {
+    **_BOND_INFO,
+    "报价机构": "quote_institution",
+    "买入净价": "buying_clean_price",
+    "卖出净价": "selling_clean_price",
+    "买入收益率": "buying_yield",
+    "卖出收益率": "selling_yield",
+}
+
+BOND_SPOT_DEAL_MAP = {
+    **_BOND_INFO,
+    "成交净价": "deal_clean_price",
+    "最新收益率": "latest_yield",
+    "涨跌": "change",
+    "加权收益率": "weighted_yield",
+    "交易量": "volume",
+}
+
+BOND_INFO_SEARCH_MAP = {
+    **_BOND_INFO,
+    "发行人/受托机构": "issuer_or_trustee",
+    "债券类型": "bond_type",
+    "发行日期": "issue_date",
+    "最新债项评级": "latest_bond_rating",
+    "查询代码": "query_code",
+}
+
+BOND_CHINA_YIELD_MAP = {
+    **_BOND_INFO,
+    "曲线名称": "curve_name",
+    "日期": "date",
+    "3月": "yield_3m",
+    "6月": "yield_6m",
+    "1年": "yield_1y",
+    "3年": "yield_3y",
+    "5年": "yield_5y",
+    "7年": "yield_7y",
+    "10年": "yield_10y",
+    "30年": "yield_30y",
 }

@@ -1,0 +1,29 @@
+[okx]
+api_key =
+api_secret =
+api_pass =
+
+[tick_flow]
+api_key =
+
+[openbb]
+fmp_api_key =
+
+[cache]
+stock_spot_em_enabled = false
+stock_spot_sina_enabled = false
+fund_etf_spot_em_enabled = false
+fund_lof_spot_em_enabled = false
+fund_name_list_enabled = false
+fund_rank_enabled = false
+fund_ths_spot_enabled = false
+fund_value_est_enabled = false
+fund_info_index_enabled = false
+global_index_rank_enabled = true
+compression = false
+
+[redis]
+redis_host = redis
+redis_port = 6379
+redis_db = 0
+redis_password =

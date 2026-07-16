@@ -85,3 +85,48 @@ def get_a_hist_kline():
         data.get("start_date"), data.get("end_date"), data.get("adjust"),
     )
     return jsonify({"code": 200, "data": result, "message": "success"}), 200
+
+
+# -- money flow / lhb (finshare) ------------------------------------
+
+@stock_bp.post("/flow")
+def get_stock_flow():
+    data = request.get_json()
+    if data is None:
+        return jsonify({"message": "args not found"}), 404
+    if data.get("stock_code") is None:
+        return jsonify({"message": "args not found"}), 404
+    service = StockService()
+    result = service.get_stock_flow(data.get("stock_code"))
+    return jsonify({"code": 200, "data": result, "message": "success"}), 200
+
+
+@stock_bp.post("/flow_industry")
+def get_stock_flow_industry():
+    service = StockService()
+    result = service.get_stock_flow_industry()
+    return jsonify({"code": 200, "data": result, "message": "success"}), 200
+
+
+@stock_bp.post("/lhb")
+def get_stock_lhb():
+    data = request.get_json()
+    if data is None:
+        return jsonify({"message": "args not found"}), 404
+    if data.get("start_date") is None or data.get("end_date") is None:
+        return jsonify({"message": "args not found"}), 404
+    service = StockService()
+    result = service.get_stock_lhb(data.get("start_date"), data.get("end_date"))
+    return jsonify({"code": 200, "data": result, "message": "success"}), 200
+
+
+@stock_bp.post("/lhb_detail")
+def get_stock_lhb_detail():
+    data = request.get_json()
+    if data is None:
+        return jsonify({"message": "args not found"}), 404
+    if data.get("stock_code") is None or data.get("trade_date") is None:
+        return jsonify({"message": "args not found"}), 404
+    service = StockService()
+    result = service.get_stock_lhb_detail(data.get("stock_code"), data.get("trade_date"))
+    return jsonify({"code": 200, "data": result, "message": "success"}), 200

@@ -1,0 +1,125 @@
+{
+  "request_id": "real-161725-20260424",
+  "fund_info": {
+    "code": "161725",
+    "name": "招商中证白酒指数(LOF)A",
+    "asset_type": "fund_open",
+    "category": "index_equity",
+    "manager": "侯昊"
+  },
+  "nav_series": [
+    {
+      "date": "2026-03-27",
+      "nav": 0.6394
+    },
+    {
+      "date": "2026-03-30",
+      "nav": 0.6412
+    },
+    {
+      "date": "2026-03-31",
+      "nav": 0.6393
+    },
+    {
+      "date": "2026-04-01",
+      "nav": 0.6474
+    },
+    {
+      "date": "2026-04-02",
+      "nav": 0.6502
+    },
+    {
+      "date": "2026-04-03",
+      "nav": 0.6393
+    },
+    {
+      "date": "2026-04-07",
+      "nav": 0.6350
+    },
+    {
+      "date": "2026-04-08",
+      "nav": 0.6455
+    },
+    {
+      "date": "2026-04-09",
+      "nav": 0.6342
+    },
+    {
+      "date": "2026-04-10",
+      "nav": 0.6344
+    },
+    {
+      "date": "2026-04-13",
+      "nav": 0.6314
+    },
+    {
+      "date": "2026-04-14",
+      "nav": 0.6372
+    },
+    {
+      "date": "2026-04-15",
+      "nav": 0.6397
+    },
+    {
+      "date": "2026-04-16",
+      "nav": 0.6408
+    },
+    {
+      "date": "2026-04-17",
+      "nav": 0.6288
+    },
+    {
+      "date": "2026-04-20",
+      "nav": 0.6286
+    },
+    {
+      "date": "2026-04-21",
+      "nav": 0.6262
+    },
+    {
+      "date": "2026-04-22",
+      "nav": 0.6247
+    },
+    {
+      "date": "2026-04-23",
+      "nav": 0.6372
+    },
+    {
+      "date": "2026-04-24",
+      "nav": 0.6402
+    }
+  ],
+  "industry_exposure": {
+    "白酒": 0.9434
+  },
+  "top_holdings_weight": 0.8479,
+  "news_summary": [],
+  "analysis_window": {
+    "start_date": "2026-03-27",
+    "end_date": "2026-04-24",
+    "as_of_date": "2026-04-24"
+  },
+  "benchmark": {
+    "code": "中证白酒指数",
+    "name": "中证白酒指数",
+    "asset_type": "index"
+  },
+  "fund_tags": [
+    "index_fund",
+    "baijiu_theme",
+    "single_sector_concentration"
+  ],
+  "operational_metrics": {
+    "fund_size_billion": 258.37,
+    "inception_date": "2015-05-27",
+    "manager_tenure_years": 8.67
+  },
+  "extra_context": {
+    "client_risk_profile": "aggressive",
+    "tracking_target": "中证白酒指数",
+    "official_benchmark": "中证白酒指数收益率*95%+金融机构人民币活期存款基准利率(税后)*5%",
+    "industry_exposure_method": "Approximated from 2025-12-31 disclosed stock holdings. The top nineteen disclosed liquor stocks account for about 94.34% of NAV.",
+    "top_holdings_weight_method": "Top ten disclosed stock positions at 2025-12-31 sum to about 84.79% of NAV.",
+    "data_snapshot_date": "2026-04-24"
+  }
+}

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS user_profile (
 
 CREATE TABLE IF NOT EXISTS transactions (
     id            BIGINT AUTO_INCREMENT PRIMARY KEY,
-    asset_type    VARCHAR(16)   NOT NULL COMMENT '资产类型: stock/fund/crypto',
+    asset_type    VARCHAR(16)   NOT NULL COMMENT '资产类型: stock/fund/bond/crypto',
     asset_code    VARCHAR(20)   NOT NULL COMMENT '资产代码',
     asset_name    VARCHAR(100)  DEFAULT NULL COMMENT '资产名称(冗余,方便展示)',
     trans_type    VARCHAR(8)    NOT NULL COMMENT '交易方向: buy/sell',
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 CREATE TABLE IF NOT EXISTS price_alert (
     id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
-    asset_type          VARCHAR(16)   NOT NULL COMMENT 'stock/fund/crypto',
+    asset_type          VARCHAR(16)   NOT NULL COMMENT 'stock/fund/bond/crypto',
     asset_code          VARCHAR(20)   NOT NULL COMMENT '资产代码',
     alert_type          VARCHAR(16)   NOT NULL COMMENT 'stop_profit/stop_loss/price_above/price_below',
     trigger_mode        VARCHAR(8)    NOT NULL COMMENT '触发模式: price(绝对值) / pct(百分比)',
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS price_alert (
 
 CREATE TABLE IF NOT EXISTS watchlist (
     id            BIGINT AUTO_INCREMENT PRIMARY KEY,
-    asset_type    VARCHAR(16)   NOT NULL COMMENT 'stock/fund/crypto',
+    asset_type    VARCHAR(16)   NOT NULL COMMENT 'stock/fund/bond/crypto',
     asset_code    VARCHAR(20)   NOT NULL COMMENT '资产代码',
     asset_name    VARCHAR(100)  DEFAULT NULL COMMENT '资产名称',
     target_price  DECIMAL(16,8) DEFAULT NULL COMMENT '目标买入价',
@@ -62,4 +62,27 @@ CREATE TABLE IF NOT EXISTS watchlist (
     created_at    DATETIME      DEFAULT CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_asset (asset_type, asset_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS smtp_config (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    email           VARCHAR(200)  NOT NULL COMMENT '发件人邮箱地址',
+    sender_name     VARCHAR(100)  DEFAULT NULL COMMENT '发件人显示名称',
+    smtp_host       VARCHAR(200)  NOT NULL COMMENT 'SMTP服务器域名',
+    smtp_port       INT           NOT NULL COMMENT 'SMTP服务器端口 (587 TLS, 465 SSL)',
+    password        VARCHAR(500)  NOT NULL COMMENT '邮箱密钥/应用专用密码',
+    encryption      VARCHAR(10)   DEFAULT 'tls' COMMENT '加密方式: tls/ssl/none',
+    is_default      TINYINT(1)    DEFAULT 0 COMMENT '是否为默认配置',
+    created_at      DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_default (is_default)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS allocation_target (
+    asset_type  VARCHAR(16)   NOT NULL COMMENT '资产大类: stock/fund/bond/crypto',
+    target_pct  DECIMAL(5,2)  NOT NULL COMMENT '目标占比(%)',
+    updated_at  DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (asset_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

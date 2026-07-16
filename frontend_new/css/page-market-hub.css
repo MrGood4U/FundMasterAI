@@ -42,6 +42,11 @@
   gap: 12px;
 }
 
+.mh-market-grid {
+  display: grid;
+  gap: 20px;
+}
+
 .mh-index {
   padding: 16px;
   border-radius: var(--radius-md);
@@ -70,32 +75,59 @@
   font-weight: 600;
 }
 
-.mh-greed {
-  display: flex;
+.mh-breadth {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) 1fr;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
 }
 
-.mh-greed__n {
+.mh-breadth__lead strong {
+  display: block;
   font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 48px;
-  color: var(--accent-amber);
+  font-size: 36px;
+  line-height: 1;
 }
 
-.mh-greed__lbl {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-}
-
-.mh-greed__ticks {
-  display: flex;
-  justify-content: space-between;
+.mh-breadth__lead span {
+  display: block;
   margin-top: 8px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
+}
+
+.mh-breadth__bar {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mh-breadth__bar-up {
+  background: var(--accent-green);
+}
+
+.mh-breadth__bar-flat {
+  background: var(--accent-amber);
+}
+
+.mh-breadth__bar-down {
+  background: var(--accent-red);
+}
+
+.mh-breadth__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.mh-breadth__stats {
+  margin: 8px 0 0;
+  font-size: 11px;
 }
 
 .mh-legend {
@@ -167,33 +199,6 @@
   font-size: 12px;
 }
 
-.mh-flow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 24px;
-}
-
-.mh-flow__big {
-  margin: 8px 0;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 28px;
-}
-
-.mh-dow {
-  margin-top: 12px;
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  color: var(--text-muted);
-}
-
-.mh-split {
-  margin-top: 12px;
-  display: flex;
-  gap: 16px;
-  font-size: 13px;
-}
-
 .mh-movers {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -216,4 +221,21 @@
 
 .mh-movers li.neg {
   color: var(--accent-red);
+}
+
+.mh-mover-group h4 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.mh-movers li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.mh-movers li strong {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
 }

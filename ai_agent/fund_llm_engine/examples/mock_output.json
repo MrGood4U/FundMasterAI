@@ -1,0 +1,422 @@
+{
+  "request_id": "mock-demo-001",
+  "overall_rating": "hold",
+  "overall_score": 61.72,
+  "key_thesis": [
+    "Benchmark-relative context is available for cross-checking the agent views.",
+    "Recent news flow is available as an additional sentiment cross-check.",
+    "Sector exposure breakdown is available for industry-level cross-checking.",
+    "1 agent module(s) were not applicable to mixed_fund.",
+    "Fund role tags include core_holding, active_equity, consumer_tilt."
+  ],
+  "main_risks": [
+    "Available return history is still limited for a fuller trend read.",
+    "Top holdings weight is relatively high.",
+    "Current concentration may feel aggressive for a balanced risk profile.",
+    "Volatility is high for a conservative investor.",
+    "Risk history is still too short for a fuller rolling-risk assessment."
+  ],
+  "action_plan": [
+    "Match any allocation to a balanced risk profile.",
+    "Wait for a longer performance history before making a stronger conviction call.",
+    "Keep any allocation sized for a balanced risk profile and diversify around it.",
+    "Use equity exposure and sector agents for non-bond fund types.",
+    "Treat the current risk read as preliminary until a longer history is available."
+  ],
+  "agent_outputs": [
+    {
+      "agent_name": "PerformanceAgent",
+      "status": "success",
+      "score": 70.34285714285716,
+      "stance": "positive",
+      "key_points": [
+        "Total return is 8.00%.",
+        "Max drawdown is -2.86%.",
+        "Sample excess return versus benchmark is 4.00%."
+      ],
+      "risks": [
+        "Available return history is still limited for a fuller trend read."
+      ],
+      "recommendations": [
+        "Wait for a longer performance history before making a stronger conviction call."
+      ],
+      "confidence": 0.54,
+      "narrative": "Mock analysis narrative."
+    },
+    {
+      "agent_name": "ExposureAgent",
+      "status": "success",
+      "score": 42.940000000000005,
+      "stance": "neutral",
+      "key_points": [
+        "Industry concentration is 35.00%.",
+        "Top holdings weight is 58.00%.",
+        "Fund role/style tags include core_holding, active_equity, consumer_tilt.",
+        "Manager tenure is 4.5 years.",
+        "Fund size is about 28.6 billion."
+      ],
+      "risks": [
+        "Top holdings weight is relatively high.",
+        "Current concentration may feel aggressive for a balanced risk profile."
+      ],
+      "recommendations": [
+        "Keep any allocation sized for a balanced risk profile and diversify around it."
+      ],
+      "confidence": 0.8,
+      "narrative": "Mock analysis narrative."
+    },
+    {
+      "agent_name": "BondExposureAgent",
+      "status": "skipped",
+      "score": null,
+      "stance": "not_applicable",
+      "key_points": [
+        "Bond exposure analysis is not applicable to mixed_fund."
+      ],
+      "risks": [],
+      "recommendations": [
+        "Use equity exposure and sector agents for non-bond fund types."
+      ],
+      "confidence": 0.0,
+      "narrative": "Bond exposure analysis skipped: this fund type is not bond-like."
+    },
+    {
+      "agent_name": "RiskAgent",
+      "status": "success",
+      "score": 60.11459169368378,
+      "stance": "neutral",
+      "key_points": [
+        "Annualized volatility is 71.57%.",
+        "Max drawdown is -2.86%."
+      ],
+      "risks": [
+        "Volatility is high for a conservative investor.",
+        "Risk history is still too short for a fuller rolling-risk assessment."
+      ],
+      "recommendations": [
+        "Treat the current risk read as preliminary until a longer history is available."
+      ],
+      "confidence": 0.54,
+      "narrative": "Mock analysis narrative."
+    },
+    {
+      "agent_name": "SentimentAgent",
+      "status": "success",
+      "score": 70,
+      "stance": "positive",
+      "key_points": [
+        "Processed 2 recent news signal(s).",
+        "Positive news signals count is 1.",
+        "Recent news topics include 消费复苏, 白酒行业."
+      ],
+      "risks": [],
+      "recommendations": [
+        "Recent news tone is supportive, but still confirm it with hard performance data."
+      ],
+      "confidence": 0.78,
+      "narrative": "Mock analysis narrative."
+    },
+    {
+      "agent_name": "SectorAgent",
+      "status": "success",
+      "score": 59.099999999999994,
+      "stance": "neutral",
+      "key_points": [
+        "Top sector is 食品饮料 at 35.00%.",
+        "Top two sectors together account for 55.00%.",
+        "Sector breadth covers 3 disclosed sector bucket(s)."
+      ],
+      "risks": [],
+      "recommendations": [
+        "Sector positioning looks reasonably balanced for diversified allocation."
+      ],
+      "confidence": 0.76,
+      "narrative": "Mock analysis narrative."
+    },
+    {
+      "agent_name": "MarketAgent",
+      "status": "success",
+      "score": 67.8,
+      "stance": "neutral",
+      "key_points": [
+        "Risk-adjusted return outperforms 72% of peers over 近1年.",
+        "Average peer percentile across 2 periods is 68.",
+        "Historical profit probability is 70% when held for 满3年."
+      ],
+      "risks": [],
+      "recommendations": [
+        "Historical win rates favor longer holding periods; align the holding horizon accordingly."
+      ],
+      "confidence": 0.54,
+      "narrative": "Mock analysis narrative."
+    }
+  ],
+  "summary": "Mock analysis narrative.",
+  "score_explanation": "The HOLD rating comes from the current average of 6 successful specialist score(s), resulting in 61.7/100. Performance scored 70.3 and supports the rating; Portfolio exposure scored 42.9 and pulls the rating down; Risk control scored 60.1 and supports the rating; News signal scored 70.0 and supports the rating; Sector context scored 59.1 and keeps the view mixed; Peer/market context scored 67.8 and supports the rating. The rating is held back by weaker signals from Portfolio exposure (42.9). 1 module(s) were marked not applicable for this fund type.",
+  "missing_fields": [],
+  "metadata": {
+    "success_agent_count": "6",
+    "skipped_agent_count": "0",
+    "not_applicable_agent_count": "1",
+    "error_agent_count": "0",
+    "average_confidence": "0.66",
+    "normalized_fund_type": "mixed_fund",
+    "fund_family": "equity_like",
+    "has_benchmark": "true",
+    "has_news_signal": "true",
+    "has_sector_context": "true",
+    "has_bond_exposure": "false",
+    "news_item_count": "2",
+    "client_risk_profile": "balanced",
+    "agent_health": "healthy",
+    "fund_tags": "core_holding,active_equity,consumer_tilt",
+    "summary_source": "llm",
+    "prompt_version": "2026-07-03.1",
+    "coverage_fund_type": "available",
+    "coverage_nav": "available",
+    "coverage_basic_info": "available",
+    "coverage_news_signal": "available",
+    "coverage_stock_holdings": "available",
+    "coverage_industry_exposure": "available",
+    "coverage_bond_holdings": "not_applicable",
+    "coverage_asset_allocation": "not_applicable",
+    "quant_metrics_sample_size": "5",
+    "quant_metrics_reliability": "low",
+    "agent_execution_mode": "parallel",
+    "agent_worker_count": "7"
+  },
+  "analysis_trace": [
+    {
+      "category": "feature",
+      "title": "Calculated fund metrics",
+      "detail": "Transformed backend data into return, volatility, drawdown, exposure, benchmark, and data-quality features before any final recommendation.",
+      "status": "success",
+      "evidence": {
+        "nav_points": 5,
+        "return_1y": null,
+        "return_6m": null,
+        "max_drawdown": -0.0286,
+        "annualized_volatility": 0.7157,
+        "missing_fields": []
+      },
+      "technical": {
+        "fund_family": "equity_like",
+        "normalized_fund_type": "mixed_fund",
+        "return_metric_count": 3,
+        "risk_metric_count": 6,
+        "benchmark_metric_count": 2,
+        "data_coverage": {
+          "fund_type": "available",
+          "nav": "available",
+          "basic_info": "available",
+          "news_signal": "available",
+          "stock_holdings": "available",
+          "industry_exposure": "available",
+          "bond_holdings": "not_applicable",
+          "asset_allocation": "not_applicable"
+        },
+        "data_quality_flags": {
+          "has_benchmark": true,
+          "has_industry_exposure": true,
+          "has_top_holdings_weight": true,
+          "has_top_holdings": false,
+          "has_news_signal": true,
+          "has_structured_news": true,
+          "has_bond_holdings": false,
+          "has_asset_allocation": false,
+          "has_profit_probability": true,
+          "has_individual_analysis": true,
+          "fund_type_known": true,
+          "equity_exposure_applicable": true,
+          "sector_analysis_applicable": true,
+          "bond_exposure_applicable": false,
+          "asset_allocation_required": false,
+          "supports_return_1m": false,
+          "supports_benchmark_return_1m": false,
+          "supports_return_3m": false,
+          "supports_benchmark_return_3m": false,
+          "supports_return_6m": false,
+          "supports_benchmark_return_6m": false,
+          "supports_return_1y": false,
+          "supports_benchmark_return_1y": false
+        }
+      }
+    },
+    {
+      "category": "agent",
+      "title": "Evaluated performance",
+      "detail": "Checked absolute returns, rolling return windows, drawdown, and any available benchmark-relative metrics.",
+      "status": "success",
+      "evidence": {
+        "stance": "positive",
+        "score": 70.3429,
+        "confidence": 0.54,
+        "key_points": [
+          "Total return is 8.00%.",
+          "Max drawdown is -2.86%."
+        ],
+        "risks": [
+          "Available return history is still limited for a fuller trend read."
+        ]
+      },
+      "technical": {
+        "agent_name": "PerformanceAgent",
+        "raw_status": "success"
+      }
+    },
+    {
+      "category": "agent",
+      "title": "Checked portfolio exposure",
+      "detail": "Reviewed concentration signals such as top holdings weight and industry exposure when available.",
+      "status": "success",
+      "evidence": {
+        "stance": "neutral",
+        "score": 42.94,
+        "confidence": 0.8,
+        "key_points": [
+          "Industry concentration is 35.00%.",
+          "Top holdings weight is 58.00%."
+        ],
+        "risks": [
+          "Top holdings weight is relatively high.",
+          "Current concentration may feel aggressive for a balanced risk profile."
+        ]
+      },
+      "technical": {
+        "agent_name": "ExposureAgent",
+        "raw_status": "success"
+      }
+    },
+    {
+      "category": "agent",
+      "title": "Checked bond exposure",
+      "detail": "Reviewed bond holdings and asset allocation when available for fixed-income fund types.",
+      "status": "warning",
+      "evidence": {
+        "stance": "not_applicable",
+        "score": null,
+        "confidence": 0.0,
+        "key_points": [
+          "Bond exposure analysis is not applicable to mixed_fund."
+        ],
+        "risks": []
+      },
+      "technical": {
+        "agent_name": "BondExposureAgent",
+        "raw_status": "skipped"
+      }
+    },
+    {
+      "category": "agent",
+      "title": "Measured risk profile",
+      "detail": "Checked volatility, maximum drawdown, and rolling risk windows before judging suitability.",
+      "status": "success",
+      "evidence": {
+        "stance": "neutral",
+        "score": 60.1146,
+        "confidence": 0.54,
+        "key_points": [
+          "Annualized volatility is 71.57%.",
+          "Max drawdown is -2.86%."
+        ],
+        "risks": [
+          "Volatility is high for a conservative investor.",
+          "Risk history is still too short for a fuller rolling-risk assessment."
+        ]
+      },
+      "technical": {
+        "agent_name": "RiskAgent",
+        "raw_status": "success"
+      }
+    },
+    {
+      "category": "agent",
+      "title": "Reviewed news and announcements",
+      "detail": "Used recent news or announcement signals as a secondary cross-check rather than a primary return driver.",
+      "status": "success",
+      "evidence": {
+        "stance": "positive",
+        "score": 70,
+        "confidence": 0.78,
+        "key_points": [
+          "Processed 2 recent news signal(s).",
+          "Positive news signals count is 1."
+        ],
+        "risks": []
+      },
+      "technical": {
+        "agent_name": "SentimentAgent",
+        "raw_status": "success"
+      }
+    },
+    {
+      "category": "agent",
+      "title": "Checked sector context",
+      "detail": "Assessed sector concentration only when sector exposure data was available for this fund type.",
+      "status": "success",
+      "evidence": {
+        "stance": "neutral",
+        "score": 59.1,
+        "confidence": 0.76,
+        "key_points": [
+          "Top sector is 食品饮料 at 35.00%.",
+          "Top two sectors together account for 55.00%."
+        ],
+        "risks": []
+      },
+      "technical": {
+        "agent_name": "SectorAgent",
+        "raw_status": "success"
+      }
+    },
+    {
+      "category": "agent",
+      "title": "Checked peer and market context",
+      "detail": "Compared the fund against peer-category percentiles and holding-period profit probabilities when available.",
+      "status": "success",
+      "evidence": {
+        "stance": "neutral",
+        "score": 67.8,
+        "confidence": 0.54,
+        "key_points": [
+          "Risk-adjusted return outperforms 72% of peers over 近1年.",
+          "Average peer percentile across 2 periods is 68."
+        ],
+        "risks": []
+      },
+      "technical": {
+        "agent_name": "MarketAgent",
+        "raw_status": "success"
+      }
+    },
+    {
+      "category": "aggregation",
+      "title": "Combined specialist views",
+      "detail": "Aggregated successful specialist scores, confidence, skipped modules, and missing data into one final rating and action plan.",
+      "status": "success",
+      "evidence": {
+        "overall_rating": "hold",
+        "overall_score": 61.72,
+        "successful_agents": 6,
+        "skipped_agents": 1,
+        "error_agents": 0
+      },
+      "technical": {
+        "execution_mode": "parallel",
+        "agent_worker_count": 7
+      }
+    }
+  ],
+  "quant_metrics": {
+    "total_return": 0.08,
+    "annualized_return": 5.145722,
+    "annualized_volatility": 0.715699,
+    "max_drawdown": -0.028571,
+    "sharpe_ratio": 7.16184,
+    "sortino_ratio": 19.068698,
+    "calmar_ratio": 180.100267,
+    "positive_period_ratio": 0.5,
+    "excess_return": 0.04,
+    "sample_size": 5.0
+  }
+}

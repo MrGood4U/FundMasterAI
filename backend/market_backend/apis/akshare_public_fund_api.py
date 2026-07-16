@@ -1,6 +1,13 @@
-from datetime import datetime
+import logging
+from datetime import datetime, timedelta
+from io import StringIO
+
 import akshare as ak
 import pandas as pd
+import numpy as np
+import requests
+from akshare.utils import demjson
+from bs4 import BeautifulSoup
 from flask import current_app
 
 from apis.field_mapping import (
@@ -20,7 +27,185 @@ from apis.field_mapping import (
     FUND_OPEN_FUND_RANK_EM_MAP,
     FUND_INFO_INDEX_EM_MAP,
     FUND_INDIVIDUAL_BASIC_INFO_MAP,
+    FUND_INDIVIDUAL_DETAIL_HOLD_MAP,
+    FUND_PORTFOLIO_INDUSTRY_ALLOCATION_EM_MAP,
+    FUND_PORTFOLIO_HOLD_STOCK_MAP,
+    FUND_PORTFOLIO_HOLD_BOND_MAP,
 )
+
+
+_EASTMONEY_FUND_ARCHIVES_URL = (
+    "https://fundf10.eastmoney.com/FundArchivesDatas.aspx"
+)
+_EASTMONEY_FUND_PORTFOLIO_TIMEOUT_SECONDS = 10
+
+
+def _fund_portfolio_hold_em(symbol: str, date: str) -> pd.DataFrame:
+    """Fetch Eastmoney fund stock holdings with the required page referer.
+
+    AkShare 1.18.64 calls this endpoint without a Referer. Eastmoney now
+    answers those requests with a synthetic 404 page, while the same request
+    from its public fund page succeeds. Keep the workaround isolated here so
+    it can be removed when AkShare ships an upstream fix.
+    """
+    response = requests.get(
+        _EASTMONEY_FUND_ARCHIVES_URL,
+        params={
+            "type": "jjcc",
+            "code": symbol,
+            "topline": "10000",
+            "year": date,
+            "month": "",
+            "rt": "0.913877030254846",
+        },
+        headers={
+            "Referer": f"https://fundf10.eastmoney.com/ccmx_{symbol}.html",
+        },
+        timeout=_EASTMONEY_FUND_PORTFOLIO_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+
+    data_text = response.text.strip()
+    payload_start = data_text.find("{")
+    payload_end = data_text.rfind(";")
+    if payload_start < 0:
+        raise ValueError("Eastmoney fund holdings response has no data payload")
+    if payload_end <= payload_start:
+        payload_end = len(data_text)
+    data_json = demjson.decode(data_text[payload_start:payload_end])
+    content = data_json.get("content", "")
+
+    column_names = [
+        "序号",
+        "股票代码",
+        "股票名称",
+        "占净值比例",
+        "持股数",
+        "持仓市值",
+        "季度",
+    ]
+    if not content:
+        return pd.DataFrame(columns=column_names)
+
+    soup = BeautifulSoup(content, features="lxml")
+    quarter_labels = []
+    for heading in soup.find_all(name="h4", attrs={"class": "t"}):
+        heading_text = heading.get_text()
+        parts = heading_text.split("\xa0\xa0")
+        quarter_labels.append(parts[1].strip() if len(parts) >= 2 else heading_text.strip())
+
+    tables = pd.read_html(StringIO(content), converters={"股票代码": str})
+    frames = []
+    for index, temp_df in enumerate(tables):
+        if index >= len(quarter_labels):
+            break
+        if "相关资讯" in temp_df.columns:
+            del temp_df["相关资讯"]
+        temp_df.rename(
+            columns={
+                "占净值 比例": "占净值比例",
+                "持股数（万股）": "持股数",
+                "持股数 （万股）": "持股数",
+                "持仓市值（万元）": "持仓市值",
+                "持仓市值 （万元）": "持仓市值",
+                "持仓市值（万元人民币）": "持仓市值",
+                "持仓市值 （万元人民币）": "持仓市值",
+            },
+            inplace=True,
+        )
+        temp_df["占净值比例"] = (
+            temp_df["占净值比例"].str.split("%", expand=True).iloc[:, 0]
+        )
+        temp_df["季度"] = quarter_labels[index]
+        frames.append(temp_df[column_names])
+
+    if not frames:
+        return pd.DataFrame(columns=column_names)
+
+    result = pd.concat(frames, ignore_index=True)
+    result["占净值比例"] = pd.to_numeric(result["占净值比例"], errors="coerce")
+    result["持股数"] = pd.to_numeric(result["持股数"], errors="coerce")
+    result["持仓市值"] = pd.to_numeric(result["持仓市值"], errors="coerce")
+    result["序号"] = range(1, len(result) + 1)
+    return result[column_names]
+
+
+def _fund_portfolio_bond_hold_em(symbol: str, date: str) -> pd.DataFrame:
+    """Fetch Eastmoney fund bond holdings with the required page referer."""
+    response = requests.get(
+        _EASTMONEY_FUND_ARCHIVES_URL,
+        params={
+            "type": "zqcc",
+            "code": symbol,
+            "year": date,
+            "rt": "0.913877030254846",
+        },
+        headers={
+            "Referer": f"https://fundf10.eastmoney.com/ccmx1_{symbol}.html",
+        },
+        timeout=_EASTMONEY_FUND_PORTFOLIO_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+
+    data_text = response.text.strip()
+    payload_start = data_text.find("{")
+    payload_end = data_text.rfind(";")
+    if payload_start < 0:
+        raise ValueError("Eastmoney fund bond holdings response has no data payload")
+    if payload_end <= payload_start:
+        payload_end = len(data_text)
+    data_json = demjson.decode(data_text[payload_start:payload_end])
+    content = data_json.get("content", "")
+
+    column_names = [
+        "序号",
+        "债券代码",
+        "债券名称",
+        "占净值比例",
+        "持仓市值",
+        "季度",
+    ]
+    if not content:
+        return pd.DataFrame(columns=column_names)
+
+    soup = BeautifulSoup(content, features="lxml")
+    quarter_labels = []
+    for heading in soup.find_all(name="h4", attrs={"class": "t"}):
+        heading_text = heading.get_text()
+        parts = heading_text.split("\xa0\xa0")
+        quarter_labels.append(parts[1].strip() if len(parts) >= 2 else heading_text.strip())
+
+    tables = pd.read_html(StringIO(content), converters={"债券代码": str})
+    frames = []
+    for index, temp_df in enumerate(tables):
+        if index >= len(quarter_labels):
+            break
+        temp_df.rename(
+            columns={
+                "持仓市值（万元）": "持仓市值",
+                "持仓市值 （万元）": "持仓市值",
+                "持仓市值（万元人民币）": "持仓市值",
+                "持仓市值 （万元人民币）": "持仓市值",
+            },
+            inplace=True,
+        )
+        temp_df["占净值比例"] = (
+            temp_df["占净值比例"].astype(str).str.split("%", expand=True).iloc[:, 0]
+        )
+        temp_df["季度"] = quarter_labels[index]
+        frames.append(temp_df[column_names])
+
+    if not frames:
+        return pd.DataFrame(columns=column_names)
+
+    result = pd.concat(frames, ignore_index=True)
+    result["占净值比例"] = pd.to_numeric(result["占净值比例"], errors="coerce")
+    result["持仓市值"] = pd.to_numeric(
+        result["持仓市值"].astype(str).str.replace(",", "", regex=False),
+        errors="coerce",
+    )
+    result["序号"] = range(1, len(result) + 1)
+    return result[column_names]
 
 
 class AksharePublicFund:
@@ -95,9 +280,26 @@ class AksharePublicFund:
         if symbol not in tonghuashun_symbol_map:
             symbol = "all"
         symbol = tonghuashun_symbol_map[symbol]
-        today = datetime.now().strftime("%Y%m%d")
-        df = ak.fund_etf_category_ths(symbol=symbol, date=today)
-        return apply_mapping(df, FUND_CATEGORY_THS_MAP)
+
+        # Try progressively earlier dates to handle non-trading days
+        # (weekends / holidays) where the upstream API returns empty data.
+        _log = logging.getLogger(__name__)
+        for offset in range(7):
+            date_str = (datetime.now() - timedelta(days=offset)).strftime("%Y%m%d")
+            try:
+                df = ak.fund_etf_category_ths(symbol=symbol, date=date_str)
+                if offset > 0:
+                    _log.info(
+                        "tonghuashun_real_time: fell back to %s (offset=%d)",
+                        date_str, offset,
+                    )
+                return apply_mapping(df, FUND_CATEGORY_THS_MAP)
+            except Exception:
+                _log.warning(
+                    "tonghuashun_real_time: %s failed, retrying...", date_str
+                )
+        _log.error("tonghuashun_real_time: all 7 attempts failed")
+        return None
 
     def sina_real_time(self, symbol: str):
         sina_symbol_map = {
@@ -139,7 +341,7 @@ class AksharePublicFund:
         return apply_mapping(df, FUND_NAME_EM_MAP)
 
     def get_fund_portfolio_holds(self, code: str, year: str):
-        df = ak.fund_portfolio_hold_em(symbol=code, date=year)
+        df = _fund_portfolio_hold_em(symbol=code, date=year)
         return apply_mapping(df, FUND_PORTFOLIO_HOLD_EM_MAP)
 
     def get_fund_individual_analysis(self, code: str):
@@ -168,10 +370,8 @@ class AksharePublicFund:
         df = ak.fund_value_estimation_em(symbol=symbol)
         return apply_mapping(df, FUND_VALUE_ESTIMATION_EM_MAP)
 
-    def fund_open_fund_rank(self, fund_type: str):
-        fund_type_set = ["all", "stock", "mixed", "stock", "index", "QDII", "FOF"]
-        if fund_type not in fund_type_set:
-            fund_type = "all"
+    def fund_open_fund_rank(self, fund_type: str, order_by: str):
+        fund_type = str(fund_type or "all").strip().lower()
         fund_type_set_map = {
             "all": "全部",
             "stock": "股票型",
@@ -181,9 +381,21 @@ class AksharePublicFund:
             "qdii": "QDII",
             "fof": "FOF",
         }
+        if fund_type not in fund_type_set_map:
+            fund_type = "all"
         fund_type = fund_type_set_map[fund_type]
         df = ak.fund_open_fund_rank_em(symbol=fund_type)
-        return apply_mapping(df, FUND_OPEN_FUND_RANK_EM_MAP)
+        df = df.replace([np.nan, np.inf, -np.inf, pd.NaT], None)
+        df = df.replace([float('inf'), float('-inf')], None)
+        df = apply_mapping(df, FUND_OPEN_FUND_RANK_EM_MAP)
+        if "基金简称" in df.columns:
+            df["fund_short_name"] = df["基金简称"].str.strip().str.replace("\n", "")
+
+        # Sort by order_by column if it exists, otherwise default to "change_1y"
+        if order_by not in df.columns:
+            order_by = "change_1y"
+        df = df.sort_values(by=order_by, ascending=False)
+        return df
     
     # 指数基金信息(全部/沪深指数/行业主题/大盘指数/中盘指数/小盘指数/股票指数/债券指数) -- 东方财富
     def get_fund_info_index(self, symbol: str, indicator: str):
@@ -225,3 +437,32 @@ class AksharePublicFund:
         df = df.reset_index(drop=True)
         df.columns.name = None
         return apply_mapping(df, FUND_INDIVIDUAL_BASIC_INFO_MAP)
+    
+    def get_fund_individual_detail_hold(self, code: str, date: str):
+        df = ak.fund_individual_detail_hold_xq(symbol=code, date=date)
+        return apply_mapping(df, FUND_INDIVIDUAL_DETAIL_HOLD_MAP)
+    
+    # 资产配置只暴露一年中最新的组成数据
+    def get_fund_portfolio_industry_allocation_em(self, code:str, year: str):
+        df = ak.fund_portfolio_industry_allocation_em(symbol=code, date=year)
+        if df is None or df.empty:
+            return []
+        first_date = df.iloc[0]["截止时间"]
+        df = df[df["截止时间"] == first_date]
+        return apply_mapping(df, FUND_PORTFOLIO_INDUSTRY_ALLOCATION_EM_MAP)
+
+    def get_fund_portfolio_hold_stock(self, code: str, year: str):
+        df = _fund_portfolio_hold_em(symbol=code, date=year)
+        if df is None or df.empty:
+            return []
+        first_date = df.iloc[0]["季度"]
+        df = df[df["季度"] == first_date]
+        return apply_mapping(df, FUND_PORTFOLIO_HOLD_STOCK_MAP)
+    
+    def get_fund_portfolio_hold_bond(self, code: str, year: str):
+        df = _fund_portfolio_bond_hold_em(symbol=code, date=year)
+        if df is None or df.empty:
+            return []
+        first_date = df.iloc[0]["季度"]
+        df = df[df["季度"] == first_date]
+        return apply_mapping(df, FUND_PORTFOLIO_HOLD_BOND_MAP)

@@ -295,132 +295,6 @@
   overflow: hidden;
 }
 
-/* 板块情绪 2×2 */
-.sector-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.sector-tile {
-  text-align: center;
-  padding: 16px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-sector);
-}
-
-.sector-tile--greed {
-  border-left: 4px solid var(--accent-green);
-}
-
-.sector-tile--fear {
-  border-left: 4px solid var(--accent-red);
-}
-
-.sector-tile--neutral {
-  border-left: 4px solid var(--accent-amber);
-}
-
-.sector-tile--bull {
-  border-left: 4px solid var(--accent-green);
-}
-
-.sector-tile__name {
-  margin: 0 0 4px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.sector-tile__score {
-  margin: 0 0 4px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 24px;
-  line-height: 1.33;
-  color: var(--accent-green);
-}
-
-.sector-tile__score--neg {
-  color: var(--accent-red);
-}
-
-.sector-tile__score--amber {
-  color: var(--accent-amber);
-}
-
-.sector-tile__mood {
-  margin: 0;
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-/* 恐惧贪婪仪表盘 */
-.gauge {
-  padding-top: 8px;
-}
-
-.gauge__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 2px;
-}
-
-.gauge__label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.gauge__value {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--accent-green);
-}
-
-.gauge__track {
-  position: relative;
-  height: 10px;
-  margin-top: 6px;
-  border-radius: var(--radius-lg);
-  background: #20262f;
-  overflow: visible;
-}
-
-.gauge__fill {
-  height: 100%;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(90deg, var(--accent-red) 0%, #8892a0 50%, var(--accent-green) 100%);
-  opacity: 0.85;
-}
-
-.gauge__marker {
-  position: absolute;
-  top: 50%;
-  width: 4px;
-  height: 18px;
-  margin-left: -2px;
-  transform: translateY(-50%);
-  background: var(--text-primary);
-  border-radius: 2px;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
-}
-
-.gauge__ticks {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 8px;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: rgba(168, 171, 179, 0.5);
-}
-
 /* 宏观日历 */
 .cal-header {
   display: flex;
@@ -441,11 +315,6 @@
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--accent-cyan);
-  text-decoration: none;
-}
-
-.cal-header__link:hover {
-  text-decoration: underline;
 }
 
 .cal-list {
@@ -454,12 +323,44 @@
   padding: 0;
 }
 
+.cal-list--loading {
+  min-height: 304px;
+}
+
 .cal-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
   padding: 16px;
+}
+
+.cal-row--loading {
+  min-height: 76px;
+  grid-template-columns: 86px minmax(120px, 1fr) 92px;
+  align-items: center;
+  border-top: 1px solid rgba(68, 72, 79, 0.1);
+}
+
+.cal-row--loading:first-child {
+  border-top: 0;
+}
+
+.cal-skeleton--date {
+  width: 86px;
+  min-height: 12px;
+  flex: 0 0 86px;
+}
+
+.cal-skeleton--title {
+  width: min(170px, 42%);
+  min-height: 16px;
+}
+
+.cal-skeleton--value {
+  width: 92px;
+  min-height: 24px;
+  margin-left: auto;
 }
 
 .cal-row--border {
@@ -467,27 +368,32 @@
 }
 
 .cal-row__main {
-  display: flex;
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
   align-items: flex-start;
-  gap: 16px;
+  gap: 12px;
+  min-width: 0;
 }
 
 .cal-time {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .cal-row__info {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .cal-row__title {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
+  overflow-wrap: anywhere;
 }
 
 .cal-row__bars {
@@ -505,10 +411,12 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  min-width: 126px;
   gap: 2px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .cal-row__nums--end {
@@ -549,36 +457,6 @@
   font-size: 14px;
   line-height: 1.625;
   color: var(--text-primary);
-}
-
-.ai-foot {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(68, 72, 79, 0.1);
-}
-
-.ai-conf {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-muted);
-}
-
-.ai-btn {
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--accent-cyan);
-}
-
-.ai-btn:hover {
-  text-decoration: underline;
 }
 
 @media (max-width: 1100px) {

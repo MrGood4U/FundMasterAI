@@ -1,0 +1,10 @@
+{
+  "_comment": "Demo request body for POST /api/ai/portfolio/analyze. Weights are normalized automatically (60/40 -> 0.6/0.4).",
+  "positions": [
+    { "code": "000001", "weight": 60 },
+    { "code": "003358", "weight": 40 }
+  ],
+  "start_date": "2025/01/01",
+  "client_risk_profile": "balanced",
+  "mock": true
+}

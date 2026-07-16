@@ -14,5 +14,6 @@ class AkshareNews:
 
     def public_fund_announcement(self, code: str):
         df = ak.fund_announcement_dividend_em(symbol=code)
-        df['url'] = "https://fund.eastmoney.com/gonggao/" + df['基金代码'] + "," + df['报告ID'] + ".html"
+        if not df.empty:
+            df['url'] = "https://fund.eastmoney.com/gonggao/" + df['基金代码'] + "," + df['报告ID'] + ".html"
         return apply_mapping(df, FUND_ANNOUNCEMENT_FIELDS)

@@ -1,0 +1,5 @@
+# AI Insights UI ownership.
+# Changes to these files should be reviewed by the UI owner before merging.
+/frontend_new/ai-insights.html @shilingzi
+/frontend_new/css/page-ai-insights.css @shilingzi
+/frontend_new/js/ai-insights.js @shilingzi
