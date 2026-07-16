@@ -1,8 +1,8 @@
 # AI Agent 服务 Windows 启动说明
 
-本文给使用 Windows CMD 的队友，作为 `frontend_new/周末联调启动说明.md` 的补充：
-那份文档只启动了行情后端（5001）、新闻后端（5000）和前端代理（8080），
-**AI Insights / 组合分析 / 行业比较页面还需要第 4 个窗口运行 AI Agent 服务（5003）**。
+> 可选的 Windows 原生调试说明：完整项目启动、课堂演示和提交验收优先使用仓库根
+> 目录的 Docker Compose 文档。本文只说明在 Market、News 等依赖已经原生运行时，
+> 如何单独启动 Agent（5003），不等同于完整项目启动步骤。
 
 `fund_llm_engine/start.sh` 是 bash 脚本，Windows CMD 不能直接用，按下面步骤手动启动。
 
@@ -17,7 +17,7 @@ python -m pip install -e ".[backend,agent]"
 
 ## 二、CMD 4：启动 AI Agent 服务（5003）
 
-新闻后端如果按联调说明跑在 `5000`，直接：
+新闻后端如果按默认端口跑在 `5000`，直接：
 
 ```bat
 cd /d C:\Users\admin\Desktop\项目\code\new\FundMasterAI\ai_agent\fund_llm_engine
@@ -72,6 +72,6 @@ mock 模式已经使用真实后端数据，只有总评文本是固定的。要
 ## 五、常见问题
 
 - **接口返回 500 且日志出现 `Connection refused`**：market_backend（5001）没启动，
-  先按联调说明启动 CMD 1。
+  先按 `backend/README.md` 启动所需后端。
 - **`422`**：不是系统错误，是该基金数据不足（例如 `000002` 无 NAV），属于预期行为。
 - **停止服务**：在本 CMD 窗口按 `Ctrl+C`。

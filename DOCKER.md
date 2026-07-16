@@ -186,7 +186,8 @@ docker compose up -d --build --wait
 
 AI Insights 主链路通过同源路径访问 `/api/market/*`、`/api/news/*`、
 `/api/portfolio/*` 和 `/api/ai/*`，因此不需要改现有 AI Insights 页面代码。
-Portfolio Overview 中尚未接入本地 Agent 的旧 AI widget 不属于本次 Docker 接线范围。
+Portfolio Overview 已通过同源 `/api/ai/portfolio/analyze` 接入 Agent；完整 Compose
+启动会同时提供它需要的 Portfolio 后端、MySQL 和 Agent 服务。
 
 ## 6. 常见问题
 

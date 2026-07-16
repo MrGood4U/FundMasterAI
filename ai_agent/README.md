@@ -71,8 +71,8 @@ curl -s -X POST http://127.0.0.1:5003/api/ai/fund/analyze \
 ```
 
 The HTTP service also exposes portfolio, sector-comparison, and news-summary
-endpoints. Their stable fields are documented in
-`fund_llm_engine/docs/contracts.md`.
+endpoints. Their stable fields are documented in the English contract at
+`fund_llm_engine/docs/contracts.en.md`.
 
 `fund_llm_engine/start.sh` prefers the local `.venv/bin/python`, waits for the
 Agent `/health` endpoint, writes `app.pid` and `app.log`, and probes local
@@ -82,6 +82,6 @@ Use `bash stop.sh` from `fund_llm_engine/` to stop it.
 For real LLM mode, create `fund_llm_engine/.env` from `.env.example`, fill in
 `LLM_API_KEY`, and call the endpoint with `"mock": false`.
 
-See `fund_llm_engine/README.md` and `fund_llm_engine/docs/README.md` for the
-module scope, contracts, provider setup, integration notes, and current status
+See `fund_llm_engine/README.en.md` and `fund_llm_engine/docs/README.md` for the
+English module scope, contract, architecture, evaluation, and current-status
 entry points.

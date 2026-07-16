@@ -16,7 +16,7 @@ Date: 2026-07-16
 Verified baseline:
 
 ```text
-dev at 28fa684 (merged into the documentation branch)
+master release line
 262 unit tests passed
 8/8 mock golden cases passed
 ```
@@ -28,8 +28,9 @@ Current architecture status:
 - The AI service uses deterministic fund-type routing and structured data coverage before asking the LLM to explain results.
 - Specialist agents run before `ChiefAgent`; `ChiefAgent` aggregates scores, confidence, skipped modules, missing data, and final action text.
 - This is not a free-form planner/executor agent. Tool calls are registry-backed and orchestrated by code, with LLM used for explanation.
-- The Agent HTTP service has its own `start.sh` / `stop.sh`; backend services
-  still start separately through `backend/*/start.sh` or `backend/start_all.sh`.
+- Docker Compose is the supported complete-project path. The Agent HTTP service
+  and backend services retain native `start.sh` / `stop.sh` scripts only for
+  focused module debugging.
 - The integrated Market backend now retrieves Eastmoney stock and bond holdings
   through isolated adapters that supply the required Referer. This restores the
   disclosed-holdings path without changing the AI API contract or filling the

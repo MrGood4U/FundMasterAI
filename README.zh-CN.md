@@ -68,9 +68,9 @@ OpenAI-compatible provider。
 
 | 路径 | 用途 |
 |---|---|
-| [`frontend_new/`](frontend_new/) | 静态看板和浏览器端联调逻辑 |
-| [`backend/`](backend/) | Market、News、Portfolio 三个 Flask 服务 |
-| [`ai_agent/fund_llm_engine/`](ai_agent/fund_llm_engine/) | 多智能体基金分析服务 |
+| [`frontend_new/`](frontend_new/README.md) | 静态看板和浏览器端联调逻辑 |
+| [`backend/`](backend/README.md) | Market、News、Portfolio 三个 Flask 服务 |
+| [`ai_agent/fund_llm_engine/`](ai_agent/fund_llm_engine/README.md) | 多智能体基金分析服务 |
 | [`docker/`](docker/) | 容器构建、Nginx 路由和端到端 smoke 测试 |
 
 ## 文档入口
@@ -83,11 +83,12 @@ OpenAI-compatible provider。
 | 理解或单独预览前端 | [frontend_new/README.md](frontend_new/README.md) |
 | 不用 Docker 启动后端 | [backend/README.md](backend/README.md) |
 | 开发或测试 AI Agent | [ai_agent/fund_llm_engine/README.md](ai_agent/fund_llm_engine/README.md) |
-| 查找 AI Agent 状态/设计文档 | [AI Agent 文档索引](ai_agent/fund_llm_engine/docs/README.md) |
-| 查看稳定 AI API 字段 | [AI Agent 契约](ai_agent/fund_llm_engine/docs/contracts.md) |
+| 查找 AI Agent 中文文档 | [AI Agent 中文索引](ai_agent/fund_llm_engine/docs/README.zh-CN.md) |
+| 查看稳定 AI API 字段 | [AI Agent 中文契约](ai_agent/fund_llm_engine/docs/contracts.md) |
+| 参与团队协作 | [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md) |
 
-AI 文档索引会把“当前说明、后续计划、历史记录”分开标记。旧联调交接和 benchmark
-仍保留用于复盘，但不再作为启动依据。
+旧周末联调和共享 systemd 云服务器不再属于当前启动链路；Windows 原生 Agent 调试、
+旧设计、迁移、handoff 和 benchmark 仍保留作参考。
 
 ## 验证项目
 

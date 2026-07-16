@@ -13,25 +13,25 @@ authority; for a prose snapshot of current implementation status, start with
 ## Architecture And Contracts
 
 - [`architecture.md`](./architecture.md): module boundary and layer overview.
-- [`agent_architecture_design.md`](./agent_architecture_design.md): historical design rationale; use `architecture.md` and `contracts.md` for current behavior.
-- [`contracts.md`](./contracts.md): input and output contract notes.
+- [`contracts.en.md`](./contracts.en.md): English input and output contract notes.
 - [`explainability_trace.md`](./explainability_trace.md): trace semantics for explaining how results were produced.
-- [`migration_notes.md`](./migration_notes.md): migration notes from the earlier LLM module shape.
 
 ## Setup And Provider Configuration
 
-- [`environment_setup.md`](./environment_setup.md): local environment setup and validation order.
-- [`windows_startup.md`](./windows_startup.md): Windows CMD startup steps for the Agent HTTP service, complementing the frontend integration guide.
-- [`provider_setup.md`](./provider_setup.md): OpenCode Go, DeepSeek, and OpenAI-compatible provider settings.
+- [`../README.en.md`](../README.en.md): Agent-focused development and native
+  debugging.
+- [`../../../DOCKER.en.md`](../../../DOCKER.en.md): complete-project Docker
+  startup, configuration, and troubleshooting.
 - [`dev_backend_integration_handoff.md`](./dev_backend_integration_handoff.md): historical 2026-05-30 dev-backend integration snapshot. Keep for traceability, but verify current behavior from the development log, code, and tests.
 
 ## Evaluation And Golden Cases
 
 - [`llm_evaluation.md`](./llm_evaluation.md): automatic and manual output evaluation rubric.
-- [`golden_cases.md`](./golden_cases.md): golden case design and expected checks.
-- [`manual_acceptance_checklist.md`](./manual_acceptance_checklist.md): click-by-click manual acceptance checklist for the AI Insights page.
-- [`score_guardrails_zh.md`](./score_guardrails_zh.md): AI Agent score guardrails and collaboration scope checks.
-- [`real_api_parallel_benchmark.md`](./real_api_parallel_benchmark.md): historical Gemini-era benchmark; not current provider setup guidance.
+
+Chinese team references remain available in [`README.zh-CN.md`](./README.zh-CN.md),
+including environment/provider setup, historical design and migration notes,
+golden cases, manual acceptance, score guardrails, the former-provider benchmark,
+and real-sample notes.
 
 ## Real Sample Notes
 
