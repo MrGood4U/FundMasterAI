@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from apis.akshare_public_fund_api import (
     AksharePublicFund,
+    _fund_portfolio_bond_hold_em,
     _fund_portfolio_hold_em,
 )
 
@@ -256,9 +257,48 @@ class TestGetFundPortfolioHoldStock:
 
 
 class TestGetFundPortfolioHoldBond:
+    def test_sends_required_referer_and_short_timeout(self):
+        html = """
+        <div>
+          <h4 class="t">
+            <label><a>债券基金</a>&nbsp;&nbsp;2026年1季度债券投资明细</label>
+            <label>&nbsp;&nbsp;&nbsp;&nbsp;来源：天天基金&nbsp;&nbsp;&nbsp;&nbsp;截止至：2026-03-31</label>
+          </h4>
+          <table>
+            <thead><tr>
+              <th>序号</th><th>债券代码</th><th>债券名称</th><th>占净值比例</th>
+              <th>持仓市值（万元）</th>
+            </tr></thead>
+            <tbody><tr>
+              <td>1</td><td>240210</td><td>24国开10</td><td>18.59%</td>
+              <td>138,564.80</td>
+            </tr></tbody>
+          </table>
+        </div>
+        """
+        response = MagicMock()
+        response.text = f"var apidata={json.dumps({'content': html}, ensure_ascii=False)};"
+
+        with patch(
+            "apis.akshare_public_fund_api.requests.get",
+            return_value=response,
+        ) as mock_get:
+            result = _fund_portfolio_bond_hold_em("000001", "2026")
+
+        response.raise_for_status.assert_called_once_with()
+        _, kwargs = mock_get.call_args
+        assert kwargs["params"]["type"] == "zqcc"
+        assert kwargs["headers"] == {
+            "Referer": "https://fundf10.eastmoney.com/ccmx1_000001.html"
+        }
+        assert kwargs["timeout"] == 10
+        assert result.iloc[0]["债券代码"] == "240210"
+        assert result.iloc[0]["债券名称"] == "24国开10"
+        assert result.iloc[0]["季度"] == "2026年1季度债券投资明细"
+
     def test_returns_mapped_dataframe(self, sample_portfolio_hold_bond_raw_df):
         api = AksharePublicFund()
-        with patch("apis.akshare_public_fund_api.ak.fund_portfolio_bond_hold_em",
+        with patch("apis.akshare_public_fund_api._fund_portfolio_bond_hold_em",
                    return_value=sample_portfolio_hold_bond_raw_df) as mock_ak:
             result = api.get_fund_portfolio_hold_bond("000001", "2025")
 
@@ -267,7 +307,7 @@ class TestGetFundPortfolioHoldBond:
 
     def test_filters_to_first_date_only(self, sample_portfolio_hold_bond_raw_df):
         api = AksharePublicFund()
-        with patch("apis.akshare_public_fund_api.ak.fund_portfolio_bond_hold_em",
+        with patch("apis.akshare_public_fund_api._fund_portfolio_bond_hold_em",
                    return_value=sample_portfolio_hold_bond_raw_df):
             result = api.get_fund_portfolio_hold_bond("000001", "2025")
 
@@ -275,7 +315,7 @@ class TestGetFundPortfolioHoldBond:
 
     def test_mapped_columns_present(self, sample_portfolio_hold_bond_raw_df):
         api = AksharePublicFund()
-        with patch("apis.akshare_public_fund_api.ak.fund_portfolio_bond_hold_em",
+        with patch("apis.akshare_public_fund_api._fund_portfolio_bond_hold_em",
                    return_value=sample_portfolio_hold_bond_raw_df):
             result = api.get_fund_portfolio_hold_bond("000001", "2025")
 
@@ -288,7 +328,7 @@ class TestGetFundPortfolioHoldBond:
 
     def test_original_chinese_columns_removed(self, sample_portfolio_hold_bond_raw_df):
         api = AksharePublicFund()
-        with patch("apis.akshare_public_fund_api.ak.fund_portfolio_bond_hold_em",
+        with patch("apis.akshare_public_fund_api._fund_portfolio_bond_hold_em",
                    return_value=sample_portfolio_hold_bond_raw_df):
             result = api.get_fund_portfolio_hold_bond("000001", "2025")
 
@@ -298,7 +338,7 @@ class TestGetFundPortfolioHoldBond:
 
     def test_returns_empty_list_when_empty_dataframe(self):
         api = AksharePublicFund()
-        with patch("apis.akshare_public_fund_api.ak.fund_portfolio_bond_hold_em",
+        with patch("apis.akshare_public_fund_api._fund_portfolio_bond_hold_em",
                    return_value=pd.DataFrame()):
             result = api.get_fund_portfolio_hold_bond("000001", "2025")
         assert result == []

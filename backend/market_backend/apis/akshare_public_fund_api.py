@@ -91,8 +91,8 @@ def _fund_portfolio_hold_em(symbol: str, date: str) -> pd.DataFrame:
     quarter_labels = []
     for heading in soup.find_all(name="h4", attrs={"class": "t"}):
         heading_text = heading.get_text()
-        parts = heading_text.split("\xa0\xa0", 1)
-        quarter_labels.append(parts[1] if len(parts) == 2 else heading_text)
+        parts = heading_text.split("\xa0\xa0")
+        quarter_labels.append(parts[1].strip() if len(parts) >= 2 else heading_text.strip())
 
     tables = pd.read_html(StringIO(content), converters={"股票代码": str})
     frames = []
@@ -126,6 +126,84 @@ def _fund_portfolio_hold_em(symbol: str, date: str) -> pd.DataFrame:
     result["占净值比例"] = pd.to_numeric(result["占净值比例"], errors="coerce")
     result["持股数"] = pd.to_numeric(result["持股数"], errors="coerce")
     result["持仓市值"] = pd.to_numeric(result["持仓市值"], errors="coerce")
+    result["序号"] = range(1, len(result) + 1)
+    return result[column_names]
+
+
+def _fund_portfolio_bond_hold_em(symbol: str, date: str) -> pd.DataFrame:
+    """Fetch Eastmoney fund bond holdings with the required page referer."""
+    response = requests.get(
+        _EASTMONEY_FUND_ARCHIVES_URL,
+        params={
+            "type": "zqcc",
+            "code": symbol,
+            "year": date,
+            "rt": "0.913877030254846",
+        },
+        headers={
+            "Referer": f"https://fundf10.eastmoney.com/ccmx1_{symbol}.html",
+        },
+        timeout=_EASTMONEY_FUND_PORTFOLIO_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+
+    data_text = response.text.strip()
+    payload_start = data_text.find("{")
+    payload_end = data_text.rfind(";")
+    if payload_start < 0:
+        raise ValueError("Eastmoney fund bond holdings response has no data payload")
+    if payload_end <= payload_start:
+        payload_end = len(data_text)
+    data_json = demjson.decode(data_text[payload_start:payload_end])
+    content = data_json.get("content", "")
+
+    column_names = [
+        "序号",
+        "债券代码",
+        "债券名称",
+        "占净值比例",
+        "持仓市值",
+        "季度",
+    ]
+    if not content:
+        return pd.DataFrame(columns=column_names)
+
+    soup = BeautifulSoup(content, features="lxml")
+    quarter_labels = []
+    for heading in soup.find_all(name="h4", attrs={"class": "t"}):
+        heading_text = heading.get_text()
+        parts = heading_text.split("\xa0\xa0")
+        quarter_labels.append(parts[1].strip() if len(parts) >= 2 else heading_text.strip())
+
+    tables = pd.read_html(StringIO(content), converters={"债券代码": str})
+    frames = []
+    for index, temp_df in enumerate(tables):
+        if index >= len(quarter_labels):
+            break
+        temp_df.rename(
+            columns={
+                "持仓市值（万元）": "持仓市值",
+                "持仓市值 （万元）": "持仓市值",
+                "持仓市值（万元人民币）": "持仓市值",
+                "持仓市值 （万元人民币）": "持仓市值",
+            },
+            inplace=True,
+        )
+        temp_df["占净值比例"] = (
+            temp_df["占净值比例"].astype(str).str.split("%", expand=True).iloc[:, 0]
+        )
+        temp_df["季度"] = quarter_labels[index]
+        frames.append(temp_df[column_names])
+
+    if not frames:
+        return pd.DataFrame(columns=column_names)
+
+    result = pd.concat(frames, ignore_index=True)
+    result["占净值比例"] = pd.to_numeric(result["占净值比例"], errors="coerce")
+    result["持仓市值"] = pd.to_numeric(
+        result["持仓市值"].astype(str).str.replace(",", "", regex=False),
+        errors="coerce",
+    )
     result["序号"] = range(1, len(result) + 1)
     return result[column_names]
 
@@ -382,7 +460,7 @@ class AksharePublicFund:
         return apply_mapping(df, FUND_PORTFOLIO_HOLD_STOCK_MAP)
     
     def get_fund_portfolio_hold_bond(self, code: str, year: str):
-        df = ak.fund_portfolio_bond_hold_em(symbol=code, date=year)
+        df = _fund_portfolio_bond_hold_em(symbol=code, date=year)
         if df is None or df.empty:
             return []
         first_date = df.iloc[0]["季度"]
