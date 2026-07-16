@@ -55,7 +55,7 @@ class TestGetAllRealTime:
 
 class TestGetHist:
     def test_returns_records(self, service, sample_stock_hist_df):
-        service.akapi.hist = MagicMock(return_value=sample_stock_hist_df)
+        service.efapi.hist = MagicMock(return_value=sample_stock_hist_df)
         result = service.get_hist("ETF", "eastmoney", "510050",
                                    "2026-05-20", "2026-05-21", "daily", "qfq")
         assert len(result) == 2

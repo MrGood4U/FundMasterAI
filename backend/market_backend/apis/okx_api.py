@@ -114,7 +114,10 @@ class OkxApi:
             end = end_time_str,
             bar= interval
         )
-        candle = candle_result['data']
+        candle = candle_result.get('data') or []
+        if not candle:
+            return []
+
         df = market.candle_to_df(candle)
         kline_list = json.loads(df.to_json(orient='records', force_ascii=False))
         kline_list = kline_list[-1000:]
@@ -135,7 +138,10 @@ class OkxApi:
             if "vol" in d:
                 new_d["volume"] = d["vol"]
             if "volCcy" in d:
-                new_d["volume_currency"] = d["volCcy"]
+                # OKX exposes quote-currency volume as a string. Pandas may
+                # coerce it to a number while converting the candle frame, so
+                # restore the public adapter contract here.
+                new_d["volume_currency"] = str(d["volCcy"])
             result.append(new_d)
 
         return result
