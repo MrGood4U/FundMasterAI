@@ -26,7 +26,7 @@ docker compose run --rm smoke
 然后打开：
 
 ```text
-http://localhost:8080/ai-insights.html
+http://localhost:8080/portfolio-overview.html
 ```
 
 第一次构建需要下载镜像和 Python 依赖，明显慢于后续启动属于正常现象。验收成功
@@ -43,7 +43,7 @@ APP_PORT=8088 docker compose up --build --wait
 APP_PORT=8088 docker compose run --rm smoke
 ```
 
-然后打开 `http://localhost:8088/ai-insights.html`。配置、日志、真实 LLM 和故障排查
+然后打开 `http://localhost:8088/portfolio-overview.html`。配置、日志、真实 LLM 和故障排查
 见 [DOCKER.md](DOCKER.md)。
 
 ## 实际运行链路
@@ -99,21 +99,6 @@ docker compose config --quiet
 docker compose up --build --wait
 docker compose run --rm smoke
 ```
-
-只验证 AI Agent（模块开发时可选）：
-
-```bash
-cd ai_agent/fund_llm_engine
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[agent]"
-python -m unittest discover -s tests
-python scripts/run_golden_suite.py --mode mock
-```
-
-不再把固定测试数量写成永久承诺：单测应以最终 `OK` 为准，golden report 应为
-`overall_status: pass`。本次文档整理在 2026-07-16 实测为 262 个单测通过、8/8 个
-mock golden case 通过。
 
 ## 真实 LLM 模式
 

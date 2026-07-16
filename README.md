@@ -27,7 +27,7 @@ docker compose run --rm smoke
 Then open:
 
 ```text
-http://localhost:8080/ai-insights.html
+http://localhost:8080/portfolio-overview.html
 ```
 
 The first build downloads images and Python packages, so it is normally much
@@ -44,7 +44,7 @@ APP_PORT=8088 docker compose up --build --wait
 APP_PORT=8088 docker compose run --rm smoke
 ```
 
-Open `http://localhost:8088/ai-insights.html`. See [DOCKER.md](DOCKER.md) for
+Open `http://localhost:8088/portfolio-overview.html`. See [DOCKER.md](DOCKER.md) for
 configuration, logs, real-LLM setup, and troubleshooting.
 
 ## What Runs
@@ -103,22 +103,6 @@ docker compose config --quiet
 docker compose up --build --wait
 docker compose run --rm smoke
 ```
-
-AI Agent unit and golden-case verification (optional for module development):
-
-```bash
-cd ai_agent/fund_llm_engine
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[agent]"
-python -m unittest discover -s tests
-python scripts/run_golden_suite.py --mode mock
-```
-
-Do not rely on a permanently hard-coded test count. The expected result is an
-`OK` unit-test run and a golden report with `overall_status: pass`. The current
-documentation refresh was checked on 2026-07-16 with 262 unit tests and 8/8
-mock golden cases passing.
 
 ## Real LLM Mode
 
