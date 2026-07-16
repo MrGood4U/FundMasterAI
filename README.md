@@ -82,13 +82,12 @@ historical note as a current runbook.
 
 | Need | Authoritative document |
 |---|---|
-| Run the complete project | [DOCKER.en.md](DOCKER.en.md) |
+| Run the complete project | [DOCKER.md](DOCKER.md) |
 | Understand or preview the frontend | [frontend_new/README.en.md](frontend_new/README.en.md) |
 | Run backends without Docker | [backend/README.en.md](backend/README.en.md) |
 | Develop or test the AI Agent | [ai_agent/fund_llm_engine/README.en.md](ai_agent/fund_llm_engine/README.en.md) |
 | Find AI Agent design/status docs | [AI Agent docs index](ai_agent/fund_llm_engine/docs/README.md) |
 | Check stable AI API fields | [AI Agent contracts](ai_agent/fund_llm_engine/docs/contracts.en.md) |
-| Contribute changes | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
 Obsolete weekend-integration and shared-systemd-server runbooks are not part of
 the current startup path. Optional native Windows Agent debugging plus historical
@@ -121,7 +120,7 @@ docker compose up -d --build --wait agent frontend
 ```
 
 The local `.env` is Git-ignored and must never be committed. See
-[DOCKER.en.md](DOCKER.en.md) and `ai_agent/fund_llm_engine/.env.example` for the
+[DOCKER.md](DOCKER.md) and `ai_agent/fund_llm_engine/.env.example` for the
 supported configuration fields.
 
 ## Known Limits

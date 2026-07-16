@@ -44,7 +44,7 @@ APP_PORT=8088 docker compose run --rm smoke
 ```
 
 然后打开 `http://localhost:8088/portfolio-overview.html`。配置、日志、真实 LLM 和故障排查
-见 [DOCKER.md](DOCKER.md)。
+见 [DOCKER.zh-CN.md](DOCKER.zh-CN.md)。
 
 ## 实际运行链路
 
@@ -79,13 +79,12 @@ OpenAI-compatible provider。
 
 | 需求 | 当前应看的文档 |
 |---|---|
-| 启动完整项目 | [DOCKER.md](DOCKER.md) |
+| 启动完整项目 | [DOCKER.zh-CN.md](DOCKER.zh-CN.md) |
 | 理解或单独预览前端 | [frontend_new/README.md](frontend_new/README.md) |
 | 不用 Docker 启动后端 | [backend/README.md](backend/README.md) |
 | 开发或测试 AI Agent | [ai_agent/fund_llm_engine/README.md](ai_agent/fund_llm_engine/README.md) |
 | 查找 AI Agent 中文文档 | [AI Agent 中文索引](ai_agent/fund_llm_engine/docs/README.zh-CN.md) |
 | 查看稳定 AI API 字段 | [AI Agent 中文契约](ai_agent/fund_llm_engine/docs/contracts.md) |
-| 参与团队协作 | [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md) |
 
 旧周末联调和共享 systemd 云服务器不再属于当前启动链路；Windows 原生 Agent 调试、
 旧设计、迁移、handoff 和 benchmark 仍保留作参考。

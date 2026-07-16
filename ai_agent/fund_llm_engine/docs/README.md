@@ -20,7 +20,7 @@ authority; for a prose snapshot of current implementation status, start with
 
 - [`../README.en.md`](../README.en.md): Agent-focused development and native
   debugging.
-- [`../../../DOCKER.en.md`](../../../DOCKER.en.md): complete-project Docker
+- [`../../../DOCKER.md`](../../../DOCKER.md): complete-project Docker
   startup, configuration, and troubleshooting.
 - [`dev_backend_integration_handoff.md`](./dev_backend_integration_handoff.md): historical 2026-05-30 dev-backend integration snapshot. Keep for traceability, but verify current behavior from the development log, code, and tests.
 

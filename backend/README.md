@@ -2,7 +2,7 @@
 
 FundMasterAI 后端由三个独立的 Flask 微服务组成：Market Backend（行情）、News
 Backend（资讯）、Portfolio Backend（投资组合管理）。完整演示优先按仓库根目录
-[`DOCKER.md`](../DOCKER.md) 启动；本文件用于不使用 Docker 的后端开发和调试。
+[`DOCKER.zh-CN.md`](../DOCKER.zh-CN.md) 启动；本文件用于不使用 Docker 的后端开发和调试。
 
 ## 环境要求
 
