@@ -5,6 +5,8 @@ market/news dashboards, and an explainable multi-agent analysis service.
 
 Chinese guide: [README.zh-CN.md](README.zh-CN.md)
 
+Demo video: [FundMasterAI-demo.mp4](FundMasterAI-demo.mp4)
+
 ## Quick Start
 
 The recommended submission and demonstration path is Docker Compose. It starts

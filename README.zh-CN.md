@@ -5,6 +5,8 @@ FundMasterAI 是一个集成式课堂演示项目，包含基金与市场数据�
 
 英文说明见 [README.md](README.md)。
 
+演示视频：[FundMasterAI-demo.mp4](FundMasterAI-demo.mp4)
+
 ## 一键启动
 
 最终提交和课堂演示优先使用 Docker Compose。它会一次启动前端、Market/News/
