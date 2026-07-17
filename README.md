@@ -5,8 +5,6 @@ market/news dashboards, and an explainable multi-agent analysis service.
 
 Chinese guide: [README.zh-CN.md](README.zh-CN.md)
 
-Demo video: [FundMasterAI-demo.mp4](FundMasterAI-demo.mp4)
-
 ## Quick Start
 
 The recommended submission and demonstration path is Docker Compose. It starts
@@ -90,6 +88,7 @@ historical note as a current runbook.
 | Develop or test the AI Agent | [ai_agent/fund_llm_engine/README.en.md](ai_agent/fund_llm_engine/README.en.md) |
 | Find AI Agent design/status docs | [AI Agent docs index](ai_agent/fund_llm_engine/docs/README.md) |
 | Check stable AI API fields | [AI Agent contracts](ai_agent/fund_llm_engine/docs/contracts.en.md) |
+| Watch the system demonstration | [Demo video](FundMasterAI-demo.mp4) |
 
 Obsolete weekend-integration and shared-systemd-server runbooks are not part of
 the current startup path. Optional native Windows Agent debugging plus historical
